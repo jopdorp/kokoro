@@ -1494,7 +1494,7 @@
 <p>Yes, through the compute class 0xC7C0. A QMD, the block in guest memory that describes one compute launch, becomes a dispatch snapshot (see <a href="../command-processor-and-memory/">command processor</a>). The engine translates the program and runs it over a window onto all mapped guest memory. It then writes back the pages the program changed and releases the launch's semaphores.</p>
 <h2 id="which-branch-holds-what">Which branch holds what?<a class="headerlink" href="#which-branch-holds-what" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
-    main["main&lt;br/&gt;Upstream project"] --&gt; dev["gpu-dev&lt;br/&gt;Shader writer, Vulkan, harness; PR 79"]
+    main["main"] --&gt; dev["gpu-dev&lt;br/&gt;Shader writer, Vulkan, harness; PR 79"]
     dev --&gt; instr["gpu-instructions&lt;br/&gt;All compute instructions; PR 80"]
     instr --&gt; gfx["gpu-graphics&lt;br/&gt;Drawing engine; no PR yet"]
     fam["Instruction family branches&lt;br/&gt;gpu/w*, gpu/tex-*, gpu/div-*"] --&gt;|"Merge commits"| instr
@@ -1506,7 +1506,7 @@
 <tr>
 <th>Branch</th>
 <th>Holds</th>
-<th>Upstream</th>
+<th>PR</th>
 </tr>
 </thead>
 <tbody>
@@ -1529,7 +1529,7 @@
 </table>
 <p>Each level merges the one below whenever it moves, with merge commits and never a rebase. The gpu-graphics branch last merged gpu-instructions before the CUDA commits. So <code>cubin.rs</code> and <code>cuda.rs</code> are only on gpu-instructions for now.</p>
 <p>Verified by: the engine tests in <code>core/src/tests/gpu/engine.rs</code> on Intel and lavapipe (Mesa's CPU-based Vulkan driver), with the Vulkan validation layer reporting no errors. They cover the pushbuffer triangle with a vertex remap and a QMD compute launch. They also cover indexed, instanced, depth-tested, blended and textured draws, render to texture, clears, reports, acquires and both y-flips.</p>
-<p>Sources: core/src/gpu/{fifo,threed,engine,graphics}.rs, core/src/tests/gpu/engine.rs, PR #79 and #80 bodies, git history of the fork.</p>
+<p>Sources: core/src/gpu/{fifo,threed,engine,graphics}.rs, core/src/tests/gpu/engine.rs, PR #79 and #80 bodies, git history.</p>
 
 
 

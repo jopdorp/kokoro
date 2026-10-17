@@ -1315,7 +1315,7 @@
 
 
 <h1 id="roadmap">Roadmap<a class="headerlink" href="#roadmap" title="Permanent link">&para;</a></h1>
-<p>The compute side of the translator is done, and the drawing engine handles the core of a real frame: indexed and instanced draws, depth, blending, textures and compute launches. Around it, the CPU, kernel, services and audio are being built out on the foundations upstream laid. For example, a guest program of our own already runs on the emulated CPU, and the GPU driver services it calls are next.</p>
+<p>The compute side of the translator is done, and the drawing engine handles the core of a real frame: indexed and instanced draws, depth, blending, textures and compute launches. Around it, the CPU, kernel, services and audio are being built out on the foundations already in place. For example, a guest program of our own already runs on the emulated CPU, and the GPU driver services it calls are next.</p>
 <p>"By design" below means left out on purpose, with a named panic, until something needs it.</p>
 <pre class="mermaid"><code>flowchart LR
     A["Compute instructions&lt;br/&gt;Done"] --&gt; B["Drawing engine&lt;br/&gt;Core features done"]
@@ -1469,12 +1469,12 @@
 <td>Planned, after the guest path</td>
 </tr>
 <tr>
-<td>Upstream</td>
+<td>Merge</td>
 <td>PR #79 and PR #80</td>
 <td>Open</td>
 </tr>
 <tr>
-<td>Upstream</td>
+<td>Merge</td>
 <td>A PR for gpu-graphics</td>
 <td>Not opened</td>
 </tr>

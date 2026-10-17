@@ -1392,7 +1392,7 @@
     RB --&gt; QT["Qt audio output&lt;br/&gt;The PC's speakers"]</code></pre>
 <p><em>How the renderer turns a game's voices into sound on the PC.</em></p>
 <h2 id="how-does-a-game-use-the-audio-renderer">How does a game use the audio renderer?<a class="headerlink" href="#how-does-a-game-use-the-audio-renderer" title="Permanent link">&para;</a></h2>
-<p>The renderer service is <code>audren</code>. Upstream's registry already has its entry, and this design fills it in.</p>
+<p>The renderer service is <code>audren</code>. The service registry already has its entry, and this design fills it in.</p>
 <ol>
 <li>The game fills in its settings: sample rate, frame size, how many voices, mixes, effects and sinks it wants, and a revision number.</li>
 <li>It asks the service how large a work buffer that needs, then hands over that memory.</li>

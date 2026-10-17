@@ -1388,9 +1388,9 @@
 </tr>
 </tbody>
 </table>
-<p>CMIF is the name for this command layer on top of HIPC. Upstream already defines the HIPC header types in <code>core/src/nn/hipc.rs</code>. The guest's encoder for the whole request lives in <code>guest/src/cmif.rs</code> on the <code>guest/scene-crate</code> branch.</p>
+<p>CMIF is the name for this command layer on top of HIPC. oboromi already defines the HIPC header types in <code>core/src/nn/hipc.rs</code>. The guest's encoder for the whole request lives in <code>guest/src/cmif.rs</code> on the <code>guest/scene-crate</code> branch.</p>
 <h2 id="which-services-exist">Which services exist?<a class="headerlink" href="#which-services-exist" title="Permanent link">&para;</a></h2>
-<p>Upstream's registry names 160 services and gives each one a slot in the system state. Each entry is where that service's commands will go. The first ones being filled in are those a game needs to draw:</p>
+<p>The service registry names 160 services and gives each one a slot in the system state. Each entry is where that service's commands will go. The first ones being filled in are those a game needs to draw:</p>
 <table>
 <thead>
 <tr>

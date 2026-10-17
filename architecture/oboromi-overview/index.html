@@ -416,10 +416,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-did-upstream-build" class="md-nav__link">
+  <a href="#what-was-already-there" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What did upstream build?
+        What was already there?
       
     </span>
   </a>
@@ -1298,10 +1298,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-did-upstream-build" class="md-nav__link">
+  <a href="#what-was-already-there" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What did upstream build?
+        What was already there?
       
     </span>
   </a>
@@ -1359,7 +1359,7 @@
 
 
 <h1 id="emulator-overview">Emulator overview<a class="headerlink" href="#emulator-overview" title="Permanent link">&para;</a></h1>
-<p>The upstream project laid the foundations every other part builds on. Those include the project layout, a multicore ARM CPU on one shared memory block, and a registry of the console's services. They also include the GPU instruction table with its decoder generator. For example, the GPU translator decodes every instruction with the generator upstream wrote, and the GPU reads the same memory block the CPU cores share.</p>
+<p>oboromi already had the foundations every other part builds on. Those include the project layout, a multicore ARM CPU on one shared memory block, and a registry of the console's services. They also include the GPU instruction table with its decoder generator. For example, the GPU translator decodes every instruction with that generator, and the GPU reads the same memory block the CPU cores share.</p>
 <pre class="mermaid"><code>flowchart TB
     subgraph Front["Front end"]
         QT["Qt window&lt;br/&gt;Buttons and the picture"] --&gt; BR["RustBridge.cpp&lt;br/&gt;C++ side of the bridge"]
@@ -1380,7 +1380,7 @@
     GPU --&gt; RAM
     TESTS --&gt; CPU</code></pre>
 <p><em>The parts around the GPU, and how the window reaches them.</em></p>
-<h2 id="what-did-upstream-build">What did upstream build?<a class="headerlink" href="#what-did-upstream-build" title="Permanent link">&para;</a></h2>
+<h2 id="what-was-already-there">What was already there?<a class="headerlink" href="#what-was-already-there" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
