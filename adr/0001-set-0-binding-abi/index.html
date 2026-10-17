@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#every-shader-finds-its-data-in-one-fixed-table-of-numbered-slots" class="md-skip">
+        <a href="#every-shader-finds-its-data-in-a-fixed-table-of-numbered-slots" class="md-skip">
           Skip to content
         </a>
       
@@ -1302,13 +1302,13 @@
 
 
 
-<h1 id="every-shader-finds-its-data-in-one-fixed-table-of-numbered-slots">Every shader finds its data in one fixed table of numbered slots<a class="headerlink" href="#every-shader-finds-its-data-in-one-fixed-table-of-numbered-slots" title="Permanent link">&para;</a></h1>
+<h1 id="every-shader-finds-its-data-in-a-fixed-table-of-numbered-slots">Every shader finds its data in a fixed table of numbered slots<a class="headerlink" href="#every-shader-finds-its-data-in-a-fixed-table-of-numbered-slots" title="Permanent link">&para;</a></h1>
 <h2 id="in-plain-words">In plain words<a class="headerlink" href="#in-plain-words" title="Permanent link">&para;</a></h2>
 <p>A Vulkan shader cannot follow a pointer to its data. Instead it reads from numbered slots, and before each run the host plugs a buffer or an image into each slot. Think of a patch panel: the shader asks for a socket by number and reads whatever is plugged in there. We fixed the socket numbers once, for every shader, so the host always knows what goes where.</p>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>A translated shader needs several kinds of data: our own helper values, the game's constant tables, the game's main memory, and any number of textures. Compute shaders and drawing shaders must agree on which slot holds what. A vertex shader and a pixel shader drawing together also share one slot layout.</p>
+<p>A translated shader needs several kinds of data: our own helper values, the game's constant tables, the game's main memory, and any number of textures. Compute shaders and drawing shaders must agree on which slot holds what. A vertex shader and a pixel shader drawing together may each want their own buffer in the same slot.</p>
 <h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
-<p>Vulkan calls a slot a binding and a group of slots a descriptor set. Everything lives in one group, set 0, with these slots:</p>
+<p>Vulkan calls a slot a binding and a group of slots a descriptor set. Compute and vertex shaders use set 0. Pixel shaders use set 1, with the same slot numbers. Each set holds these slots:</p>
 <table>
 <thead>
 <tr>
@@ -1367,12 +1367,13 @@
 <p>Two texture reads whose handle comes from the same cbuf word share one slot. A shader declares only the slots it uses. That list, its resource list, tells the host exactly what to plug in.</p>
 <h3 id="what-this-makes-easy">What this makes easy<a class="headerlink" href="#what-this-makes-easy" title="Permanent link">&para;</a></h3>
 <ul>
-<li>One piece of host code, <code>Descriptors</code>, plugs in data for both compute and drawing.</li>
+<li>One piece of host code, <code>Descriptors</code>, plugs in data for compute and for both drawing stages.</li>
 <li>Our helper values can never be confused with what the game put in its first constant buffer.</li>
+<li>A draw's vertex and pixel shaders can read different buffers through the same cbuf slot, because each has its own set.</li>
 </ul>
 <h3 id="what-this-makes-hard">What this makes hard<a class="headerlink" href="#what-this-makes-hard" title="Permanent link">&para;</a></h3>
 <ul>
-<li>In one draw, a vertex and a pixel shader cannot read one cbuf slot from different buffers, and the engine refuses it by name.</li>
+<li>Every draw binds two sets instead of one, and the host must keep them apart.</li>
 <li>Shaders that pick a texture by a run-time index will need arrays of slots next to this layout.</li>
 </ul>
 <h3 id="confirmation">Confirmation<a class="headerlink" href="#confirmation" title="Permanent link">&para;</a></h3>

@@ -1267,7 +1267,7 @@
     Q --&gt; SUB["Submit&lt;br/&gt;One command list and one done-flag, locked"]
     SUB --&gt; CP["ComputePipeline&lt;br/&gt;A compute shader, ready to run"]
     SUB --&gt; GP["GraphicsPipeline&lt;br/&gt;Vertex and pixel shaders, ready to draw"]
-    CP --&gt; D0["Descriptors&lt;br/&gt;The numbered data slots, set 0"]
+    CP --&gt; D0["Descriptors&lt;br/&gt;The numbered data slots, sets 0 and 1"]
     GP --&gt; D0
     D0 --&gt; HB["HostBuffer&lt;br/&gt;Constants, guest memory window, vertices"]
     D0 --&gt; HI["HostImage&lt;br/&gt;Textures and writable images"]
@@ -1302,7 +1302,7 @@
 <tr>
 <td><code>Descriptors</code></td>
 <td>gpu/compute.rs</td>
-<td>The layout of numbered data slots, shared by compute and drawing</td>
+<td>The layout of numbered data slots: set 0 for compute and vertex shaders, set 1 for pixel shaders</td>
 </tr>
 <tr>
 <td><code>ComputePipeline</code></td>
@@ -1351,6 +1351,10 @@
 <td>Drivers fold <code>x + -x</code> to zero and Intel flushes tiny floats to zero; the Switch 2's GPU does neither</td>
 </tr>
 <tr>
+<td>Graphics pipeline libraries and extended dynamic state 3, when present</td>
+<td>Pipelines link from prebuilt shader parts, and vertex stride, write mask and blending become per-draw settings</td>
+</tr>
+<tr>
 <td>No Vulkan driver found means <code>NoDevice</code></td>
 <td>Tests skip cleanly on machines without Vulkan</td>
 </tr>
@@ -1371,8 +1375,12 @@
 <td>Viewport, scissor, cull mode, front face, triangle or line type within its group, depth test, depth write, depth compare, blend constants</td>
 </tr>
 <tr>
-<td>Fixed, part of the pipeline key</td>
-<td>Shader hashes, vertex layout, primitive group, colour write mask, depth image present</td>
+<td>Dynamic when the device has the extensions above</td>
+<td>Vertex stride, colour write mask, blend enable and blend equation</td>
+</tr>
+<tr>
+<td>Fixed, part of the engine's pipeline key</td>
+<td>Shader hashes, vertex layout, primitive group, colour write mask, blending, depth format</td>
 </tr>
 </tbody>
 </table>
@@ -1381,6 +1389,8 @@
 <li>Nothing is allocated per frame. The card connection is created once per process, the command buffer and fence are reused, and demo pipelines are built once.</li>
 <li>Results are read from cached host memory, because reading uncached memory is slow.</li>
 <li>The engine caches translated shaders by content, pipelines by key, and buffer copies by guest memory range. A copy refreshes only when its memory changed.</li>
+<li>Pipelines can be built on worker threads. A draw whose pipeline is not ready either waits for it or is skipped, whichever the caller picks.</li>
+<li>Translated SPIR-V and the driver's pipeline cache are saved to disk per game, so the next run starts warm.</li>
 </ul>
 <p>Measured on an Intel Arc (MTL), p50, <code>cargo run --release -p oboromi-core --example perf</code>:</p>
 <table>
@@ -1420,7 +1430,7 @@
 <h2 id="why-does-ci-run-on-lavapipe">Why does CI run on lavapipe?<a class="headerlink" href="#why-does-ci-run-on-lavapipe" title="Permanent link">&para;</a></h2>
 <p>Mesa's lavapipe is a Vulkan driver that runs on the CPU, so CI needs no graphics card. The Ubuntu CI job installs lavapipe and the SPIR-V tools and points Vulkan at lavapipe. It runs the whole suite, then prints the perf numbers as a baseline. Every GPU test also runs locally on Intel. Where lavapipe differs from the real chip, the test fixtures list the difference for that device.</p>
 <p>Verified by: the Vulkan validation layer, a debug layer that reports API misuse, clean on Intel and lavapipe for dispatch, draw and depth; and the suite skipping without a Vulkan driver.</p>
-<p>Sources: core/src/gpu/{mod,compute,graphics,engine}.rs, core/examples/perf.rs, .github/workflows/ci.yml, PR #79 body.</p>
+<p>Sources: core/src/gpu/{mod,compute,graphics,engine,pipeline_cache}.rs, core/examples/perf.rs, .github/workflows/ci.yml, PR #79 body.</p>
 
 
 

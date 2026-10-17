@@ -1350,6 +1350,11 @@
 <td>Host buffers, keyed by where they sit in guest RAM</td>
 </tr>
 <tr>
+<td>Run compute launches</td>
+<td>engine.rs <code>dispatch</code></td>
+<td>Guest memory pages the program changed</td>
+</tr>
+<tr>
 <td>Draw and read back</td>
 <td>graphics.rs <code>VkState::draw</code></td>
 <td>RGBA8 pixels</td>
@@ -1366,7 +1371,7 @@
 <h2 id="why-freeze-the-settings-at-each-draw">Why freeze the settings at each draw?<a class="headerlink" href="#why-freeze-the-settings-at-each-draw" title="Permanent link">&para;</a></h2>
 <p>A draw must see the registers as they were when it was issued. The frozen copy, the snapshot, keeps later commands from changing a draw that is still running.</p>
 <h2 id="does-compute-work-take-the-same-road">Does compute work take the same road?<a class="headerlink" href="#does-compute-work-take-the-same-road" title="Permanent link">&para;</a></h2>
-<p>Yes, through the compute class 0xC7C0. A QMD, the block in guest memory that describes one compute launch, becomes a dispatch snapshot (see <a href="../command-processor-and-memory/">command processor</a>). The engine does not run it yet.</p>
+<p>Yes, through the compute class 0xC7C0. A QMD, the block in guest memory that describes one compute launch, becomes a dispatch snapshot (see <a href="../command-processor-and-memory/">command processor</a>). The engine translates the program and runs it over a window onto all mapped guest memory. It then writes back the pages the program changed and releases the launch's semaphores.</p>
 <h2 id="which-branch-holds-what">Which branch holds what?<a class="headerlink" href="#which-branch-holds-what" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
     main["main&lt;br/&gt;Upstream project"] --&gt; dev["gpu-dev&lt;br/&gt;Shader writer, Vulkan, harness; PR 79"]
@@ -1374,7 +1379,7 @@
     instr --&gt; gfx["gpu-graphics&lt;br/&gt;Drawing engine; no PR yet"]
     fam["Instruction family branches&lt;br/&gt;gpu/w*, gpu/tex-*, gpu/div-*"] --&gt;|"Merge commits"| instr
     gfxb["Graphics branches&lt;br/&gt;gpu/guest-memory, gpu/fifo,&lt;br/&gt;gpu/graphics-*, gpu/texture-blocklinear"] --&gt;|"Merge commits"| gfx
-    qmd["gpu/qmd-dispatch&lt;br/&gt;Compute launches"] -.-&gt;|"Held back"| gfx</code></pre>
+    qmd["Engine branches&lt;br/&gt;gpu/qmd-dispatch, gpu/engine-hooks,&lt;br/&gt;gpu/demo-scenes-2"] --&gt;|"Merge commits"| gfx</code></pre>
 <p><em>Each branch stacks on the one to its left; side branches merge in with merge commits.</em></p>
 <table>
 <thead>
@@ -1397,18 +1402,13 @@
 </tr>
 <tr>
 <td>gpu-graphics</td>
-<td>Guest memory, the command reader and 3D class, the graphics backend and shader stages, the engine, tiled textures, demo assets and scenes</td>
+<td>Guest memory, the command reader, the 3D and compute classes, the graphics backend and shader stages, the engine, tiled textures, demo assets and scenes</td>
 <td>Not opened</td>
-</tr>
-<tr>
-<td>gpu/qmd-dispatch</td>
-<td>The compute class and QMD reading</td>
-<td>Pushed, waiting on the engine hooks</td>
 </tr>
 </tbody>
 </table>
 <p>Each level merges the one below whenever it moves, with merge commits and never a rebase. The gpu-graphics branch last merged gpu-instructions before the CUDA commits. So <code>cubin.rs</code> and <code>cuda.rs</code> are only on gpu-instructions for now.</p>
-<p>Verified by: the engine acceptance test <code>pushbuffer_triangle_lands_in_guest_memory_and_follows_vertex_remaps</code> on Intel and lavapipe (Mesa's CPU-based Vulkan driver), with the Vulkan validation layer reporting no errors.</p>
+<p>Verified by: the engine tests in <code>core/src/tests/gpu/engine.rs</code> on Intel and lavapipe (Mesa's CPU-based Vulkan driver), with the Vulkan validation layer reporting no errors. They cover the pushbuffer triangle with a vertex remap and a QMD compute launch. They also cover indexed, instanced, depth-tested, blended and textured draws, render to texture, clears, reports, acquires and both y-flips.</p>
 <p>Sources: core/src/gpu/{fifo,threed,engine,graphics}.rs, core/src/tests/gpu/engine.rs, PR #79 and #80 bodies, git history of the fork.</p>
 
 

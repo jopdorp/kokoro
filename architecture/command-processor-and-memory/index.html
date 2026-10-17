@@ -564,6 +564,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#what-do-semaphores-and-reports-write" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What do semaphores and reports write?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-is-still-missing-and-why" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1233,6 +1244,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#what-do-semaphores-and-reports-write" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What do semaphores and reports write?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-is-still-missing-and-why" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1310,17 +1332,22 @@
     GP["GPFIFO entry&lt;br/&gt;Pointer to a command list"] --&gt; PB["Pushbuffer words&lt;br/&gt;Headers and data"]
     PB --&gt; HDR{"Channel method?&lt;br/&gt;Number below 0x40"}
     HDR --&gt;|"Yes"| CH["Channel&lt;br/&gt;Bind engines, write signals"]
-    HDR --&gt;|"No"| SUB{"Which engine is on&lt;br/&gt;The subchannel?"}
+    HDR --&gt;|"No"| SUB{"Which engine is on the subchannel?"}
     SUB --&gt;|"0xC797"| TD["3D engine registers&lt;br/&gt;Frozen per draw"]
-    SUB --&gt;|"0xC7C0"| CC["Compute engine, own branch&lt;br/&gt;Reads the launch block"]
+    SUB --&gt;|"0xC7C0"| CC["Compute engine&lt;br/&gt;Reads the launch block and runs it"]
     SUB --&gt;|"Other"| ERR["Named error"]</code></pre>
 <p><em>How one command word finds the engine it is meant for.</em></p>
 <h2 id="what-does-the-3d-engine-keep">What does the 3D engine keep?<a class="headerlink" href="#what-does-the-3d-engine-keep" title="Permanent link">&para;</a></h2>
 <p>The 3D class, 0xC797, is the drawing engine. <code>ThreeD</code> keeps its raw register words and notes which groups changed: vertex streams, attributes, colour targets, viewport and scissor, shaders, constant buffer bindings, blend and depth, and the index buffer.</p>
-<p>At each draw it freezes a <code>DrawSnapshot</code>, a copy of everything the draw needs. That covers the triangle type and counts, vertex streams and attributes, and every shader slot. It also holds the first colour target, viewport, scissor, write mask, depth, culling, blending, the index buffer and the bound constant buffers.</p>
+<p>At each draw it freezes a <code>DrawSnapshot</code>, a copy of everything the draw needs. That covers the triangle type, counts and instances, vertex streams and attributes, and every shader slot. It also holds the first colour target, the depth target, viewport, scissor, write mask, culling and blending. The index buffer, the bound constant buffers and the texture and sampler pools are in it too.</p>
+<p>Two more things happen at a draw:</p>
+<ul>
+<li>A draw framed by <code>BEGIN</code> that continues the previous one with the next instances merges into one instanced draw. Instancing means drawing the same mesh many times in one call.</li>
+<li>The window origin setting says whether screen y counts up from the bottom row, and whether triangles flip which side faces forward. The snapshot carries both, and the engine flips the picture to match.</li>
+</ul>
 <p>A constant buffer, or cbuf, is a small read-only table the game hands a shader, such as the camera matrix. <code>LOAD_CONSTANT_BUFFER</code> updates one, and it is an ordered event too. So a cbuf changed between draws reaches the right draw.</p>
 <h2 id="how-is-a-compute-launch-read">How is a compute launch read?<a class="headerlink" href="#how-is-a-compute-launch-read" title="Permanent link">&para;</a></h2>
-<p>The compute class, 0xC7C0, lives on the <code>gpu/qmd-dispatch</code> branch. A launch is described by a QMD, a fixed-size block in guest memory. Writing <code>SEND_SIGNALING_PCAS_B</code> makes the class fetch the QMD at <code>SEND_PCAS_A</code> and decode it into a <code>DispatchSnapshot</code>.</p>
+<p>The compute class, 0xC7C0, starts compute work. A launch is described by a QMD, a fixed-size block in guest memory. Writing <code>SEND_SIGNALING_PCAS_B</code> makes the class fetch the QMD at <code>SEND_PCAS_A</code> and decode it into a <code>DispatchSnapshot</code>. The engine then runs it, see the <a href="../gpu-pipeline/">GPU pipeline</a>.</p>
 <table>
 <thead>
 <tr>
@@ -1359,7 +1386,7 @@
 </tr>
 <tr>
 <td>Version</td>
-<td>QMDV02_03 only; others are rejected</td>
+<td>QMDV02_03 and QMDV03_00; others are rejected</td>
 </tr>
 </tbody>
 </table>
@@ -1401,7 +1428,17 @@
 <tr>
 <td>Render target, the image a draw paints</td>
 <td>Ranges, format, size, depth</td>
-<td>Always written back after the draw</td>
+<td>Loaded before a draw when its pages changed elsewhere, always written back after</td>
+</tr>
+<tr>
+<td>Texture</td>
+<td>Ranges, texture header, sampler entry</td>
+<td>The ranges' generation moved</td>
+</tr>
+<tr>
+<td>Depth target</td>
+<td>The draw's depth address</td>
+<td>Kept on the host only; it must be cleared before its first draw</td>
 </tr>
 <tr>
 <td>Translated shader</td>
@@ -1410,8 +1447,37 @@
 </tr>
 </tbody>
 </table>
-<p>The rule: guest memory is the authority. Every GPU result is written back before <code>submit</code> returns. A colour target whose pages changed outside its own draws is an error until loading is implemented, never a stale image. Repointing a VA changes what the next draw reads.</p>
+<p>The rule: guest memory is the authority. Every GPU result is written back before <code>submit</code> returns. A colour target whose pages changed outside its own draws is loaded from guest memory before the next draw. A clear that no draw uses is written into guest memory, where the next draw loads it. So drawing into an image and then sampling it as a texture shows the latest draw. Repointing a VA changes what the next draw reads.</p>
 <p>Why: keying by physical page stays right when memory is remapped or shared. And nothing can show a frame the guest's memory does not hold. See <a href="../../adr/0004-backing-memory-authority-for-coherence/">ADR-0004</a>.</p>
+<h2 id="what-do-semaphores-and-reports-write">What do semaphores and reports write?<a class="headerlink" href="#what-do-semaphores-and-reports-write" title="Permanent link">&para;</a></h2>
+<p>A semaphore release writes a value to memory, so the CPU can see how far the GPU got. A report is the same kind of write, asked for by the 3D class. An acquire is the other side: it waits until a memory word reaches a value.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What lands in guest memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Semaphore release</td>
+<td>One 32-bit word</td>
+</tr>
+<tr>
+<td>Short report</td>
+<td>One 32-bit word</td>
+</tr>
+<tr>
+<td>Full report</td>
+<td>The 64-bit value and a 64-bit timestamp in nanoseconds</td>
+</tr>
+<tr>
+<td>Acquire</td>
+<td>Nothing; it is checked against the word in memory</td>
+</tr>
+</tbody>
+</table>
+<p>Commands run one after another here, so nothing else could release a waiting acquire. An acquire is therefore checked at once, and one that is not already met is a named error.</p>
 <h2 id="what-is-still-missing-and-why">What is still missing, and why?<a class="headerlink" href="#what-is-still-missing-and-why" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1430,17 +1496,13 @@
 <td>No loader or game makes them yet</td>
 </tr>
 <tr>
-<td>Semaphore acquire, waiting on a signal</td>
-<td>The engine reports it as a named error</td>
-</tr>
-<tr>
 <td>2D, DMA and inline-to-memory classes</td>
 <td>The first scenes do not need them</td>
 </tr>
 </tbody>
 </table>
-<p>Verified by: <code>core/src/tests/gpu/fifo.rs</code> and <code>memory_map.rs</code>, the engine acceptance test (draw, report, VA remap), and the QMD tests on its branch.</p>
-<p>Sources: core/src/gpu/{fifo,threed,memory,engine}.rs, core/src/gpu/compute_class.rs on gpu/qmd-dispatch, NVIDIA's clc76f.h, clc797.h and clc7c0qmd.h.</p>
+<p>Verified by: <code>core/src/tests/gpu/fifo.rs</code>, <code>memory_map.rs</code> and <code>qmd.rs</code>, and the engine tests in <code>engine.rs</code> (draws, render to texture, clears, reports, acquires, VA remap).</p>
+<p>Sources: core/src/gpu/{fifo,threed,memory,engine}.rs, core/src/gpu/compute_class.rs, NVIDIA's clc76f.h, clc797.h and clc7c0qmd.h.</p>
 
 
 

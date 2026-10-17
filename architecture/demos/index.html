@@ -643,6 +643,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#what-does-it-look-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What does it look like?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#which-scenes-come-next" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1178,6 +1189,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#what-does-it-look-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What does it look like?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#which-scenes-come-next" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1217,7 +1239,7 @@
 
 
 <h1 id="demos">Demos<a class="headerlink" href="#demos" title="Permanent link">&para;</a></h1>
-<p>The Qt window has buttons that draw through the GPU work today. Each planned scene needs one more missing feature, so the scenes double as a to-do list. For example, the Triangle button writes GPU commands into emulated memory every frame, and the full engine draws them.</p>
+<p>The Qt window has buttons that draw through the GPU work today. Six bigger scenes are prepared, and the first, a lit 3D model, is being wired now. For example, the Triangle button writes GPU commands into emulated memory every frame, and the full engine draws them.</p>
 <h2 id="what-runs-today">What runs today?<a class="headerlink" href="#what-runs-today" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1277,6 +1299,20 @@
 </tbody>
 </table>
 <p>Every frame ends in <code>display::present</code>, which the window shows.</p>
+<h2 id="what-does-it-look-like">What does it look like?<a class="headerlink" href="#what-does-it-look-like" title="Permanent link">&para;</a></h2>
+<p><img alt="The Render Test Frame button: a full-HD gradient" src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/test-frame.png" /></p>
+<p><em>Render Test Frame: a short SASS program (S2R, IMAD, STG) writes a gradient, translated to SPIR-V and run on an Intel laptop GPU.</em></p>
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/julia-demo-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/julia-demo.mp4" type="video/mp4"></video>
+
+<p><em>Demo: a hand-written SM86 program, translated to SPIR-V, redrawing a Julia set every frame on an Intel laptop GPU.</em></p>
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/triangle-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/triangle.mp4" type="video/mp4"></video>
+
+<p><em>Triangle: GPU commands written into emulated memory every frame, drawn through the whole engine on an Intel laptop GPU.</em></p>
+<p><img alt="NVIDIA's Mandelbrot sample, run through the translator" src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot.png" /></p>
+<p><em>NVIDIA's cuda-samples Mandelbrot kernel, compiled by nvcc for SM86 and run unchanged through the translator on an Intel laptop GPU.</em></p>
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot-zoom-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot-zoom.mp4" type="video/mp4"></video>
+
+<p><em>The same CUDA kernel, launched once per frame with a smaller scale, zooming into the edge of the set.</em></p>
 <p>Measured on an Intel Arc (MTL), p50 per frame:</p>
 <table>
 <thead>
@@ -1302,15 +1338,14 @@
 </table>
 <h2 id="which-scenes-come-next">Which scenes come next?<a class="headerlink" href="#which-scenes-come-next" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
-    TRI["Triangle&lt;br/&gt;Runs today"] --&gt; PBR["pbr-boombox&lt;br/&gt;A lit 3D model"]
+    TRI["Triangle&lt;br/&gt;Runs today"] --&gt; PBR["pbr-boombox&lt;br/&gt;A lit 3D model, being wired"]
     PBR --&gt; POST["post-effect&lt;br/&gt;The model, then screen filters"]
+    PBR --&gt; FH["pbr-flighthelmet&lt;br/&gt;A heavy model, to time throughput"]
+    PBR --&gt; RT["raytraced&lt;br/&gt;Shadows and reflections by ray queries"]
     TRI --&gt; SPR["sprites2d&lt;br/&gt;Layered 2D sprites"]
-    TRI --&gt; PART["particles&lt;br/&gt;Compute-driven particles"]
-    PBR -.-&gt;|"Needs"| N1["Indexed draws, depth,&lt;br/&gt;Five textures, mip levels"]
-    POST -.-&gt;|"Needs"| N2["Drawing into a texture by address,&lt;br/&gt;Draws without vertex buffers"]
-    PART -.-&gt;|"Needs"| N3["Compute launches from commands,&lt;br/&gt;Many copies per draw, blending"]
-    SPR -.-&gt;|"Needs"| N4["Many copies per draw, see-through blending,&lt;br/&gt;Repeating texture edges"]</code></pre>
-<p><em>Each planned scene, and the engine features it needs first.</em></p>
+    TRI --&gt; PART["particles&lt;br/&gt;Particles moved by a compute launch"]
+    RT -.-&gt;|"Still needs"| N1["Acceleration structures,&lt;br/&gt;Depth kept in guest memory"]</code></pre>
+<p><em>The six prepared scenes. The engine has what they need, except two features for the ray-traced one.</em></p>
 <table>
 <thead>
 <tr>
@@ -1340,6 +1375,16 @@
 <td>Scrolling layers and floating sprites, blended over a generated texture sheet</td>
 <td>sprite2d.vert, sprite2d.frag</td>
 </tr>
+<tr>
+<td>pbr-flighthelmet</td>
+<td>The FlightHelmet model through the same PBR shaders, one draw per material, timed against pbr-boombox</td>
+<td>pbr.vert, pbr.frag</td>
+</tr>
+<tr>
+<td>raytraced</td>
+<td>BoomBox on a ground plane with ray-query shadows and reflections, plus ray-traced ambient occlusion</td>
+<td>rt.frag, rt_ao.comp</td>
+</tr>
 </tbody>
 </table>
 <p>Each scene document in <code>demos/scenes</code> lists its guest memory layout and the register writes it sends. Every convention not yet confirmed is tagged "(verify)". The shaders are GLSL that <code>glslangValidator -V</code> accepts. The plan is to compile them with NVIDIA's driver on a rented card, which yields the SM86 programs the scenes load.</p>
@@ -1352,7 +1397,7 @@
     PY --&gt; T["slot.rgba8&lt;br/&gt;Textures, NVIDIA-tiled, with mip levels"]
     PY --&gt; M["manifest.json&lt;br/&gt;Layout, materials, source, licence"]</code></pre>
 <p><em>The converter turns a standard 3D model file into raw files the scenes copy into guest memory.</em></p>
-<p>BoomBox and Avocado are CC0 1.0 by Microsoft, from KhronosGroup's glTF-Sample-Assets. Base colour and emissive textures are sRGB, the others linear. DamagedHelmet is avoided because its source carries a non-commercial licence.</p>
+<p>BoomBox, Avocado and FlightHelmet are CC0 1.0 by Microsoft, from KhronosGroup's glTF-Sample-Assets. FlightHelmet is too big for the code branches, so <code>demos/assets/fetch.sh</code> pulls it from the assets branch. Base colour and emissive textures are sRGB, the others linear. DamagedHelmet is avoided because its source carries a non-commercial licence.</p>
 <p>Verified by: an offscreen screenshot of each button's output, the engine acceptance test for the triangle, the Julia centre test, and the block-linear tiling matching the converter.</p>
 <p>Sources: core/src/gpu/frame.rs, core/src/ffi.rs, gui-qt/src/MainWindow.cpp, demos/README, demos/scenes/*.md, demos/assets/README, scripts/gltf_to_raw.py, core/examples/perf.rs.</p>
 

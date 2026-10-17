@@ -1817,6 +1817,26 @@
 <td>A colour image plus an optional depth image.</td>
 </tr>
 <tr>
+<td>Index buffer</td>
+<td>A list of vertex numbers saying which vertices form each triangle, so shared corners are stored once.</td>
+<td>A square as four vertices and six indices.</td>
+</tr>
+<tr>
+<td>Instancing</td>
+<td>Drawing the same mesh many times in one call, with per-copy data such as position.</td>
+<td>A thousand particles in one draw.</td>
+</tr>
+<tr>
+<td>Blending</td>
+<td>Mixing a new pixel's colour with the one already in the image.</td>
+<td>A see-through window over a wall.</td>
+</tr>
+<tr>
+<td>Window origin</td>
+<td>Whether screen y counts from the top or the bottom row of the image.</td>
+<td>OpenGL-style games count from the bottom.</td>
+</tr>
+<tr>
 <td>Depth</td>
 <td>Per-pixel distance, used to hide what is behind.</td>
 <td>A wall in front of a door.</td>
@@ -2230,6 +2250,16 @@
 <td>PBR</td>
 <td>Physically based rendering: lighting that follows real material behaviour.</td>
 <td>Metal and rough surfaces lit by one light.</td>
+</tr>
+<tr>
+<td>Ray query</td>
+<td>A shader asking "what does this ray hit first?" against the scene.</td>
+<td>A shadow ray from a pixel towards the light.</td>
+</tr>
+<tr>
+<td>Acceleration structure</td>
+<td>A search tree over a scene's triangles that makes ray queries fast.</td>
+<td>Built once per model, then queried per pixel.</td>
 </tr>
 </tbody>
 </table>

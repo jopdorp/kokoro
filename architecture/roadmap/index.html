@@ -1195,11 +1195,11 @@
 
 
 <h1 id="roadmap">Roadmap<a class="headerlink" href="#roadmap" title="Permanent link">&para;</a></h1>
-<p>The compute side of the translator is done, and the graphics engine draws its first triangle. No real game runs yet, because the OS layer that would load one is missing. For example, no game can ask the GPU driver service for memory, so tests set the GPU up by hand.</p>
+<p>The compute side of the translator is done, and the drawing engine handles the core of a real frame: indexed and instanced draws, depth, blending, textures and compute launches. No real game runs yet, because the OS layer that would load one is missing. For example, no game can ask the GPU driver service for memory, so tests set the GPU up by hand.</p>
 <p>"By design" below means left out on purpose, with a named panic, until something needs it.</p>
 <pre class="mermaid"><code>flowchart LR
-    A["Compute instructions&lt;br/&gt;Done"] --&gt; B["Drawing engine&lt;br/&gt;Triangle done, more features in progress"]
-    B --&gt; C["Four demo scenes&lt;br/&gt;To do"]
+    A["Compute instructions&lt;br/&gt;Done"] --&gt; B["Drawing engine&lt;br/&gt;Core features done"]
+    B --&gt; C["Six demo scenes&lt;br/&gt;Prepared, first being wired"]
     D["OS layer: game loader, GPU driver service&lt;br/&gt;To do"] --&gt; E["A real game's GPU commands"]
     B --&gt; E</code></pre>
 <p><em>What has to land before a real game's commands can reach the GPU work.</em></p>
@@ -1235,7 +1235,7 @@
 </tr>
 <tr>
 <td>Translator</td>
-<td>Float atomics (need VK_EXT_shader_atomic_float), texture reads with implicit detail level in compute</td>
+<td>Float atomics (need VK_EXT_shader_atomic_float), texture reads with implicit detail level</td>
 <td>To do</td>
 </tr>
 <tr>
@@ -1245,23 +1245,28 @@
 </tr>
 <tr>
 <td>Command processor</td>
-<td>Reading compute launch blocks (QMD) for class 0xC7C0</td>
-<td>In progress, own branch</td>
+<td>Compute launch blocks (QMDV02_03, QMDV03_00) for class 0xC7C0, report sizes, semaphore acquires that are already met</td>
+<td>Done</td>
 </tr>
 <tr>
 <td>Command processor</td>
-<td>MME64 macros, 2D, DMA and inline-to-memory classes, semaphore acquire</td>
+<td>MME64 macros, 2D, DMA and inline-to-memory classes, acquires that wait for a later release</td>
 <td>To do</td>
 </tr>
 <tr>
 <td>Engine</td>
-<td>Command-list triangle with constant buffers, clear, report and address remap</td>
+<td>Command-list draws with constant buffers, address remaps, compute launches, indexed and instanced draws, depth, blending, y-flip</td>
 <td>Done</td>
 </tr>
 <tr>
 <td>Engine</td>
-<td>Running compute launches, indexed draws, depth, blending, textures in draws, drawing into textures</td>
-<td>In progress</td>
+<td>Textures from the TIC and TSC pools in pixel shaders, drawing into a texture and sampling it, clears no draw used</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>Engine</td>
+<td>Textures in vertex shaders and compute launches, depth kept in guest memory, vertex streams that step every few instances, u8 indices without the extension</td>
+<td>To do</td>
 </tr>
 <tr>
 <td>Textures</td>
@@ -1295,8 +1300,13 @@
 </tr>
 <tr>
 <td>Demos</td>
-<td>pbr-boombox, post-effect, particles, sprites2d</td>
-<td>To do</td>
+<td>pbr-boombox</td>
+<td>Being wired</td>
+</tr>
+<tr>
+<td>Demos</td>
+<td>post-effect, particles, sprites2d, pbr-flighthelmet, raytraced</td>
+<td>Prepared, not wired</td>
 </tr>
 <tr>
 <td>OS layer</td>
@@ -1319,7 +1329,7 @@
 <ul>
 <li>No game boots. There is no loader, and tests write the GPU's command lists by hand.</li>
 <li>Nothing has run on a Switch 2. Instructions are checked on desktop GA102 cards, the same Ampere core. The Switch 2's instruction table is identical, and its behaviour is assumed equal.</li>
-<li>The shader header size is unresolved, see the table below, until a real game's shader is read.</li>
+<li>The engine reads the shader header in the layout NAK, Mesa's NVIDIA compiler, uses; no Switch 2 game's shader has confirmed it yet.</li>
 <li>The GPU page size is Ryujinx's big page size; the Switch 2's value is unverified.</li>
 <li>How the vertex id treats a base vertex, and the front-facing value, are unverified.</li>
 <li>Graphics shaders so far were written by hand or by desktop compilers, never taken from a Switch 2 game.</li>
@@ -1327,18 +1337,22 @@
 <table>
 <thead>
 <tr>
-<th>Shader header question</th>
+<th>Shader header fact</th>
 <th>Value</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Where the engine reads code today</td>
-<td>After a 0x50-byte header, ending at the branch-to-self</td>
+<td>Header version</td>
+<td>4</td>
 </tr>
 <tr>
-<td>What NAK, Mesa's NVIDIA compiler, says</td>
-<td>The version 4 header is 32 words, so code starts at 0x80</td>
+<td>Header size</td>
+<td>32 words, so code starts at 0x80</td>
+</tr>
+<tr>
+<td>End of code</td>
+<td>The branch-to-self after the last EXIT</td>
 </tr>
 </tbody>
 </table>

@@ -1309,8 +1309,8 @@
 <p>A pushbuffer, the game's command list, interleaves state writes, draws, constant buffer updates, clears and semaphore releases, the GPU's "got this far" signals. The order they take effect in matters, and a host GPU queue runs on its own clock. There is no emulated OS yet to wait on fences, the host's done-flags, or syncpoints, the Switch's hardware counters.</p>
 <h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
 <p><code>Pusher::submit</code> reads the GPFIFO, the queue of command lists, to the end and returns an ordered list of events. The 3D class keeps the raw register words. At each draw it copies what that draw needs into a frozen <code>DrawSnapshot</code>.</p>
-<p><code>LOAD_CONSTANT_BUFFER</code>, which updates a constant table, is an event in the same list. So are reports and semaphore releases. They therefore apply in command order.</p>
-<p>The engine runs each event before the next, and <code>Gpu::submit</code> returns once every draw is back in guest memory. There are no macros (MME) yet, and no overlap of GPU work.</p>
+<p><code>LOAD_CONSTANT_BUFFER</code>, which updates a constant table, is an event in the same list. So are compute launches, clears, reports, semaphore releases and acquires. They therefore apply in command order.</p>
+<p>The engine runs each event before the next, and <code>Gpu::submit</code> returns once every draw is back in guest memory. An acquire must already be met when it is reached, since nothing else runs that could release it. There are no macros (MME) yet, and no overlap of GPU work.</p>
 <h3 id="what-this-makes-easy">What this makes easy<a class="headerlink" href="#what-this-makes-easy" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Ordering is right by construction, and tests can read results straight after <code>submit</code>.</li>
@@ -1319,10 +1319,11 @@
 <h3 id="what-this-makes-hard">What this makes hard<a class="headerlink" href="#what-this-makes-hard" title="Permanent link">&para;</a></h3>
 <ul>
 <li>The CPU waits for the GPU on every submit, so real games will need the game's done-signals decoupled from the host's.</li>
+<li>An acquire that waits for a later release fails instead of waiting.</li>
 <li>Command lists that use macros fail until the GPU's macro processor, MME64, is emulated.</li>
 </ul>
 <h3 id="confirmation">Confirmation<a class="headerlink" href="#confirmation" title="Permanent link">&para;</a></h3>
-<p><code>core/src/tests/gpu/fifo.rs</code> for decoding and ordering, and the engine acceptance test for the report and semaphore values landing in guest memory.</p>
+<p><code>core/src/tests/gpu/fifo.rs</code> for decoding and ordering, and the engine tests for report sizes, semaphore values and acquires in guest memory.</p>
 <p>Sources: core/src/gpu/fifo.rs, core/src/gpu/threed.rs, core/src/gpu/engine.rs.</p>
 
 

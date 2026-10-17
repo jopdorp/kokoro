@@ -1377,7 +1377,7 @@
 <h2 id="textures">Textures<a class="headerlink" href="#textures" title="Permanent link">&para;</a></h2>
 <h3 id="how-does-a-shader-find-its-texture">How does a shader find its texture?<a class="headerlink" href="#how-does-a-shader-find-its-texture" title="Permanent link">&para;</a></h3>
 <p>A texture is an image a shader reads with filtering, and a sampler holds the reading settings, such as edge wrapping. A game describes both in tables in guest memory, called pools. The TIC pool holds texture headers (format, size, layout, address) and the TSC pool holds sampler entries.</p>
-<p>The shader picks one entry from each pool with a handle, one word stored in a constant buffer (cbuf). The translator records where each handle comes from, as a cbuf bank and byte offset. Each distinct source gets its own Vulkan slot, a binding, numbered upwards from 12. Before the run, the host reads the handle, decodes both pool entries, and plugs in a Vulkan image with its sampler.</p>
+<p>The shader picks one entry from each pool with a handle, one word stored in a constant buffer (cbuf). The translator records where each handle comes from, as a cbuf bank and byte offset. Each distinct source gets its own Vulkan slot, a binding, numbered upwards from 12. Before the run, the host reads the handle, decodes both pool entries, and plugs in a Vulkan image with its sampler. The image is uploaded again whenever its guest pages change, so a texture that was drawn into shows its latest draw. In draws, textures are read by pixel shaders today.</p>
 <table>
 <thead>
 <tr>
@@ -1392,7 +1392,7 @@
 </tr>
 <tr>
 <td>Top 12</td>
-<td>The TSC entry, the sampler</td>
+<td>The TSC entry, the sampler, unless the game links each sampler to its texture's index</td>
 </tr>
 </tbody>
 </table>

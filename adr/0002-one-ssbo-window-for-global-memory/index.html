@@ -1309,7 +1309,7 @@
 <p>SASS loads and stores use the game's own GPU addresses. Vulkan shaders cannot follow those. Vulkan's own shader pointers, buffer device addresses, point into host memory and know nothing about the game's address map.</p>
 <h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
 <p>All main memory a run touches, called global memory, is one storage buffer at binding 9. A storage buffer is a large buffer a shader can read and write.</p>
-<p>The host looks the game's address range up in the page map, the table from GPU addresses to emulated RAM. It copies that range into one buffer and stores the window's start address in the helper slot, binding 0.</p>
+<p>The host looks the game's address range up in the page map, the table from GPU addresses to emulated RAM. It copies that range into one buffer and stores the window's start address in the helper slot, binding 0. For a compute launch from a command list, the range is all mapped guest memory. After the run, the pages the program changed are written back to guest RAM.</p>
 <table>
 <thead>
 <tr>
@@ -1326,6 +1326,10 @@
 <td>Widest access</td>
 <td>128 bits</td>
 </tr>
+<tr>
+<td>Window for a launch from a command list</td>
+<td>All mapped guest memory, at most 4 GiB</td>
+</tr>
 </tbody>
 </table>
 <p>A translated <code>LDG</code> (load from global memory) or <code>STG</code> (store) subtracts the start and indexes the buffer. An address outside mapped memory fails with an error. Buffer device addresses are not used.</p>
@@ -1336,11 +1340,11 @@
 </ul>
 <h3 id="what-this-makes-hard">What this makes hard<a class="headerlink" href="#what-this-makes-hard" title="Permanent link">&para;</a></h3>
 <ul>
-<li>The window must hold every byte the program might touch, so scattered reads copy far more than they use.</li>
+<li>The window must hold every byte the program might touch, so the first launch copies all mapped memory to the card; later launches only copy pages that changed.</li>
 <li>Some loads carry a memory descriptor, an extra policy word from the compiler, and it must not be added to the address.</li>
 </ul>
 <h3 id="confirmation">Confirmation<a class="headerlink" href="#confirmation" title="Permanent link">&para;</a></h3>
-<p>The compiled mul-add kernel and the gradient program match the real card through this window, and the memory tests cover remaps.</p>
+<p>The compiled mul-add kernel and the gradient program match the real card through this window. The engine test runs the gradient kernel from a QMD launch and finds its output in guest memory. The memory tests cover remaps.</p>
 <p>Sources: core/src/gpu/memory.rs <code>window</code>, core/src/gpu/sm86/access.rs, core/src/tests/gpu/harness.rs <code>run_grid</code>.</p>
 
 
