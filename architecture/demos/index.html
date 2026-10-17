@@ -287,6 +287,14 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -356,6 +364,118 @@
     
   
     Emulator overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cpu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPU and shared memory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../services/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guest-path/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guest path
   
 
     
@@ -661,6 +781,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Which scenes come next?">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-do-the-new-scenes-look-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What do the new scenes look like?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1208,6 +1345,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Which scenes come next?">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-do-the-new-scenes-look-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What do the new scenes look like?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1239,7 +1393,7 @@
 
 
 <h1 id="demos">Demos<a class="headerlink" href="#demos" title="Permanent link">&para;</a></h1>
-<p>The Qt window has buttons that draw through the GPU work today. Six bigger scenes are prepared, and the first, a lit 3D model, is being wired now. For example, the Triangle button writes GPU commands into emulated memory every frame, and the full engine draws them.</p>
+<p>The Qt window has buttons that draw through the GPU work today. Six bigger scenes are prepared: the post-effect and sprites scenes run, and the particles and BoomBox scenes are being wired. For example, the Triangle button writes GPU commands into emulated memory every frame, and the full engine draws them.</p>
 <h2 id="what-runs-today">What runs today?<a class="headerlink" href="#what-runs-today" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1264,6 +1418,16 @@
 <td>Triangle</td>
 <td><code>frame::render_triangle_demo</code></td>
 <td>A command list in guest memory draws a turning triangle through the whole engine</td>
+</tr>
+<tr>
+<td>Post</td>
+<td><code>demo_post::render_post_frame</code></td>
+<td>NVIDIA-compiled shaders draw a pinwheel into one image, then sample it as a texture to add screen effects</td>
+</tr>
+<tr>
+<td>Sprites</td>
+<td><code>demo_sprites::render_sprites_frame</code>, on <code>gpu/demo-sprites</code></td>
+<td>NVIDIA-compiled sprite shaders draw a scrolling parallax scene of blended sprites as one instanced draw</td>
 </tr>
 </tbody>
 </table>
@@ -1339,59 +1503,38 @@
 <h2 id="which-scenes-come-next">Which scenes come next?<a class="headerlink" href="#which-scenes-come-next" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
     TRI["Triangle&lt;br/&gt;Runs today"] --&gt; PBR["pbr-boombox&lt;br/&gt;A lit 3D model, being wired"]
-    PBR --&gt; POST["post-effect&lt;br/&gt;The model, then screen filters"]
+    TRI --&gt; POST["post-effect&lt;br/&gt;Draw, then screen filters; runs"]
     PBR --&gt; FH["pbr-flighthelmet&lt;br/&gt;A heavy model, to time throughput"]
     PBR --&gt; RT["raytraced&lt;br/&gt;Shadows and reflections by ray queries"]
-    TRI --&gt; SPR["sprites2d&lt;br/&gt;Layered 2D sprites"]
-    TRI --&gt; PART["particles&lt;br/&gt;Particles moved by a compute launch"]
+    TRI --&gt; SPR["sprites2d&lt;br/&gt;Layered 2D sprites; runs"]
+    TRI --&gt; PART["particles&lt;br/&gt;Moved by a compute launch; being wired"]
     RT -.-&gt;|"Still needs"| N1["Acceleration structures,&lt;br/&gt;Depth kept in guest memory"]</code></pre>
-<p><em>The six prepared scenes. The engine has what they need, except two features for the ray-traced one.</em></p>
-<table>
-<thead>
-<tr>
-<th>Scene</th>
-<th>Content</th>
-<th>Shaders</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>pbr-boombox</td>
-<td>The BoomBox or Avocado model, lit with physically based materials and normal maps, one light</td>
-<td>pbr.vert, pbr.frag</td>
-</tr>
-<tr>
-<td>post-effect</td>
-<td>The PBR scene drawn offscreen, then colour fringing, scanlines and a vignette</td>
-<td>post.vert, post.frag</td>
-</tr>
-<tr>
-<td>particles</td>
-<td>Particles moved by a compute shader, drawn as glowing instanced squares</td>
-<td>particles_update.comp, particles.vert, particles.frag</td>
-</tr>
-<tr>
-<td>sprites2d</td>
-<td>Scrolling layers and floating sprites, blended over a generated texture sheet</td>
-<td>sprite2d.vert, sprite2d.frag</td>
-</tr>
-<tr>
-<td>pbr-flighthelmet</td>
-<td>The FlightHelmet model through the same PBR shaders, one draw per material, timed against pbr-boombox</td>
-<td>pbr.vert, pbr.frag</td>
-</tr>
-<tr>
-<td>raytraced</td>
-<td>BoomBox on a ground plane with ray-query shadows and reflections, plus ray-traced ambient occlusion</td>
-<td>rt.frag, rt_ao.comp</td>
-</tr>
-</tbody>
-</table>
+<p><em>The six prepared scenes and their state. The ray-traced one still needs two engine features.</em></p>
+<p>| Scene | Content | Shaders | State |
+|---|---|---|
+| pbr-boombox | The BoomBox or Avocado model, lit with physically based materials and normal maps, one light | pbr.vert, pbr.frag | In progress |
+| post-effect | A scene drawn offscreen, then colour fringing, scanlines and a vignette; a pinwheel stands in for the PBR scene for now | post.vert, post.frag | Runs |
+| particles | Particles moved by a compute shader, drawn as glowing instanced squares | particles_update.comp, particles.vert, particles.frag | Runs on its branch, being merged |
+| sprites2d | Scrolling hill layers and floating sprites, blended over a sky | sprite2d.vert, sprite2d.frag | Runs |
+| pbr-flighthelmet | The FlightHelmet model through the same PBR shaders, one draw per material, timed against pbr-boombox | pbr.vert, pbr.frag | In progress |
+| raytraced | BoomBox on a ground plane with ray-query shadows and reflections, plus ray-traced ambient occlusion | rt.frag, rt_ao.comp | Prepared |</p>
+<h3 id="what-do-the-new-scenes-look-like">What do the new scenes look like?<a class="headerlink" href="#what-do-the-new-scenes-look-like" title="Permanent link">&para;</a></h3>
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-sprites-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-sprites.mp4" type="video/mp4"></video>
+
+<p><em>Sprites: NVIDIA-compiled sprite shaders draw scrolling hills and floating sprites, blended back to front, from a host-written command list.</em></p>
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-post-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-post.mp4" type="video/mp4"></video>
+
+<p><em>Post-effect: a pinwheel drawn into one image, then sampled as a texture by a second pass that adds the screen effects.</em></p>
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-particles-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-particles.mp4" type="video/mp4"></video>
+
+<p><em>Particles: a compute launch from the command list moves the particles, then one instanced draw shows them, still on its branch.</em></p>
+<p><img alt="The BoomBox model, drawn by the PBR scene while it is being wired" src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-boombox.png" /></p>
+<p><em>BoomBox: a still from the PBR scene while it is being wired.</em></p>
 <p>Each scene document in <code>demos/scenes</code> lists its guest memory layout and the register writes it sends. Every convention not yet confirmed is tagged "(verify)". The shaders are GLSL that <code>glslangValidator -V</code> accepts. The plan is to compile them with NVIDIA's driver on a rented card, which yields the SM86 programs the scenes load.</p>
 <p>Why compile GLSL on a desktop card: it yields real SM86 code for each stage. But it does not yield the Switch 2's shader header or attribute conventions, so those stay tagged until a real game shows them.</p>
 <h2 id="where-do-the-assets-come-from">Where do the assets come from?<a class="headerlink" href="#where-do-the-assets-come-from" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
-    GLB["glTF-Binary model&lt;br/&gt;Khronos sample assets"] --&gt; PY["Scripts/gltf_to_raw.py&lt;br/&gt;Converter"]
+    GLB["glTF-Binary model&lt;br/&gt;Khronos sample assets"] --&gt; PY["scripts/gltf_to_raw.py&lt;br/&gt;Converter"]
     PY --&gt; V["vertices.bin&lt;br/&gt;Position, normal, tangent, uv"]
     PY --&gt; I["indices.bin&lt;br/&gt;Which vertices form each triangle"]
     PY --&gt; T["slot.rgba8&lt;br/&gt;Textures, NVIDIA-tiled, with mip levels"]

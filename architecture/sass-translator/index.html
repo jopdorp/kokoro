@@ -287,6 +287,14 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -356,6 +364,118 @@
     
   
     Emulator overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cpu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPU and shared memory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../services/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guest-path/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guest path
   
 
     
@@ -1548,22 +1668,22 @@
 <td>oboromi's own helper values, never game data</td>
 </tr>
 <tr>
-<td>1 to 8</td>
+<td>1 to 32</td>
 <td>Uniform buffers</td>
-<td>The game's constant buffers 0 to 7, stored as <code>uvec4</code> arrays</td>
+<td>The game's constant buffers 0 to 31, stored as <code>uvec4</code> arrays</td>
 </tr>
 <tr>
-<td>9</td>
+<td>33</td>
 <td>Storage buffer, large and read-write</td>
 <td>The window onto guest memory</td>
 </tr>
 <tr>
-<td>10, 11</td>
+<td>34, 35</td>
 <td>Storage buffers</td>
 <td>Register values in and out, tests only</td>
 </tr>
 <tr>
-<td>12 and up</td>
+<td>36 and up</td>
 <td>Texture and image slots</td>
 <td>Textures and writable images, in the order the shader first uses them</td>
 </tr>

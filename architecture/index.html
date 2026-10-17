@@ -287,6 +287,14 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -356,6 +364,118 @@
     
   
     Emulator overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cpu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPU and shared memory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="services/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="audio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="guest-path/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guest path
   
 
     
@@ -1137,13 +1257,13 @@
 
 
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p>The emulator is made of a Qt window, an emulated ARM CPU, stubs for the Switch's operating system services, and a GPU emulator. Only the GPU part does real work today. For example, the Triangle button writes GPU commands into the emulated console's memory, and the GPU part draws them on the PC's graphics card.</p>
+<p>The emulator is made of a Qt window, an emulated ARM CPU, a registry of the Switch's operating system services, and a GPU emulator. The GPU part is the furthest along, and the CPU, service and audio parts are being built out. For example, the Triangle button writes GPU commands into the emulated console's memory, and the GPU part draws them on the PC's graphics card.</p>
 <pre class="mermaid"><code>flowchart TB
     GUI["Qt window&lt;br/&gt;Buttons and the picture"] --&gt;|"C calls"| FFI["ffi.rs&lt;br/&gt;Rust functions the window calls"]
     FFI --&gt; SYS["sys::State&lt;br/&gt;List of OS services"]
     FFI --&gt; CPU["cpu&lt;br/&gt;Emulated ARM cores"]
     CPU --- RAM[("Guest RAM&lt;br/&gt;The console's memory")]
-    SYS --&gt; NN["nn&lt;br/&gt;Empty service stubs"]
+    SYS --&gt; NN["nn&lt;br/&gt;Service registry"]
     FFI --&gt; ENG
     subgraph GPU["GPU"]
         FIFO["fifo + threed&lt;br/&gt;Reads the game's GPU commands"] --&gt; ENG["Engine&lt;br/&gt;Runs each draw against console memory"]
@@ -1169,7 +1289,23 @@
 <tbody>
 <tr>
 <td><a href="oboromi-overview/">Emulator overview</a></td>
-<td>What works outside the GPU, and what is only a stub</td>
+<td>What upstream built, and what each part does today</td>
+</tr>
+<tr>
+<td><a href="cpu/">CPU and shared memory</a></td>
+<td>How the cores run ARM code, share memory with the GPU, and what the kernel layer adds</td>
+</tr>
+<tr>
+<td><a href="services/">Services</a></td>
+<td>How a game reaches a service, and which services are being built</td>
+</tr>
+<tr>
+<td><a href="audio/">Audio</a></td>
+<td>How the audio renderer works, and the planned audio demos</td>
+</tr>
+<tr>
+<td><a href="guest-path/">Guest path</a></td>
+<td>How our own guest program will drive the GPU through real system calls</td>
 </tr>
 <tr>
 <td><a href="gpu-pipeline/">GPU pipeline</a></td>
@@ -1205,7 +1341,7 @@
 </tr>
 <tr>
 <td><a href="roadmap/">Roadmap</a></td>
-<td>What is done, what is open, and the honest limits</td>
+<td>What is done, what is in progress, and the honest limits</td>
 </tr>
 <tr>
 <td><a href="../glossary/">Glossary</a></td>

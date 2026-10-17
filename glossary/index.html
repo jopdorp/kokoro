@@ -285,6 +285,14 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -354,6 +362,118 @@
     
   
     Emulator overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/cpu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPU and shared memory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/services/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/audio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/guest-path/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guest path
   
 
     
@@ -1948,7 +2068,7 @@
 <tr>
 <td>Descriptor</td>
 <td>A small record telling a shader where one buffer or image is.</td>
-<td>"binding 9 is this buffer".</td>
+<td>"binding 33 is this buffer".</td>
 </tr>
 <tr>
 <td>Binding</td>
@@ -1983,7 +2103,7 @@
 <tr>
 <td>Resource list</td>
 <td>The bindings a translated module declares, with what each one holds.</td>
-<td>"binding 1 is cbuf 0, binding 12 is the texture at cbuf 0 offset 0x10".</td>
+<td>"binding 1 is cbuf 0, binding 36 is the texture at cbuf 0 offset 0x10".</td>
 </tr>
 <tr>
 <td>Validation layer</td>
@@ -2106,8 +2226,28 @@
 <tbody>
 <tr>
 <td>Unicorn</td>
-<td>The CPU emulator library oboromi's ARM cores run on.</td>
+<td>The CPU emulator library oboromi's ARM cores run on, built on QEMU's CPU core.</td>
 <td>It executes AArch64 instructions.</td>
+</tr>
+<tr>
+<td>QEMU</td>
+<td>The open-source machine emulator whose CPU core Unicorn reuses.</td>
+<td>It also runs whole ARM Linux systems.</td>
+</tr>
+<tr>
+<td>Cortex-A78C</td>
+<td>The Arm CPU core in the Switch 2's chip.</td>
+<td>Eight of them in the T239.</td>
+</tr>
+<tr>
+<td>switchbrew</td>
+<td>The community wiki that documents the Switch's system calls, services and hardware.</td>
+<td>Its NV services page.</td>
+</tr>
+<tr>
+<td>libnx</td>
+<td>The homebrew library for writing Switch programs.</td>
+<td>Its request layout is what the guest's encoder follows.</td>
 </tr>
 <tr>
 <td>AArch64</td>
@@ -2157,7 +2297,62 @@
 <tr>
 <td>Loader</td>
 <td>The code that places a game's executable in memory and starts it.</td>
-<td>Missing in oboromi today.</td>
+<td>The flat-image loader for our own guest program.</td>
+</tr>
+<tr>
+<td>Session</td>
+<td>An open connection from a game to one service.</td>
+<td>A session with <code>nvdrv</code>.</td>
+</tr>
+<tr>
+<td>Handle</td>
+<td>A number the kernel gives a program to name something it opened.</td>
+<td>The session handle <code>SendSyncRequest</code> takes.</td>
+</tr>
+<tr>
+<td>Port</td>
+<td>A named address a program connects to in order to open a session.</td>
+<td>The port named <code>nvdrv</code>.</td>
+</tr>
+<tr>
+<td>IPC</td>
+<td>Inter-process communication: one program sending a message to another.</td>
+<td>A game asking the display service for a layer.</td>
+</tr>
+<tr>
+<td>IPC buffer</td>
+<td>A small per-thread memory area that holds the request and then the reply.</td>
+<td>The request bytes for <code>SendSyncRequest</code>.</td>
+</tr>
+<tr>
+<td>CMIF</td>
+<td>The command layer on top of HIPC: a magic word, a command id and arguments.</td>
+<td><code>SFCI</code>, then command 1, then the ioctl number.</td>
+</tr>
+<tr>
+<td>Transfer memory</td>
+<td>Guest memory a program lends to a service.</td>
+<td>The audio renderer's work buffer.</td>
+</tr>
+<tr>
+<td>Driver fence</td>
+<td>A sync counter value a program waits on to know its GPU work finished.</td>
+<td>The fence <code>SubmitGpfifo</code> returns.</td>
+</tr>
+<tr>
+<td>Binder</td>
+<td>The display's messaging layer, inherited from Android, for handing over frames.</td>
+<td><code>QueueBuffer</code> through <code>IHOSBinderDriver</code>.</td>
+</tr>
+<tr>
+<td>Turn lock</td>
+<td>The lock that lets either the CPU or the GPU use guest RAM, never both.</td>
+<td>The GPU takes it before a draw.</td>
+</tr>
+<tr>
+<td>Write hook</td>
+<td>A Unicorn callback that runs on every guest store to a chosen range.</td>
+<td>Marking pages the GPU must refresh.</td>
 </tr>
 </tbody>
 </table>
@@ -2250,6 +2445,31 @@
 <td>PBR</td>
 <td>Physically based rendering: lighting that follows real material behaviour.</td>
 <td>Metal and rough surfaces lit by one light.</td>
+</tr>
+<tr>
+<td>Voice</td>
+<td>One playing sound in the audio renderer.</td>
+<td>A footstep sample with its volume and pitch.</td>
+</tr>
+<tr>
+<td>Mix</td>
+<td>A bus that voices or other mixes add into.</td>
+<td>All sound effects together.</td>
+</tr>
+<tr>
+<td>Sink</td>
+<td>Where the audio renderer's final sound goes.</td>
+<td>The device sink, the speakers.</td>
+</tr>
+<tr>
+<td>ADPCM</td>
+<td>A compressed sample format the Switch's audio uses.</td>
+<td>Music stored at a quarter of its PCM size.</td>
+</tr>
+<tr>
+<td>Biquad</td>
+<td>A small audio filter that cuts or boosts some frequencies.</td>
+<td>A low-pass to muffle a sound behind a wall.</td>
 </tr>
 <tr>
 <td>Ray query</td>

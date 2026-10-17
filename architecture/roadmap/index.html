@@ -287,6 +287,14 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -356,6 +364,118 @@
     
   
     Emulator overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cpu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPU and shared memory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../services/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guest-path/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guest path
   
 
     
@@ -1195,12 +1315,12 @@
 
 
 <h1 id="roadmap">Roadmap<a class="headerlink" href="#roadmap" title="Permanent link">&para;</a></h1>
-<p>The compute side of the translator is done, and the drawing engine handles the core of a real frame: indexed and instanced draws, depth, blending, textures and compute launches. No real game runs yet, because the OS layer that would load one is missing. For example, no game can ask the GPU driver service for memory, so tests set the GPU up by hand.</p>
+<p>The compute side of the translator is done, and the drawing engine handles the core of a real frame: indexed and instanced draws, depth, blending, textures and compute launches. Around it, the CPU, kernel, services and audio are being built out on the foundations upstream laid. For example, a guest program of our own already runs on the emulated CPU, and the GPU driver services it calls are next.</p>
 <p>"By design" below means left out on purpose, with a named panic, until something needs it.</p>
 <pre class="mermaid"><code>flowchart LR
     A["Compute instructions&lt;br/&gt;Done"] --&gt; B["Drawing engine&lt;br/&gt;Core features done"]
     B --&gt; C["Six demo scenes&lt;br/&gt;Prepared, first being wired"]
-    D["OS layer: game loader, GPU driver service&lt;br/&gt;To do"] --&gt; E["A real game's GPU commands"]
+    D["Kernel and services&lt;br/&gt;In progress, see the guest path"] --&gt; E["A real game's GPU commands"]
     B --&gt; E</code></pre>
 <p><em>What has to land before a real game's commands can reach the GPU work.</em></p>
 <h2 id="what-is-done-and-what-is-open">What is done and what is open?<a class="headerlink" href="#what-is-done-and-what-is-open" title="Permanent link">&para;</a></h2>
@@ -1300,18 +1420,53 @@
 </tr>
 <tr>
 <td>Demos</td>
-<td>pbr-boombox</td>
-<td>Being wired</td>
+<td>post-effect, sprites2d</td>
+<td>Run</td>
 </tr>
 <tr>
 <td>Demos</td>
-<td>post-effect, particles, sprites2d, pbr-flighthelmet, raytraced</td>
-<td>Prepared, not wired</td>
+<td>particles, pbr-boombox, pbr-flighthelmet</td>
+<td>In progress</td>
 </tr>
 <tr>
-<td>OS layer</td>
-<td>Loader, system calls, nvdrv, nvmap and address-space calls, syncpoints, vi</td>
-<td>To do</td>
+<td>Demos</td>
+<td>raytraced</td>
+<td>Prepared</td>
+</tr>
+<tr>
+<td>CPU</td>
+<td>One RAM block shared with the GPU, write hooks, the turn lock</td>
+<td>Done on the <code>guest-path</code> branch</td>
+</tr>
+<tr>
+<td>Guest path</td>
+<td>Flat guest image, loader, shared scene crate</td>
+<td>Done on <code>guest/scene-crate</code></td>
+</tr>
+<tr>
+<td>Kernel</td>
+<td>System calls, handle table, memory regions</td>
+<td>In progress</td>
+</tr>
+<tr>
+<td>Services</td>
+<td>IPC sessions, then nvdrv, nvmap, address space, channel and sync services</td>
+<td>Planned; guest side written</td>
+</tr>
+<tr>
+<td>Services</td>
+<td>Display services and the binder</td>
+<td>Planned</td>
+</tr>
+<tr>
+<td>Audio</td>
+<td>Audio renderer and raw output, output through Qt, demos</td>
+<td>Designed, implementation next</td>
+</tr>
+<tr>
+<td>Loaders</td>
+<td>Game file formats</td>
+<td>Planned, after the guest path</td>
 </tr>
 <tr>
 <td>Upstream</td>
@@ -1327,8 +1482,8 @@
 </table>
 <h2 id="what-are-the-honest-limits">What are the honest limits?<a class="headerlink" href="#what-are-the-honest-limits" title="Permanent link">&para;</a></h2>
 <ul>
-<li>No game boots. There is no loader, and tests write the GPU's command lists by hand.</li>
-<li>Nothing has run on a Switch 2. Instructions are checked on desktop GA102 cards, the same Ampere core. The Switch 2's instruction table is identical, and its behaviour is assumed equal.</li>
+<li>Games do not boot yet. That needs the kernel layer, the services and the game loaders, which are in progress or planned. Until then, tests and our own guest program drive the GPU.</li>
+<li>No code has been checked on a Switch 2 yet. Instructions are checked on desktop GA102 cards, the same Ampere core. The Switch 2's instruction table is identical, and its behaviour is assumed equal.</li>
 <li>The engine reads the shader header in the layout NAK, Mesa's NVIDIA compiler, uses; no Switch 2 game's shader has confirmed it yet.</li>
 <li>The GPU page size is Ryujinx's big page size; the Switch 2's value is unverified.</li>
 <li>How the vertex id treats a base vertex, and the front-facing value, are unverified.</li>

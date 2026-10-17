@@ -287,6 +287,14 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -356,6 +364,118 @@
     
   
     Emulator overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cpu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPU and shared memory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../services/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guest-path/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guest path
   
 
     
@@ -1281,22 +1401,22 @@
 <tr>
 <td>spirv-val, the Khronos SPIR-V checker</td>
 <td>The harness pipes each module through it, skipped when it is not installed</td>
-<td>Core/src/tests/gpu/harness.rs</td>
+<td>core/src/tests/gpu/harness.rs</td>
 </tr>
 <tr>
 <td>nvdisasm, NVIDIA's disassembler</td>
 <td><code>fixtures_match_nvdisasm</code> disassembles the test words and compares the text</td>
-<td>Core/src/tests/gpu_test.rs</td>
+<td>core/src/tests/gpu_test.rs</td>
 </tr>
 <tr>
 <td>Silicon</td>
 <td>Scoreboard tests replay recorded inputs and compare registers, shared memory, global memory and image bytes</td>
-<td>Core/src/tests/gpu/fixtures.rs, core/tests/fixtures</td>
+<td>core/src/tests/gpu/fixtures.rs, core/tests/fixtures</td>
 </tr>
 <tr>
 <td>Programs</td>
 <td>Kernels built with nvcc, NVIDIA's CUDA compiler, run through the translator and must match the card's output or its hash</td>
-<td>Core/src/tests/gpu/program.rs, cubin tests</td>
+<td>core/src/tests/gpu/program.rs, cubin tests</td>
 </tr>
 </tbody>
 </table>

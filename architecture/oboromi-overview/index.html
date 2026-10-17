@@ -16,7 +16,7 @@
         <link rel="prev" href="../">
       
       
-        <link rel="next" href="../gpu-pipeline/">
+        <link rel="next" href="../cpu/">
       
       
         
@@ -287,6 +287,14 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -408,10 +416,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#which-parts-exist" class="md-nav__link">
+  <a href="#what-did-upstream-build" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Which parts exist?
+        What did upstream build?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-does-each-part-do-today-and-what-is-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What does each part do today, and what is next?
       
     </span>
   </a>
@@ -444,6 +463,118 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cpu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPU and shared memory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../services/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guest-path/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guest path
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1167,10 +1298,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#which-parts-exist" class="md-nav__link">
+  <a href="#what-did-upstream-build" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Which parts exist?
+        What did upstream build?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-does-each-part-do-today-and-what-is-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What does each part do today, and what is next?
       
     </span>
   </a>
@@ -1217,112 +1359,156 @@
 
 
 <h1 id="emulator-overview">Emulator overview<a class="headerlink" href="#emulator-overview" title="Permanent link">&para;</a></h1>
-<p>Outside the GPU, oboromi is a skeleton: the emulated CPU runs, but nothing loads a game and the operating system services are names only. So no game ever sends the GPU work. Tests write GPU commands into emulated memory by hand instead, the way a game's graphics driver would.</p>
+<p>The upstream project laid the foundations every other part builds on. Those include the project layout, a multicore ARM CPU on one shared memory block, and a registry of the console's services. They also include the GPU instruction table with its decoder generator. For example, the GPU translator decodes every instruction with the generator upstream wrote, and the GPU reads the same memory block the CPU cores share.</p>
 <pre class="mermaid"><code>flowchart TB
     subgraph Front["Front end"]
         QT["Qt window&lt;br/&gt;Buttons and the picture"] --&gt; BR["RustBridge.cpp&lt;br/&gt;C++ side of the bridge"]
     end
-    BR --&gt;|"C function calls"| FFI["Core/src/ffi.rs&lt;br/&gt;Rust side of the bridge"]
+    BR --&gt;|"C function calls"| FFI["core/src/ffi.rs&lt;br/&gt;Rust side of the bridge"]
     FFI --&gt; TESTS["Tests&lt;br/&gt;CPU and GPU self-checks"]
     FFI --&gt; GPU["gpu&lt;br/&gt;Frames and demos"]
     subgraph Core["oboromi-core crate"]
-        SYS["sys::State&lt;br/&gt;One entry per OS service"]
-        NN["nn&lt;br/&gt;Empty services, message header only"]
+        SYS["sys::State&lt;br/&gt;One entry per service"]
+        NN["nn&lt;br/&gt;Service registry, ready for commands"]
         CPU["cpu::CpuManager&lt;br/&gt;Emulated ARM cores"]
         RAM[("Guest RAM&lt;br/&gt;The console's memory, one block")]
-        FS["fs&lt;br/&gt;File access wrapper"]
-        AUD["Audio&lt;br/&gt;Empty"]
+        FS["fs&lt;br/&gt;File access"]
+        AUD["Audio&lt;br/&gt;Renderer service, planned"]
     end
     SYS --&gt; NN
     CPU --&gt; RAM
+    GPU --&gt; RAM
     TESTS --&gt; CPU</code></pre>
-<p><em>The parts outside the GPU, and how the window reaches them.</em></p>
-<h2 id="which-parts-exist">Which parts exist?<a class="headerlink" href="#which-parts-exist" title="Permanent link">&para;</a></h2>
+<p><em>The parts around the GPU, and how the window reaches them.</em></p>
+<h2 id="what-did-upstream-build">What did upstream build?<a class="headerlink" href="#what-did-upstream-build" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Foundation</th>
+<th>Where</th>
+<th>What it gives the rest of the project</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Project structure</td>
+<td>Cargo workspace, <code>core</code>, <code>gui-qt</code></td>
+<td>One Rust core with a C interface, used by a separate Qt front end</td>
+</tr>
+<tr>
+<td>Multicore CPU</td>
+<td>core/src/cpu</td>
+<td>Eight ARM cores on Unicorn, all mapping one shared RAM block at guest address 0</td>
+</tr>
+<tr>
+<td>Service registry</td>
+<td>core/src/nn, core/src/sys</td>
+<td>160 named services, each with a slot in the system state, ready for its commands</td>
+</tr>
+<tr>
+<td>IPC header types</td>
+<td>core/src/nn/hipc.rs</td>
+<td>The data types of the Switch's service message header</td>
+</tr>
+<tr>
+<td>SM86 instruction table and decoder generator</td>
+<td>scripts/</td>
+<td>The decoder for every GPU instruction is generated from NVIDIA's own table</td>
+</tr>
+<tr>
+<td>SPIR-V emitter</td>
+<td>core/src/gpu/spirv.rs</td>
+<td>The writer every translated shader goes through</td>
+</tr>
+<tr>
+<td>Qt front end</td>
+<td>gui-qt</td>
+<td>The window, its buttons and the bridge into the Rust core</td>
+</tr>
+<tr>
+<td>CI</td>
+<td>.github/workflows</td>
+<td>Builds and tests on Linux, Windows and macOS</td>
+</tr>
+</tbody>
+</table>
+<h2 id="what-does-each-part-do-today-and-what-is-next">What does each part do today, and what is next?<a class="headerlink" href="#what-does-each-part-do-today-and-what-is-next" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>Part</th>
 <th>Where</th>
-<th>What it does today</th>
-<th>State</th>
+<th>Today</th>
+<th>Next</th>
+<th>Page</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>CPU cores</td>
-<td>Core/src/cpu</td>
-<td>Eight emulated ARM cores on Unicorn, a CPU emulator library; they share one memory block and can run, step, and read or write registers and memory</td>
-<td>Real</td>
+<td>CPU cores and RAM</td>
+<td>core/src/cpu</td>
+<td>Run, step, read and write registers and memory on every core</td>
+<td>Share the RAM with the GPU, in progress on the <code>guest-path</code> branch</td>
+<td><a href="../cpu/">CPU</a></td>
 </tr>
 <tr>
-<td>Guest RAM</td>
-<td>cpu_manager.rs</td>
-<td>One flat 12 GiB block at address 0; the host OS only backs the parts that are touched</td>
-<td>Real</td>
-</tr>
-<tr>
-<td>Loader</td>
-<td>None</td>
-<td>Nothing reads a game's executable (NSO, NRO or ELF), so tests place guest code by hand</td>
-<td>Missing</td>
-</tr>
-<tr>
-<td>System calls</td>
-<td>None</td>
-<td>No SVCs, the calls a game makes into the Switch kernel, and no memory hooks</td>
-<td>Missing</td>
+<td>Kernel layer</td>
+<td>core/src/kernel, planned</td>
+<td>Not started in the core; the test guest already issues system calls</td>
+<td>System-call dispatch, handles, memory regions, IPC</td>
+<td><a href="../cpu/">CPU</a></td>
 </tr>
 <tr>
 <td>Services</td>
-<td>Core/src/nn</td>
-<td>An empty <code>State {}</code> per OS service name; HIPC, the Switch's service message format, has its header decoded and ignored</td>
-<td>Stub</td>
-</tr>
-<tr>
-<td>GPU services</td>
-<td>nn: nvdrv, nvmap, vi, host1x</td>
-<td>The GPU driver, GPU memory, display and sync services exist as names only, with no ioctls (driver control calls)</td>
-<td>Stub</td>
-</tr>
-<tr>
-<td>Filesystem</td>
-<td>Core/src/fs</td>
-<td>A wrapper that maps a file into memory</td>
-<td>Stub</td>
+<td>core/src/nn</td>
+<td>The registry and the message header types</td>
+<td>Sessions, then the GPU driver and display services</td>
+<td><a href="../services/">Services</a></td>
 </tr>
 <tr>
 <td>Audio</td>
-<td>Core/src/audio</td>
-<td>An empty module</td>
-<td>Stub</td>
+<td>core/src/audio</td>
+<td>Module in place</td>
+<td>The audio renderer service and output through Qt, designed</td>
+<td><a href="../audio/">Audio</a></td>
+</tr>
+<tr>
+<td>Loader</td>
+<td>planned</td>
+<td>Tests place guest code in memory</td>
+<td>A flat image loader for our own guest first, game formats later</td>
+<td><a href="../guest-path/">Guest path</a></td>
+</tr>
+<tr>
+<td>Filesystem</td>
+<td>core/src/fs</td>
+<td>Maps a file into memory</td>
+<td>Game file formats, planned</td>
+<td></td>
 </tr>
 <tr>
 <td>Display</td>
-<td>Core/src/display.rs</td>
-<td>Holds the last finished frame and tells the window</td>
-<td>Real</td>
+<td>core/src/display.rs</td>
+<td>Holds the last frame and tells the window</td>
+<td>The display services feed it, planned</td>
+<td><a href="../guest-path/">Guest path</a></td>
 </tr>
 <tr>
-<td>FFI</td>
-<td>Core/src/ffi.rs</td>
-<td>The Rust functions the C++ window calls: run tests, render frames, read the frame</td>
-<td>Real</td>
-</tr>
-<tr>
-<td>GUI</td>
-<td>Gui-qt</td>
-<td>Buttons for CPU and GPU tests, Render Test Frame, Demo and Triangle, and the picture</td>
-<td>Real</td>
+<td>GPU</td>
+<td>core/src/gpu</td>
+<td>Translates and runs shaders, draws from command lists</td>
+<td>See the GPU pages</td>
+<td><a href="../gpu-pipeline/">GPU pipeline</a></td>
 </tr>
 </tbody>
 </table>
 <h2 id="how-does-a-frame-reach-the-window">How does a frame reach the window?<a class="headerlink" href="#how-does-a-frame-reach-the-window" title="Permanent link">&para;</a></h2>
-<p>The core never calls the window directly. A renderer calls <code>display::present</code>, which copies the pixels, bumps a frame counter and fires a callback the window registered. The window then reads the frame through FFI and scales it to fit.</p>
+<p>The core never calls the window directly. A renderer calls <code>display::present</code>, which copies the pixels, bumps a frame counter and fires a callback the window registered. The window then reads the frame through the C interface and scales it to fit.</p>
 <p>Why: the window redraws only when a frame arrives, and the core stays testable without a window.</p>
 <h2 id="why-does-the-gpu-work-start-at-the-hardware">Why does the GPU work start at the hardware?<a class="headerlink" href="#why-does-the-gpu-work-start-at-the-hardware" title="Permanent link">&para;</a></h2>
-<p>Nothing above the GPU exists yet. No game makes GPU driver calls, and the OS layer sets up no command stream or GPU address space. So the GPU work starts where the hardware starts, and tests write its command lists into guest memory. When a loader and the <code>nvdrv</code> GPU driver service exist, they will write those lists instead.</p>
+<p>A game reaches the GPU through the kernel and the GPU driver services, and both are still being built. So the GPU work started where the hardware starts, and tests write command lists into guest memory the way the driver would. The <a href="../guest-path/">guest path</a> replaces those tests with a real program that goes through the system calls and services.</p>
 <p>Verified by: the CPU self-tests (<code>core/src/tests/run.rs</code>, <code>multicore_test.rs</code>) and an offscreen screenshot of the window after Render Test Frame.</p>
-<p>Sources: core/src/cpu/cpu_manager.rs, core/src/cpu/unicorn_interface.rs, core/src/nn/mod.rs, core/src/nn/hipc.rs, core/src/sys/mod.rs, core/src/display.rs, core/src/ffi.rs, gui-qt/src/MainWindow.cpp, README.md.</p>
+<p>Sources: core/src/cpu/cpu_manager.rs, core/src/cpu/unicorn_interface.rs, core/src/nn/mod.rs, core/src/nn/hipc.rs, core/src/sys/mod.rs, core/src/display.rs, core/src/ffi.rs, gui-qt/src/MainWindow.cpp, .github/workflows/ci.yml, README.md.</p>
 
 
 
