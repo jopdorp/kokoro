@@ -796,6 +796,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#dungeon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dungeon
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1359,6 +1370,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#dungeon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dungeon
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1596,7 +1618,121 @@
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-bounce-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-bounce.mp4" type="video/mp4"></video>
 
 <p><em>Bounce: every hit plays a knock, higher for small balls and louder for hard hits, panned to where it happened.</em></p>
-<p>Each scene document in <code>demos/scenes</code> lists its guest memory layout and the register writes it sends. Every convention not yet confirmed is tagged "(verify)". The shaders are GLSL that <code>glslangValidator -V</code> accepts. NVIDIA's driver compiles them into the SM86 programs the scenes load.</p>
+<h3 id="dungeon">Dungeon<a class="headerlink" href="#dungeon" title="Permanent link">&para;</a></h3>
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon.mp4" type="video/mp4"></video>
+
+<p><em>Showcase: a 20-second, 1080p tour rendered offline at fixed 60 Hz, with audio from the emulated renderer. Ray-query shadows, reflections and ambient occlusion run on Intel Arc MTL. Wet cobblestone and rock use ambientCG 2K PBR maps, with layered fire, embers, smoke, heat haze, simulated water, foam, bubbles, drifting leaves, drips, bloom and volumetric torchlight. This is the console-oriented preset; its native Switch 2 frame budget remains unverified.</em></p>
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime.mp4" type="video/mp4"></video>
+
+<p><em>Realtime preset: also recorded offline at fixed 60 Hz. It keeps reduced versions of the effects, using baked shadow maps, half-resolution planar reflections, fewer particles and fog steps, and a smaller water grid. The preset name is a target, not a claim that this capture ran at 60 fps.</em></p>
+<p>The Qt selector and <code>capture dungeon --quality realtime|showcase</code> select the presets;
+<code>--raytracing on|off</code> overrides ray queries. The checkbox is disabled on devices
+without ray-query support. The local Intel Arc MTL and lavapipe (LLVM 21.1.8)
+both advertise <code>VK_KHR_ray_query</code>; lavapipe runs it in software.</p>
+<p>These dungeon shaders use the existing GLSL-to-Vulkan path. They do not measure
+SASS translation efficiency. The audio continues through audren renderer parcels;
+recording drains its ring directly to WAV without opening an audio device.
+The <a href="https://github.com/jopdorp/oboromi/blob/audio-dungeon/demos/assets/dungeon-materials.md">material manifest</a>
+records ambientCG asset IDs and the CC0 licence; <code>demos/assets/fetch.sh</code> fetches the maps.</p>
+<p>Fixed river view, release capture at 1920×1080, 30 frames with the first three
+excluded. GPU times below are Vulkan timestamp medians, summed by pass across
+main/reflected draws. CPU frame times include synchronous submission, copies and
+audio work but exclude writing the PPM file. This shared laptop had other work
+running, so small on/off differences are not reliable effect-cost deltas.</p>
+<table>
+<thead>
+<tr>
+<th>Pass</th>
+<th style="text-align: right;">Realtime GPU ms</th>
+<th style="text-align: right;">Showcase GPU ms</th>
+<th>Translated/twin ratio</th>
+<th>Native Switch 2 ms</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Heightfield</td>
+<td style="text-align: right;">0.019</td>
+<td style="text-align: right;">0.021</td>
+<td>N/A: direct GLSL</td>
+<td>unverified</td>
+</tr>
+<tr>
+<td>Particle simulation</td>
+<td style="text-align: right;">0.016</td>
+<td style="text-align: right;">0.017</td>
+<td>N/A: direct GLSL</td>
+<td>unverified</td>
+</tr>
+<tr>
+<td>Planar reflection</td>
+<td style="text-align: right;">1.170</td>
+<td style="text-align: right;">0.000</td>
+<td>N/A: direct GLSL</td>
+<td>unverified</td>
+</tr>
+<tr>
+<td>Instanced cave formations</td>
+<td style="text-align: right;">0.439</td>
+<td style="text-align: right;">1.049</td>
+<td>N/A: direct GLSL</td>
+<td>unverified</td>
+</tr>
+<tr>
+<td>PBR, shadows and wet reflections</td>
+<td style="text-align: right;">5.591</td>
+<td style="text-align: right;">41.532</td>
+<td>N/A: direct GLSL</td>
+<td>unverified</td>
+</tr>
+<tr>
+<td>River surface</td>
+<td style="text-align: right;">0.670</td>
+<td style="text-align: right;">9.173</td>
+<td>N/A: direct GLSL</td>
+<td>unverified</td>
+</tr>
+<tr>
+<td>Flames, smoke and other sprites</td>
+<td style="text-align: right;">0.238</td>
+<td style="text-align: right;">0.322</td>
+<td>N/A: direct GLSL</td>
+<td>unverified</td>
+</tr>
+<tr>
+<td>Volumetric fog</td>
+<td style="text-align: right;">0.148</td>
+<td style="text-align: right;">0.363</td>
+<td>N/A: direct GLSL</td>
+<td>unverified</td>
+</tr>
+<tr>
+<td>Bloom, heat haze and tonemap</td>
+<td style="text-align: right;">1.514</td>
+<td style="text-align: right;">1.414</td>
+<td>N/A: direct GLSL</td>
+<td>unverified</td>
+</tr>
+</tbody>
+</table>
+<p>There is no measured translated/twin ratio for these direct GLSL passes and no
+native console trace. Dividing these times by an unrelated translator benchmark
+would give a misleading native estimate. An under-16.7 ms console total has <strong>not</strong>
+been established.</p>
+<p><a href="https://switchbrew.org/wiki/Switch_2:_Tegra_T239">Switchbrew reports</a> a 1536-core
+Ampere GPU, 12 GB memory and a 102 GB/s memory bus. The local conformance checklist
+explicitly prohibits deriving scheduler, RT or clock behavior from core count.
+The brief's approximately 1 GHz docked assumption gives a theoretical 3.07 TFLOPS,
+or 51.2 GFLOP/frame at 60 Hz, and the reported bus gives 1.70 GB/frame. Those are
+peak ceilings, not predicted frame times. The preset uses 96 particles per light,
+a 256×64 water grid, 24 fog samples per quarter-resolution pixel, four shadow
+rays per contributing light, one short AO ray and one reflection ray on wet
+surfaces. Ray work still needs a native measurement and sizing pass before the
+console target can be claimed. Realtime uses 32 particles per light, 128×32 water,
+eight fog samples and a 960×540 planar reflection.</p>
+<!-- dungeon tour measurements -->
+
+<p>The other scene documents in <code>demos/scenes</code> list their guest memory layout and the register writes it sends. Every convention not yet confirmed is tagged "(verify)". The shaders are GLSL that <code>glslangValidator -V</code> accepts. NVIDIA's driver compiles them into the SM86 programs the scenes load.</p>
 <p>Compiling GLSL on a desktop card gives real SM86 code for each stage. It does not give the Switch 2's shader header or attribute conventions, so those stay tagged until a real game shows them.</p>
 <h2 id="where-do-the-assets-come-from">Where do the assets come from?<a class="headerlink" href="#where-do-the-assets-come-from" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
