@@ -181,6 +181,20 @@ using LineCallback = void(*)(const char*);
 
 using FrameCallback = void(*)(void*);
 
+struct InputState {
+  uint64_t buttons;
+  float left[2];
+  float right[2];
+  /// a gamepad is present or a key has been pressed.
+  bool connected;
+};
+
+struct OboromiInput {
+  InputState state;
+  /// nul terminated, empty without a gamepad.
+  char gamepad[64];
+};
+
 extern "C" {
 
 /// runs the arm64 cpu test suite. blocks the calling thread, so call it from
@@ -203,6 +217,40 @@ bool oboromi_render_demo_frame(float seconds);
 /// vulkan is missing or the draw fails. blocks, so call it from a worker thread.
 bool oboromi_render_triangle_demo(float seconds);
 
+/// saves the pipeline cache of the demos that ran, call it when a demo stops.
+bool oboromi_flush_demo_caches();
+
+/// draws the pbr BoomBox demo at `seconds` and presents it, false if vulkan is
+/// missing or the draw fails. blocks, so call it from a worker thread.
+bool oboromi_render_boombox_demo(float seconds);
+
+/// draws the pbr FlightHelmet demo like the BoomBox one, false too when
+/// demos/assets/fetch.sh has not fetched the asset.
+bool oboromi_render_helmet_demo(float seconds);
+
+/// draws the post-effect demo at `seconds` and presents it, false if vulkan
+/// is missing or a draw fails. blocks, so call it from a worker thread.
+bool oboromi_render_post_frame(float seconds);
+
+/// draws the sprites demo at `seconds` and presents it, false if vulkan is
+/// missing or the draw fails. blocks, so call it from a worker thread.
+bool oboromi_render_sprites_frame(float seconds);
+bool oboromi_render_dungeon_frame(float seconds);
+bool oboromi_dungeon_ray_queries(void);
+void oboromi_dungeon_settings(bool showcase, bool raytracing);
+void oboromi_set_dungeon_speakers(bool speakers);
+
+/// plays the music demo up to `seconds` through the audio renderer, false if it panicked.
+bool oboromi_render_music_demo(float seconds);
+
+/// steps the bounce demo to `seconds`, plays its knocks and presents the frame, false if vulkan
+/// is missing or a draw fails. blocks, so call it from a worker thread.
+bool oboromi_render_bounce_demo(float seconds);
+
+/// draws a frame of the particles demo at `seconds` and presents it, false if
+/// vulkan is missing or the frame fails. blocks, so call it from a worker thread.
+bool oboromi_render_particles_frame(float seconds);
+
 /// generation of the last presented frame, 0 until the guest presents one.
 uint64_t oboromi_frame_generation();
 
@@ -217,6 +265,27 @@ uintptr_t oboromi_frame_read(uint8_t *dst, uintptr_t cap, uint32_t *width, uint3
 
 /// `callback` runs on the presenting thread after every frame, null clears it.
 void oboromi_frame_set_callback(FrameCallback callback, void *user);
+
+/// creates the vulkan device with window surface support and returns its VkInstance for the gui to
+/// create surfaces with, null if vulkan or its surface extensions are missing.
+void *oboromi_vk_instance();
+
+/// presents every frame into `surface`, a VkSurfaceKHR of that instance, sized `width` x `height`
+/// pixels. call it again on resize and expose, and with a null surface before destroying it.
+/// false if the device cannot present to it.
+bool oboromi_display_surface(uint64_t surface, uint32_t width, uint32_t height);
+
+/// skips draws while their pipelines compile in engines created from now on.
+void oboromi_set_skip_draw_while_compiling(bool skip);
+
+/// a qt key code pressed or released in the gui.
+void oboromi_input_key(int32_t code, bool down);
+
+/// the merged host input the guest sees.
+///
+/// # Safety
+/// `out` must be valid for writes.
+void oboromi_input_state(OboromiInput *out);
 
 /// copies up to `frames` queued stereo frames into `dst` and zero-fills the
 /// rest, returns the frames copied.

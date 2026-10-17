@@ -61,12 +61,19 @@ fn encode_string(buf: &mut Vec<u32>, s: &str) {
 
 pub mod capability {
     pub const SHADER: u32 = 1;
+    pub const GEOMETRY: u32 = 2;
+    pub const TESSELLATION: u32 = 3;
+    pub const SAMPLE_RATE_SHADING: u32 = 35;
     pub const FLOAT16: u32 = 9;
     pub const FLOAT64: u32 = 10;
     pub const INT64: u32 = 11;
     pub const INT16: u32 = 22;
     pub const INT8: u32 = 39;
     pub const IMAGE_QUERY: u32 = 50;
+    pub const GROUP_NON_UNIFORM: u32 = 61;
+    pub const GROUP_NON_UNIFORM_ARITHMETIC: u32 = 63;
+    pub const GROUP_NON_UNIFORM_BALLOT: u32 = 64;
+    pub const GROUP_NON_UNIFORM_SHUFFLE: u32 = 65;
     pub const STORAGE_BUFFER_16BIT: u32 = 4433;
     pub const STORAGE_BUFFER_8BIT: u32 = 4448;
     pub const PHYSICAL_STORAGE_BUFFER_ADDRESSES: u32 = 5348;
@@ -74,6 +81,7 @@ pub mod capability {
     pub const VARIABLE_POINTERS: u32 = 4442;
     pub const DENORM_PRESERVE: u32 = 4464;
     pub const SIGNED_ZERO_INF_NAN_PRESERVE: u32 = 4466;
+    pub const RAY_QUERY: u32 = 4472;
 }
 
 pub mod storage_class {
@@ -94,6 +102,7 @@ pub mod storage_class {
 pub mod scope {
     pub const DEVICE: u32 = 1;
     pub const WORKGROUP: u32 = 2;
+    pub const SUBGROUP: u32 = 3;
 }
 
 pub mod memory_semantics {
@@ -106,12 +115,33 @@ pub mod memory_semantics {
 
 pub mod execution_model {
     pub const VERTEX: u32 = 0;
+    pub const TESSELLATION_CONTROL: u32 = 1;
+    pub const TESSELLATION_EVALUATION: u32 = 2;
+    pub const GEOMETRY: u32 = 3;
     pub const FRAGMENT: u32 = 4;
     pub const GLCOMPUTE: u32 = 5;
 }
 
 pub mod execution_mode {
+    pub const INVOCATIONS: u32 = 0;
+    pub const SPACING_EQUAL: u32 = 1;
+    pub const SPACING_FRACTIONAL_EVEN: u32 = 2;
+    pub const SPACING_FRACTIONAL_ODD: u32 = 3;
+    pub const VERTEX_ORDER_CW: u32 = 4;
+    pub const VERTEX_ORDER_CCW: u32 = 5;
+    pub const POINT_MODE: u32 = 10;
     pub const LOCAL_SIZE: u32 = 17;
+    pub const INPUT_POINTS: u32 = 19;
+    pub const INPUT_LINES: u32 = 20;
+    pub const INPUT_LINES_ADJACENCY: u32 = 21;
+    pub const TRIANGLES: u32 = 22;
+    pub const INPUT_TRIANGLES_ADJACENCY: u32 = 23;
+    pub const QUADS: u32 = 24;
+    pub const ISOLINES: u32 = 25;
+    pub const OUTPUT_VERTICES: u32 = 26;
+    pub const OUTPUT_POINTS: u32 = 27;
+    pub const OUTPUT_LINE_STRIP: u32 = 28;
+    pub const OUTPUT_TRIANGLE_STRIP: u32 = 29;
     pub const ORIGIN_UPPER_LEFT: u32 = 7;
     pub const DEPTH_REPLACING: u32 = 12;
     pub const DENORM_PRESERVE: u32 = 4459;
@@ -129,6 +159,7 @@ pub mod decoration {
     pub const BUILTIN: u32 = 11;
     pub const NO_PERSPECTIVE: u32 = 13;
     pub const FLAT: u32 = 14;
+    pub const PATCH: u32 = 15;
     pub const NON_WRITABLE: u32 = 24;
     pub const NON_READABLE: u32 = 25;
     pub const LOCATION: u32 = 30;
@@ -142,10 +173,20 @@ pub mod decoration {
 pub enum BuiltIn {
     Position = 0,
     PointSize = 1,
+    PrimitiveId = 7,
+    InvocationId = 8,
+    Layer = 9,
+    ViewportIndex = 10,
+    TessLevelOuter = 11,
+    TessLevelInner = 12,
+    TessCoord = 13,
+    PatchVertices = 14,
     VertexIndex = 42,
     InstanceIndex = 43,
     FragCoord = 15,
     FrontFacing = 17,
+    SampleId = 18,
+    SampleMask = 20,
     FragDepth = 22,
     NumWorkgroups = 24,
     WorkgroupSize = 25,
@@ -174,7 +215,7 @@ fn section(opcode: u32, operands: &[u32]) -> usize {
         16 | 331 => 6,                                     // OpExecutionMode(Id)
         2..=7 | 330 => 7,                                  // OpSource* to OpString, OpModuleProcessed
         71..=75 | 332 => 8,                                // OpDecorate* and OpGroup*Decorate
-        19..=39 | 41..=52 => 9,                            // OpType*, OpConstant*, OpSpecConstant*
+        19..=39 | 41..=52 | 4472 | 5341 => 9,              // OpType*, OpConstant*, OpSpecConstant*
         59 if operands[2] != storage_class::FUNCTION => 9, // global OpVariable
         _ => 10,                                           // function bodies
     }
@@ -402,6 +443,18 @@ impl Emitter {
     pub fn emit_type_sampled_image(&mut self, image_type: u32) -> u32 {
         let r = self.alloc_id();
         self.inst(27, &[r, image_type]);
+        r
+    }
+
+    pub fn emit_type_acceleration_structure(&mut self) -> u32 {
+        let r = self.alloc_id();
+        self.inst(5341, &[r]);
+        r
+    }
+
+    pub fn emit_type_ray_query(&mut self) -> u32 {
+        let r = self.alloc_id();
+        self.inst(4472, &[r]);
         r
     }
 
@@ -731,6 +784,18 @@ impl Emitter {
         r
     }
 
+    pub fn emit_ray_query_initialize(&mut self, query: u32, accel: u32, flags: u32, cull_mask: u32, origin: u32, tmin: u32, direction: u32, tmax: u32) {
+        self.inst(4473, &[query, accel, flags, cull_mask, origin, tmin, direction, tmax]);
+    }
+
+    pub fn emit_ray_query_confirm_intersection(&mut self, query: u32) {
+        self.inst(4476, &[query]);
+    }
+
+    pub fn emit_ray_query_proceed(&mut self, ty: u32, query: u32) -> u32 { self.typed_un(4477, ty, query) }
+
+    pub fn emit_ray_query_get_intersection(&mut self, op: u32, ty: u32, query: u32, committed: u32) -> u32 { self.typed_bin(op, ty, query, committed) }
+
     pub fn emit_sampled_image(&mut self, ty: u32, image: u32, sampler: u32) -> u32 {
         self.typed_bin(86, ty, image, sampler)
     }
@@ -911,6 +976,10 @@ impl Emitter {
         r
     }
 
+    pub fn emit_group_non_uniform_ballot_bit_extract(&mut self, ty: u32, scope: u32, ballot: u32, index: u32) -> u32 {
+        self.typed_tri(341, ty, scope, ballot, index)
+    }
+
     pub fn emit_group_non_uniform_shuffle(&mut self, ty: u32, scope: u32, value: u32, id: u32) -> u32 {
         let r = self.alloc_id();
         self.inst(345, &[ty, r, scope, value, id]);
@@ -997,6 +1066,14 @@ impl Emitter {
         let r = self.alloc_id();
         self.inst(1, &[ty, r]);
         r
+    }
+
+    pub fn emit_emit_vertex(&mut self) {
+        self.inst(218, &[]);
+    }
+
+    pub fn emit_end_primitive(&mut self) {
+        self.inst(219, &[]);
     }
 
     pub fn emit_kill(&mut self) {

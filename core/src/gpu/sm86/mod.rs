@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use ash::vk;
 use crate::gpu::VkState;
+use crate::gpu::threed::PrimitiveTopology;
 use crate::gpu::spirv::{self, storage_class};
 
 mod access;
@@ -16,6 +17,7 @@ mod fp;
 mod int_alu;
 mod memory;
 mod operands;
+mod ray;
 mod shared;
 mod special;
 mod tensor;
@@ -53,12 +55,13 @@ const EXIT: u32 = 0x94d;
 const RET: u32 = 0x950;
 const KILL: u32 = 0x95b;
 const BSYNC: u32 = 0x941;
-// Per lane after the BSSY tokens B0..B15: its arrival on each guest barrier, the last BAR.RED result for B2R.RESULT
-// and the WARPSYNC mask it waits on.
+// Per lane after the BSSY tokens B0..B15: its arrival on each guest barrier, the last BAR.RED result for B2R.RESULT,
+// the WARPSYNC mask it waits on and the byte address its EXIT jumps to, 0 for none.
 const BAR_ARRIVALS: u32 = 16;
 const BAR_RESULT: u32 = 32;
 const WARPSYNC_MASK: u32 = 33;
-const SYNC_WORDS: u32 = 34;
+const ATEXIT_PC: u32 = 34;
+const SYNC_WORDS: u32 = 35;
 // A schedule slot holds the pc vote, then per guest barrier the arrivals plus their BAR.RED predicates in the high half,
 // and the arrivals' thread count OR-ed with bit 12 for a running lane yet to arrive.
 const SCHEDULE_STRIDE: u32 = 1 + 2 * 16;
@@ -89,6 +92,17 @@ pub enum ResourceKind {
     VertexInput { location: u32 },
     Varying { location: u32, flat: bool },
     FragmentOutput { location: u32 },
+    /// The vec4 at attribute `attr` of every vertex of the primitive or patch.
+    PerVertex { attr: u32, output: bool },
+    Patch { location: u32 },
+    Ttu,
+    RayQuery,
+    AccelerationStructure { cbuf_bank: u32, byte_offset: u32 },
+}
+
+/// A module binds its acceleration structure after its textures and surfaces.
+pub fn acceleration_structure_binding(kinds: &[ResourceKind]) -> u32 {
+    TEXTURE_BINDING + kinds.iter().filter(|kind| matches!(kind, ResourceKind::Texture2D { .. } | ResourceKind::Surface2D { .. })).count() as u32
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -96,6 +110,12 @@ pub enum Stage {
     Compute { local_size: [u32; 3] },
     /// Bit n of `uint` and `sint` is set when generic attribute n is fetched as an unsigned or signed integer.
     Vertex { uint: u32, sint: u32 },
+    /// `input` is the draw's primitive. From the SPH: `output` is OUTPUT_TOPOLOGY (clc797sph.h:60), `max_vertices`
+    /// MAX_OUTPUT_VERTEX_COUNT (:64), `invocations` and `vertices` THREADS_PER_INPUT_PRIMITIVE (:58). `mode`, `spacing` and
+    /// `order` are DOMAIN_TYPE, SPACING and OUTPUT_PRIMITIVES of SET_TESSELLATION_PARAMETERS (clc797.h:691).
+    Geometry { input: PrimitiveTopology, output: u32, max_vertices: u32, invocations: u32 },
+    TessControl { vertices: u32 },
+    TessEval { mode: u32, spacing: u32, order: u32 },
     /// Bit n of `flat` and `screen_linear` is the interpolation of generic attribute n; `depth` writes FragDepth.
     Fragment { flat: u32, screen_linear: u32, depth: bool },
 }
@@ -148,10 +168,13 @@ pub struct Decoder<'a> {
     type_texture_2d: u32,
     type_sampled_texture_2d: u32,
     type_surface_2d: [u32; 2],
+    type_acceleration_structure: u32,
+    acceleration_structure_address: Option<(u32, u32)>,
     derivatives: bool,
     invocations: u32,
     glsl_ext: u32,
     pub resources: Vec<Resource>,
+    pub stores_global: bool,
     // Cache for emitted u32 constants to avoid duplicate OpConstant
     const_cache: HashMap<u32, u32>,
 }
@@ -200,6 +223,19 @@ fn exchanges(inst: u128) -> bool {
 
 fn partial_warpsync(inst: u128) -> bool {
     opcode(inst) & 0x1ff == 0x148 && !(opcode(inst) == 0x948 && (inst >> 32) as u32 == u32::MAX)
+}
+
+// The input execution mode of a geometry shader drawn with `input` and the vertices of each of its primitives.
+fn geometry_input(input: PrimitiveTopology) -> (u32, u32) {
+    use {PrimitiveTopology::*, spirv::execution_mode::*};
+    match input {
+        Points => (INPUT_POINTS, 1),
+        Lines | LineLoop | LineStrip => (INPUT_LINES, 2),
+        LineListAdjacency | LineStripAdjacency => (INPUT_LINES_ADJACENCY, 4),
+        Triangles | TriangleStrip | TriangleFan => (TRIANGLES, 3),
+        TriangleListAdjacency | TriangleStripAdjacency => (INPUT_TRIANGLES_ADJACENCY, 6),
+        _ => panic!("a geometry shader cannot draw {input:?}"),
+    }
 }
 
 fn guest_barriers(words: &[u128]) -> Vec<u32> {
@@ -276,10 +312,13 @@ impl<'a> Decoder<'a> {
             type_texture_2d: 0,
             type_sampled_texture_2d: 0,
             type_surface_2d: [0; 2],
+            type_acceleration_structure: 0,
+            acceleration_structure_address: None,
             derivatives: false,
             invocations: 0,
             glsl_ext: 0,
             resources: Vec::new(),
+            stores_global: false,
             const_cache: HashMap::new(),
         }
     }
@@ -296,18 +335,49 @@ impl<'a> Decoder<'a> {
         let execution_model = match self.stage {
             Stage::Compute { .. } => model::GLCOMPUTE,
             Stage::Vertex { .. } => model::VERTEX,
+            Stage::TessControl { .. } => model::TESSELLATION_CONTROL,
+            Stage::TessEval { .. } => model::TESSELLATION_EVALUATION,
+            Stage::Geometry { .. } => model::GEOMETRY,
             Stage::Fragment { .. } => model::FRAGMENT,
         };
+        self.bind_acceleration_structure();
         self.ir.emit_entry_point(execution_model, func, "main", &interface);
         match self.stage {
             Stage::Compute { local_size } => self.ir.emit_execution_mode(func, mode::LOCAL_SIZE, &local_size),
             Stage::Vertex { .. } => {}
+            Stage::Geometry { input, output, max_vertices, invocations } => {
+                self.ir.emit_capability(cap::GEOMETRY);
+                let output = match output {
+                    1 => mode::OUTPUT_POINTS,
+                    6 => mode::OUTPUT_LINE_STRIP,
+                    7 => mode::OUTPUT_TRIANGLE_STRIP,
+                    _ => panic!("OUTPUT_TOPOLOGY {output} is not a geometry shader output"),
+                };
+                for (mode, literals) in [(geometry_input(input).0, &[][..]), (output, &[]), (mode::OUTPUT_VERTICES, &[max_vertices]), (mode::INVOCATIONS, &[invocations])] {
+                    self.ir.emit_execution_mode(func, mode, literals);
+                }
+            }
+            Stage::TessControl { vertices } => {
+                self.ir.emit_capability(cap::TESSELLATION);
+                self.ir.emit_execution_mode(func, mode::OUTPUT_VERTICES, &[vertices]);
+            }
+            Stage::TessEval { mode: domain, spacing, order } => {
+                self.ir.emit_capability(cap::TESSELLATION);
+                let order = [Some(mode::POINT_MODE), None, Some(mode::VERTEX_ORDER_CW), Some(mode::VERTEX_ORDER_CCW)][order as usize];
+                let modes = [[mode::ISOLINES, mode::TRIANGLES, mode::QUADS][domain as usize], [mode::SPACING_EQUAL, mode::SPACING_FRACTIONAL_ODD, mode::SPACING_FRACTIONAL_EVEN][spacing as usize]];
+                for mode in modes.into_iter().chain(order) {
+                    self.ir.emit_execution_mode(func, mode, &[]);
+                }
+            }
             Stage::Fragment { depth, .. } => {
                 self.ir.emit_execution_mode(func, mode::ORIGIN_UPPER_LEFT, &[]);
                 if depth {
                     self.ir.emit_execution_mode(func, mode::DEPTH_REPLACING, &[]);
                 }
             }
+        }
+        if self.resource(ResourceKind::BuiltIn(spirv::BuiltIn::SampleId as u32)).is_some() {
+            self.ir.emit_capability(cap::SAMPLE_RATE_SHADING);
         }
         let Some(device) = device else { return };
         for (capability, execution_mode, widths) in [
@@ -434,6 +504,28 @@ impl<'a> Decoder<'a> {
     fn warp_exchange(&mut self, val: u32, lanes: &[u32]) -> Vec<[u32; 2]> {
         const MAX_INVOCATIONS: u32 = 1024;
         let ty = self.type_u32[1];
+        if matches!(self.stage, Stage::Fragment { .. }) {
+            self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM);
+            self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM_SHUFFLE);
+            self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM_BALLOT);
+            let scope = self.cached_const_u32(spirv::scope::SUBGROUP);
+            let own = self.builtin(spirv::BuiltIn::SubgroupLocalInvocationId);
+            let yes = self.ir.emit_constant_true(self.type_bool[1]);
+            let present = self.ir.emit_group_non_uniform_ballot(self.type_u32[4], scope, yes);
+            let mask = self.cached_const_u32(!31);
+            let base = self.ir.emit_bitwise_and(ty, own, mask);
+            let value = self.ir.emit_select(ty, self.active, val, self.const_u32_0);
+            let active = self.bool_bit(self.active);
+            return lanes.iter().map(|&lane| {
+                let source = self.ir.emit_iadd(ty, base, lane);
+                let exists = self.ir.emit_group_non_uniform_ballot_bit_extract(self.type_bool[1], scope, present, source);
+                let source = self.ir.emit_select(ty, exists, source, own);
+                [value, active].map(|word| {
+                    let word = self.ir.emit_group_non_uniform_shuffle(ty, scope, word, source);
+                    self.ir.emit_select(ty, exists, word, self.const_u32_0)
+                })
+            }).collect();
+        }
         let invocation = self.builtin(spirv::BuiltIn::LocalInvocationIndex);
         let flags = self.cached_const_u32(MAX_INVOCATIONS);
         let val = self.ir.emit_select(ty, self.active, val, self.const_u32_0);
@@ -503,9 +595,11 @@ impl<'a> Decoder<'a> {
     // Warp collectives and BAR meet at workgroup barriers, so a program with them steps every invocation through the same
     // iterations: each iteration runs the lowest pc a lane can run and lanes at any other pc sit it out.
     pub fn translate_program(&mut self, words: &[u128]) {
+        self.acceleration_structure_address = ray::acceleration_structure_address(words);
         let len = words.len() as u32;
-        // BRX, JMX and CALL Ra only know their target at run time, so such a program dispatches on every pc; RET lands after a CALL.
-        let indirect = words.iter().any(|inst| matches!(opcode(*inst), CALL_ABS_R | CALL_REL_R | 0x1943 | 0x1944 | 0xb43 | BRX | BRXU | JMX | JMXU | 0xb4a | 0x1b4a | 0x174a | 0x194a | 0x154a | 0x1950));
+        // BRX, JMX, CALL Ra and BMOV ATEXIT_PC only know their target at run time, so such a program dispatches on every pc; RET
+        // lands after a CALL.
+        let indirect = words.iter().any(|inst| matches!(opcode(*inst), 0x357 | 0x957 | CALL_ABS_R | CALL_REL_R | 0x1943 | 0x1944 | 0xb43 | BRX | BRXU | JMX | JMXU | 0xb4a | 0x1b4a | 0x174a | 0x194a | 0x154a | 0x1950));
         let mut leaders: Vec<u32> = if indirect { (0..=len).collect() } else { vec![0, len] };
         for (pc, &inst) in (0..).zip(words) {
             leaders.extend(branch_target(pc, inst));
@@ -533,7 +627,7 @@ impl<'a> Decoder<'a> {
         let end = self.cached_const_u32(len);
         let start = self.ir.emit_select(self.type_u32[1], dead, end, self.const_u32_0);
         self.ir.emit_store(self.var_pc, start);
-        if uniform {
+        if uniform && matches!(self.stage, Stage::Compute { .. }) {
             self.clear_schedule_slot(self.const_u32_0, &guest_barriers(words));
             self.workgroup_barrier();
         }
