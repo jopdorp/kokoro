@@ -27,7 +27,7 @@
     
     
       
-        <title>T239 decodes with the SM86 table - oboromi</title>
+        <title>Switch 2 uses the desktop table - oboromi</title>
       
     
     
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#the-t239-decodes-with-the-sm86-instruction-table" class="md-skip">
+        <a href="#the-switch-2-chip-decodes-with-the-desktop-instruction-table" class="md-skip">
           Skip to content
         </a>
       
@@ -109,7 +109,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              T239 decodes with the SM86 table
+              Switch 2 uses the desktop table
             
           </span>
         </div>
@@ -353,7 +353,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -725,7 +725,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -761,7 +761,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -797,7 +797,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -833,7 +833,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -869,7 +869,7 @@
   <span class="md-ellipsis">
     
   
-    HMMA as DontUnroll loops
+    Exact matrix sums as loops
   
 
     
@@ -905,7 +905,7 @@
   <span class="md-ellipsis">
     
   
-    Synchronous pusher and draw snapshots
+    Commands run in order
   
 
     
@@ -950,7 +950,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -976,7 +976,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -1010,6 +1010,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#in-plain-words" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In plain words
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1033,10 +1044,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#what-this-makes-easy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        What this makes easy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-this-makes-hard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this makes hard
       
     </span>
   </a>
@@ -1082,7 +1104,7 @@
   <span class="md-ellipsis">
     
   
-    Silicon-first verification
+    Real chips are the reference
   
 
     
@@ -1192,6 +1214,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#in-plain-words" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In plain words
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1215,10 +1248,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#what-this-makes-easy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        What this makes easy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-this-makes-hard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this makes hard
       
     </span>
   </a>
@@ -1258,19 +1302,59 @@
 
 
 
-<h1 id="the-t239-decodes-with-the-sm86-instruction-table">The T239 decodes with the SM86 instruction table<a class="headerlink" href="#the-t239-decodes-with-the-sm86-instruction-table" title="Permanent link">&para;</a></h1>
+<h1 id="the-switch-2-chip-decodes-with-the-desktop-instruction-table">The Switch 2 chip decodes with the desktop instruction table<a class="headerlink" href="#the-switch-2-chip-decodes-with-the-desktop-instruction-table" title="Permanent link">&para;</a></h1>
+<h2 id="in-plain-words">In plain words<a class="headerlink" href="#in-plain-words" title="Permanent link">&para;</a></h2>
+<p>We read Switch 2 shader code with the instruction table of NVIDIA's desktop Ampere chips. That only works if both chips encode instructions the same way. We checked inside NVIDIA's own disassembler: its tables for the desktop chip and the Switch 2 chip are byte for byte the same. So recordings made on a desktop card test the same encodings a Switch 2 runs.</p>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>The decoder is generated from the SM86 instruction table. The Switch 2's T239 has a GA10F GPU, which CUDA calls SM88. If its encodings differ, every handler keyed on SM86 is wrong in places.</p>
+<p>The decoder is generated from the SM86 table, the desktop Ampere instruction set. The Switch 2's chip, the T239, has a GA10F GPU, which CUDA calls SM88. If its encodings differed, every handler keyed on SM86 would be wrong in places.</p>
 <h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
-<p>Keep the SM86 table. CUDA 13.1's nvdisasm accepts <code>--binary SM88</code>, and its embedded tables for SM86, SM87 and SM88 are byte-identical. Against the committed table: no class added or removed, no bit field changed, no encoding key changed. The only differences are opcode names that became internal, which would break the generated handler names. Every fixture word disassembles the same under SM86 and SM88. open-gpu-doc also lists the T239 under the same 3D class as the GA102 family.</p>
-<h3 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h3>
+<p>Keep the SM86 table. NVIDIA's disassembler, nvdisasm, accepts <code>--binary SM88</code>, and its built-in tables for SM86, SM87 and SM88 are byte-identical.</p>
+<table>
+<thead>
+<tr>
+<th>Compared with the committed table</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CUDA version checked</td>
+<td>13.1</td>
+</tr>
+<tr>
+<td>Encoding classes, the table's rows</td>
+<td>None added or removed</td>
+</tr>
+<tr>
+<td>Bit fields</td>
+<td>None changed</td>
+</tr>
+<tr>
+<td>Decoder keys</td>
+<td>None changed</td>
+</tr>
+<tr>
+<td>Opcode names</td>
+<td>Some marked internal, which would break the generated handler names</td>
+</tr>
+<tr>
+<td>Every fixture word</td>
+<td>Disassembles the same under SM86 and SM88</td>
+</tr>
+</tbody>
+</table>
+<p>NVIDIA's public open-gpu-doc headers also list the T239 under the same 3D class as the desktop GA102 family.</p>
+<h3 id="what-this-makes-easy">What this makes easy<a class="headerlink" href="#what-this-makes-easy" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Good, because silicon captures from a desktop GA102 check the same encodings the T239 runs.</li>
-<li>Good, because the public opcode names stay readable.</li>
-<li>Bad, because execution semantics are verified on GA102, not on a T239; equality there is assumed, by design.</li>
+<li>Recordings from a desktop GA102 card check the same encodings the Switch 2 runs.</li>
+<li>Handler names stay the public, readable opcode names.</li>
+</ul>
+<h3 id="what-this-makes-hard">What this makes hard<a class="headerlink" href="#what-this-makes-hard" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Behaviour is only checked on desktop chips, so equality on a Switch 2 is assumed.</li>
 </ul>
 <h3 id="confirmation">Confirmation<a class="headerlink" href="#confirmation" title="Permanent link">&para;</a></h3>
-<p>The extracted SM88 table is kept on <code>gpu/sm88-table</code> beside a diff summary; regenerate and diff when a new CUDA ships.</p>
+<p>The extracted SM88 table is kept on <code>gpu/sm88-table</code> beside a diff summary; regenerate and diff it when a new CUDA ships.</p>
 <p>Sources: scripts/sm_86_instructions.txt, scripts/decoder_generator.rs, CUDA 13.1 nvdisasm, open-gpu-doc classes/3d.</p>
 
 

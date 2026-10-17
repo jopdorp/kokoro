@@ -355,7 +355,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -635,7 +635,7 @@
   <a href="#what-runs-today" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What runs today
+        What runs today?
       
     </span>
   </a>
@@ -643,10 +643,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-planned-scenes" class="md-nav__link">
+  <a href="#which-scenes-come-next" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The planned scenes
+        Which scenes come next?
       
     </span>
   </a>
@@ -654,10 +654,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#assets" class="md-nav__link">
+  <a href="#where-do-the-assets-come-from" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Assets
+        Where do the assets come from?
       
     </span>
   </a>
@@ -805,7 +805,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -841,7 +841,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -877,7 +877,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -913,7 +913,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -949,7 +949,7 @@
   <span class="md-ellipsis">
     
   
-    HMMA as DontUnroll loops
+    Exact matrix sums as loops
   
 
     
@@ -985,7 +985,7 @@
   <span class="md-ellipsis">
     
   
-    Synchronous pusher and draw snapshots
+    Commands run in order
   
 
     
@@ -1021,7 +1021,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -1057,7 +1057,7 @@
   <span class="md-ellipsis">
     
   
-    Silicon-first verification
+    Real chips are the reference
   
 
     
@@ -1170,7 +1170,7 @@
   <a href="#what-runs-today" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What runs today
+        What runs today?
       
     </span>
   </a>
@@ -1178,10 +1178,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-planned-scenes" class="md-nav__link">
+  <a href="#which-scenes-come-next" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The planned scenes
+        Which scenes come next?
       
     </span>
   </a>
@@ -1189,10 +1189,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#assets" class="md-nav__link">
+  <a href="#where-do-the-assets-come-from" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Assets
+        Where do the assets come from?
       
     </span>
   </a>
@@ -1217,46 +1217,77 @@
 
 
 <h1 id="demos">Demos<a class="headerlink" href="#demos" title="Permanent link">&para;</a></h1>
-<p>The window has three buttons that draw through the GPU work today, and four scenes are planned that each pull in the next missing feature. Every frame ends in <code>display::present</code>, which the Qt display widget shows.</p>
-<h2 id="what-runs-today">What runs today<a class="headerlink" href="#what-runs-today" title="Permanent link">&para;</a></h2>
+<p>The Qt window has buttons that draw through the GPU work today. Each planned scene needs one more missing feature, so the scenes double as a to-do list. For example, the Triangle button writes GPU commands into emulated memory every frame, and the full engine draws them.</p>
+<h2 id="what-runs-today">What runs today?<a class="headerlink" href="#what-runs-today" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>button</th>
-<th>code</th>
-<th>what it proves</th>
+<th>Button</th>
+<th>Code</th>
+<th>What it proves</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Render Test Frame</td>
 <td><code>frame::render_test_frame</code></td>
-<td>a translated SASS program (S2R, IMAD, STG) writes a 1080p gradient through compute</td>
+<td>A translated SASS program (S2R, IMAD, STG) writes a 1080p gradient as a compute shader</td>
 </tr>
 <tr>
 <td>Demo</td>
 <td><code>frame::render_demo_frame</code></td>
-<td>a hand-assembled SASS Julia set animates every frame; time comes in through cbuf 0</td>
+<td>A hand-written SASS Julia set animates every frame; the time arrives through constant buffer 0</td>
 </tr>
 <tr>
 <td>Triangle</td>
 <td><code>frame::render_triangle_demo</code></td>
-<td>a pushbuffer in guest memory draws a turning triangle through the whole engine</td>
+<td>A command list in guest memory draws a turning triangle through the whole engine</td>
 </tr>
 </tbody>
 </table>
-<p>The Julia set program uses FFMA, FMUL, FADD, FSETP, MUFU.COS, SIN and LG2, I2F, F2I, IADD3, IMAD, LOP3 and STG, with a predicated BRA loop. It re-dispatches one pipeline built once, so a frame costs a dispatch, a readback and a present.</p>
-<p>measured on an Intel Arc (MTL), p50 per frame:</p>
+<p>The Julia set program loops with a predicated branch, a jump taken only where a one-bit flag is set. It reuses one pipeline built once, so a frame costs a dispatch, a readback and a present.</p>
 <table>
 <thead>
 <tr>
-<th>demo</th>
-<th>time</th>
+<th>Julia set uses</th>
+<th>Instructions</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>test frame, 1080p</td>
+<td>Float maths</td>
+<td>FFMA, FMUL, FADD, FSETP</td>
+</tr>
+<tr>
+<td>Special functions</td>
+<td>MUFU.COS, SIN and LG2</td>
+</tr>
+<tr>
+<td>Conversions</td>
+<td>I2F, F2I</td>
+</tr>
+<tr>
+<td>Integer maths</td>
+<td>IADD3, IMAD, LOP3</td>
+</tr>
+<tr>
+<td>Memory and flow</td>
+<td>STG, predicated BRA</td>
+</tr>
+</tbody>
+</table>
+<p>Every frame ends in <code>display::present</code>, which the window shows.</p>
+<p>Measured on an Intel Arc (MTL), p50 per frame:</p>
+<table>
+<thead>
+<tr>
+<th>Demo</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Test frame, 1080p</td>
 <td>4.2 ms</td>
 </tr>
 <tr>
@@ -1264,63 +1295,65 @@
 <td>4.7 ms</td>
 </tr>
 <tr>
-<td>pushbuffer triangle, 1080p</td>
+<td>Pushbuffer triangle, 1080p</td>
 <td>6.6 ms</td>
 </tr>
 </tbody>
 </table>
-<h2 id="the-planned-scenes">The planned scenes<a class="headerlink" href="#the-planned-scenes" title="Permanent link">&para;</a></h2>
+<h2 id="which-scenes-come-next">Which scenes come next?<a class="headerlink" href="#which-scenes-come-next" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
-    TRI["triangle&lt;br/&gt;today"] --&gt; PBR["pbr-boombox"]
-    PBR --&gt; POST["post-effect"]
-    TRI --&gt; SPR["sprites2d"]
-    TRI --&gt; PART["particles"]
-    PBR -.-&gt;|"needs"| N1["indexed draws, depth,&lt;br/&gt;five textures, mips"]
-    POST -.-&gt;|"needs"| N2["render to texture by VA,&lt;br/&gt;vertex-less draws"]
-    PART -.-&gt;|"needs"| N3["QMD compute launch, instancing,&lt;br/&gt;blending"]
-    SPR -.-&gt;|"needs"| N4["instancing, alpha blending,&lt;br/&gt;repeat-wrap sampling"]</code></pre>
+    TRI["Triangle&lt;br/&gt;Runs today"] --&gt; PBR["pbr-boombox&lt;br/&gt;A lit 3D model"]
+    PBR --&gt; POST["post-effect&lt;br/&gt;The model, then screen filters"]
+    TRI --&gt; SPR["sprites2d&lt;br/&gt;Layered 2D sprites"]
+    TRI --&gt; PART["particles&lt;br/&gt;Compute-driven particles"]
+    PBR -.-&gt;|"Needs"| N1["Indexed draws, depth,&lt;br/&gt;Five textures, mip levels"]
+    POST -.-&gt;|"Needs"| N2["Drawing into a texture by address,&lt;br/&gt;Draws without vertex buffers"]
+    PART -.-&gt;|"Needs"| N3["Compute launches from commands,&lt;br/&gt;Many copies per draw, blending"]
+    SPR -.-&gt;|"Needs"| N4["Many copies per draw, see-through blending,&lt;br/&gt;Repeating texture edges"]</code></pre>
+<p><em>Each planned scene, and the engine features it needs first.</em></p>
 <table>
 <thead>
 <tr>
-<th>scene</th>
-<th>content</th>
-<th>shaders</th>
+<th>Scene</th>
+<th>Content</th>
+<th>Shaders</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>pbr-boombox</td>
-<td>BoomBox or Avocado, metallic-roughness PBR with normal maps, one light</td>
+<td>The BoomBox or Avocado model, lit with physically based materials and normal maps, one light</td>
 <td>pbr.vert, pbr.frag</td>
 </tr>
 <tr>
 <td>post-effect</td>
-<td>the PBR scene offscreen, then chromatic aberration, scanlines and a vignette</td>
+<td>The PBR scene drawn offscreen, then colour fringing, scanlines and a vignette</td>
 <td>post.vert, post.frag</td>
 </tr>
 <tr>
 <td>particles</td>
-<td>particles integrated by a compute dispatch, drawn as additive instanced quads</td>
+<td>Particles moved by a compute shader, drawn as glowing instanced squares</td>
 <td>particles_update.comp, particles.vert, particles.frag</td>
 </tr>
 <tr>
 <td>sprites2d</td>
-<td>parallax layers and floating sprites, alpha-blended over a procedural atlas</td>
+<td>Scrolling layers and floating sprites, blended over a generated texture sheet</td>
 <td>sprite2d.vert, sprite2d.frag</td>
 </tr>
 </tbody>
 </table>
-<p>Each scene document in <code>demos/scenes</code> lists its guest memory map, the register program it writes, and tags every unconfirmed convention with "(verify)". The shaders are GLSL that <code>glslangValidator -V</code> accepts; the plan is to compile them with the NVIDIA driver on a rented card into the SM86 programs the scenes load.</p>
-<p>Why GLSL compiled on a desktop card: it gives real SM86 code for the stages, but not the Switch 2's shader header or attribute conventions, so those stay tagged until a real title shows them.</p>
-<h2 id="assets">Assets<a class="headerlink" href="#assets" title="Permanent link">&para;</a></h2>
+<p>Each scene document in <code>demos/scenes</code> lists its guest memory layout and the register writes it sends. Every convention not yet confirmed is tagged "(verify)". The shaders are GLSL that <code>glslangValidator -V</code> accepts. The plan is to compile them with NVIDIA's driver on a rented card, which yields the SM86 programs the scenes load.</p>
+<p>Why compile GLSL on a desktop card: it yields real SM86 code for each stage. But it does not yield the Switch 2's shader header or attribute conventions, so those stay tagged until a real game shows them.</p>
+<h2 id="where-do-the-assets-come-from">Where do the assets come from?<a class="headerlink" href="#where-do-the-assets-come-from" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
-    GLB["glTF-Binary&lt;br/&gt;Khronos sample assets"] --&gt; PY["scripts/gltf_to_raw.py"]
-    PY --&gt; V["vertices.bin&lt;br/&gt;position, normal, tangent, uv"]
-    PY --&gt; I["indices.bin&lt;br/&gt;u32"]
-    PY --&gt; T["slot.rgba8&lt;br/&gt;block-linear mip chain"]
-    PY --&gt; M["manifest.json&lt;br/&gt;layout, materials, source, licence"]</code></pre>
-<p>BoomBox and Avocado are CC0 1.0 by Microsoft, from KhronosGroup's glTF-Sample-Assets. Base colour and emissive are sRGB, the other slots linear. DamagedHelmet is avoided because its source carries a non-commercial licence.</p>
-<p>Verified by: the GUI showing each button's output in an offscreen screenshot, the engine acceptance test for the triangle, the Julia centre test, and the block-linear swizzle matching the converter.</p>
+    GLB["glTF-Binary model&lt;br/&gt;Khronos sample assets"] --&gt; PY["Scripts/gltf_to_raw.py&lt;br/&gt;Converter"]
+    PY --&gt; V["vertices.bin&lt;br/&gt;Position, normal, tangent, uv"]
+    PY --&gt; I["indices.bin&lt;br/&gt;Which vertices form each triangle"]
+    PY --&gt; T["slot.rgba8&lt;br/&gt;Textures, NVIDIA-tiled, with mip levels"]
+    PY --&gt; M["manifest.json&lt;br/&gt;Layout, materials, source, licence"]</code></pre>
+<p><em>The converter turns a standard 3D model file into raw files the scenes copy into guest memory.</em></p>
+<p>BoomBox and Avocado are CC0 1.0 by Microsoft, from KhronosGroup's glTF-Sample-Assets. Base colour and emissive textures are sRGB, the others linear. DamagedHelmet is avoided because its source carries a non-commercial licence.</p>
+<p>Verified by: an offscreen screenshot of each button's output, the engine acceptance test for the triangle, the Julia centre test, and the block-linear tiling matching the converter.</p>
 <p>Sources: core/src/gpu/frame.rs, core/src/ffi.rs, gui-qt/src/MainWindow.cpp, demos/README, demos/scenes/*.md, demos/assets/README, scripts/gltf_to_raw.py, core/examples/perf.rs.</p>
 
 

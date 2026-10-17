@@ -353,7 +353,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -725,7 +725,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -761,7 +761,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -797,7 +797,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -833,7 +833,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -869,7 +869,7 @@
   <span class="md-ellipsis">
     
   
-    HMMA as DontUnroll loops
+    Exact matrix sums as loops
   
 
     
@@ -905,7 +905,7 @@
   <span class="md-ellipsis">
     
   
-    Synchronous pusher and draw snapshots
+    Commands run in order
   
 
     
@@ -941,7 +941,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -977,7 +977,7 @@
   <span class="md-ellipsis">
     
   
-    Silicon-first verification
+    Real chips are the reference
   
 
     
@@ -1096,49 +1096,50 @@
 
 
 <h1 id="decision-records">Decision records<a class="headerlink" href="#decision-records" title="Permanent link">&para;</a></h1>
-<p>One page per decision that shaped the GPU work, in the MADR shape: the problem, the choice, what it costs, and how we know it holds. Each record names its component in the front matter.</p>
+<p>A decision record, or ADR, explains one design choice: the problem, the choice, and what it costs. Each one opens with a short "In plain words" section, then the details. For example, <a href="0004-backing-memory-authority-for-coherence/">ADR-0004</a> explains why emulated RAM is the one true copy of all data.</p>
 <table>
 <thead>
 <tr>
 <th>ADR</th>
-<th>decision</th>
+<th>Decision</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><a href="0001-set-0-binding-abi/">0001</a></td>
-<td>every resource lives in descriptor set 0 at fixed or dense bindings</td>
+<td>Every shader finds its data in one fixed table of numbered slots</td>
 </tr>
 <tr>
 <td><a href="0002-one-ssbo-window-for-global-memory/">0002</a></td>
-<td>guest global memory is one storage buffer window</td>
+<td>Game memory reaches a shader through one window buffer</td>
 </tr>
 <tr>
 <td><a href="0003-uniform-workgroup-scheduling-for-divergence/">0003</a></td>
-<td>divergent programs run workgroup-uniform with tracked reconvergence</td>
+<td>Threads that take different branches run in turns</td>
 </tr>
 <tr>
 <td><a href="0004-backing-memory-authority-for-coherence/">0004</a></td>
-<td>guest memory is the authority; host copies follow page generations</td>
+<td>Emulated RAM is the one true copy; host copies check a write counter</td>
 </tr>
 <tr>
 <td><a href="0005-hmma-exact-accumulation-as-dontunroll-loops/">0005</a></td>
-<td>tensor sums use the silicon model, emitted as DontUnroll loops</td>
+<td>Matrix sums copy the chip exactly, written as small loops</td>
 </tr>
 <tr>
 <td><a href="0006-synchronous-pusher-with-draw-snapshots/">0006</a></td>
-<td>the pusher runs synchronously and hands out draw snapshots</td>
+<td>GPU commands run one after another, each draw with frozen settings</td>
 </tr>
 <tr>
 <td><a href="0007-t239-decodes-with-the-sm86-table/">0007</a></td>
-<td>the T239 decodes with the SM86 instruction table</td>
+<td>The Switch 2 chip decodes with the desktop instruction table</td>
 </tr>
 <tr>
 <td><a href="0008-silicon-first-verification/">0008</a></td>
-<td>silicon captures are the reference, known failures are per device</td>
+<td>Real chips are the reference, known differences are listed per device</td>
 </tr>
 </tbody>
 </table>
+<p>Each record follows the MADR template and names its component in the front matter.</p>
 
 
 

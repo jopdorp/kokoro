@@ -27,7 +27,7 @@
     
     
       
-        <title>Set-0 binding ABI - oboromi</title>
+        <title>One table of data slots - oboromi</title>
       
     
     
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#one-descriptor-set-with-fixed-and-dense-bindings" class="md-skip">
+        <a href="#every-shader-finds-its-data-in-one-fixed-table-of-numbered-slots" class="md-skip">
           Skip to content
         </a>
       
@@ -109,7 +109,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Set-0 binding ABI
+              One table of data slots
             
           </span>
         </div>
@@ -353,7 +353,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -734,7 +734,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -760,7 +760,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -794,6 +794,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#in-plain-words" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In plain words
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -817,10 +828,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#what-this-makes-easy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        What this makes easy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-this-makes-hard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this makes hard
       
     </span>
   </a>
@@ -866,7 +888,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -902,7 +924,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -938,7 +960,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -974,7 +996,7 @@
   <span class="md-ellipsis">
     
   
-    HMMA as DontUnroll loops
+    Exact matrix sums as loops
   
 
     
@@ -1010,7 +1032,7 @@
   <span class="md-ellipsis">
     
   
-    Synchronous pusher and draw snapshots
+    Commands run in order
   
 
     
@@ -1046,7 +1068,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -1082,7 +1104,7 @@
   <span class="md-ellipsis">
     
   
-    Silicon-first verification
+    Real chips are the reference
   
 
     
@@ -1192,6 +1214,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#in-plain-words" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In plain words
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1215,10 +1248,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#what-this-makes-easy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        What this makes easy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-this-makes-hard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this makes hard
       
     </span>
   </a>
@@ -1258,20 +1302,81 @@
 
 
 
-<h1 id="one-descriptor-set-with-fixed-and-dense-bindings">One descriptor set with fixed and dense bindings<a class="headerlink" href="#one-descriptor-set-with-fixed-and-dense-bindings" title="Permanent link">&para;</a></h1>
+<h1 id="every-shader-finds-its-data-in-one-fixed-table-of-numbered-slots">Every shader finds its data in one fixed table of numbered slots<a class="headerlink" href="#every-shader-finds-its-data-in-one-fixed-table-of-numbered-slots" title="Permanent link">&para;</a></h1>
+<h2 id="in-plain-words">In plain words<a class="headerlink" href="#in-plain-words" title="Permanent link">&para;</a></h2>
+<p>A Vulkan shader cannot follow a pointer to its data. Instead it reads from numbered slots, and before each run the host plugs a buffer or an image into each slot. Think of a patch panel: the shader asks for a socket by number and reads whatever is plugged in there. We fixed the socket numbers once, for every shader, so the host always knows what goes where.</p>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>A translated program reads host support data, up to eight guest cbufs, global memory, and any number of textures and surfaces. Compute and graphics pipelines must agree on where each one lives, and graphics has two stages sharing one layout.</p>
+<p>A translated shader needs several kinds of data: our own helper values, the game's constant tables, the game's main memory, and any number of textures. Compute shaders and drawing shaders must agree on which slot holds what. A vertex shader and a pixel shader drawing together also share one slot layout.</p>
 <h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
-<p>Everything lives in set 0. Binding 0 is a host support uniform buffer, never a guest cbuf. Bindings 1 to 8 are guest cbuf slots 0 to 7 as std140 uvec4 arrays. Binding 9 is the global memory window, 10 and 11 the test-only register in and out buffers. Textures and surfaces take dense bindings from 12 in first-use order, deduplicated by where their handle comes from. Only used bindings are emitted.</p>
-<h3 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h3>
+<p>Vulkan calls a slot a binding and a group of slots a descriptor set. Everything lives in one group, set 0, with these slots:</p>
+<table>
+<thead>
+<tr>
+<th>Binding</th>
+<th>Vulkan kind</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Uniform buffer: small, read-only</td>
+<td>Our helper values, today the start address of the memory window; never game data</td>
+</tr>
+<tr>
+<td>1 to 8</td>
+<td>Uniform buffers</td>
+<td>The game's constant buffers 0 to 7</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Storage buffer: large, read-write</td>
+<td>The window onto the game's main memory, see <a href="../0002-one-ssbo-window-for-global-memory/">ADR-0002</a></td>
+</tr>
+<tr>
+<td>10, 11</td>
+<td>Storage buffers</td>
+<td>Register values in and out, for tests only</td>
+</tr>
+<tr>
+<td>12 and up</td>
+<td>Image slots</td>
+<td>Textures and writable images, numbered in the order the shader first uses them</td>
+</tr>
+</tbody>
+</table>
+<p>A constant buffer, or cbuf, is a small read-only table of numbers the game hands the shader, such as the camera matrix. Vulkan's layout rule for uniform buffers, std140, pads each array element to a fixed width. A <code>uvec4</code> is exactly that width, so each cbuf is declared as a <code>uvec4</code> array and no space is wasted.</p>
+<table>
+<thead>
+<tr>
+<th>Layout fact</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>std140 array element</td>
+<td>Padded to 16 bytes</td>
+</tr>
+<tr>
+<td><code>uvec4</code></td>
+<td>Four 32-bit words, 16 bytes</td>
+</tr>
+</tbody>
+</table>
+<p>Two texture reads whose handle comes from the same cbuf word share one slot. A shader declares only the slots it uses. That list, its resource list, tells the host exactly what to plug in.</p>
+<h3 id="what-this-makes-easy">What this makes easy<a class="headerlink" href="#what-this-makes-easy" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Good, because one <code>Descriptors</code> type serves compute and graphics, and a module's resource list is all the host needs to bind it.</li>
-<li>Good, because support data can never collide with what the guest put in cbuf 0.</li>
-<li>Bad, because two stages that read the same cbuf slot from different buffers cannot share a pipeline; the engine rejects that by name.</li>
-<li>Bad, because dynamic texture indexing will need descriptor arrays beside this layout.</li>
+<li>One piece of host code, <code>Descriptors</code>, plugs in data for both compute and drawing.</li>
+<li>Our helper values can never be confused with what the game put in its first constant buffer.</li>
+</ul>
+<h3 id="what-this-makes-hard">What this makes hard<a class="headerlink" href="#what-this-makes-hard" title="Permanent link">&para;</a></h3>
+<ul>
+<li>In one draw, a vertex and a pixel shader cannot read one cbuf slot from different buffers, and the engine refuses it by name.</li>
+<li>Shaders that pick a texture by a run-time index will need arrays of slots next to this layout.</li>
 </ul>
 <h3 id="confirmation">Confirmation<a class="headerlink" href="#confirmation" title="Permanent link">&para;</a></h3>
-<p>spirv-val on every module, the Vulkan validation layer on dispatch and draw, and the texture tests that bind several images at once.</p>
+<p>Checked by spirv-val on every module, the Vulkan validation layer on dispatch and draw, and the texture tests that bind several images at once.</p>
 <p>Sources: core/src/gpu/sm86/mod.rs, core/src/gpu/compute.rs.</p>
 
 

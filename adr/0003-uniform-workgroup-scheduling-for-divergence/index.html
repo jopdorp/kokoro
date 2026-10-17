@@ -27,7 +27,7 @@
     
     
       
-        <title>Uniform scheduling for divergence - oboromi</title>
+        <title>Diverged threads take turns - oboromi</title>
       
     
     
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#workgroup-uniform-scheduling-for-divergent-warps" class="md-skip">
+        <a href="#threads-that-disagree-take-turns" class="md-skip">
           Skip to content
         </a>
       
@@ -109,7 +109,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Uniform scheduling for divergence
+              Diverged threads take turns
             
           </span>
         </div>
@@ -353,7 +353,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -725,7 +725,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -761,7 +761,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -806,7 +806,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -832,7 +832,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -864,6 +864,17 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#in-plain-words" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In plain words
+      
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#context-and-problem-statement" class="md-nav__link">
@@ -900,10 +911,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#what-this-makes-easy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        What this makes easy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-this-makes-hard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this makes hard
       
     </span>
   </a>
@@ -949,7 +971,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -985,7 +1007,7 @@
   <span class="md-ellipsis">
     
   
-    HMMA as DontUnroll loops
+    Exact matrix sums as loops
   
 
     
@@ -1021,7 +1043,7 @@
   <span class="md-ellipsis">
     
   
-    Synchronous pusher and draw snapshots
+    Commands run in order
   
 
     
@@ -1057,7 +1079,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -1093,7 +1115,7 @@
   <span class="md-ellipsis">
     
   
-    Silicon-first verification
+    Real chips are the reference
   
 
     
@@ -1203,6 +1225,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#in-plain-words" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In plain words
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1237,10 +1270,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#what-this-makes-easy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        What this makes easy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-this-makes-hard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this makes hard
       
     </span>
   </a>
@@ -1280,26 +1324,50 @@
 
 
 
-<h1 id="workgroup-uniform-scheduling-for-divergent-warps">Workgroup-uniform scheduling for divergent warps<a class="headerlink" href="#workgroup-uniform-scheduling-for-divergent-warps" title="Permanent link">&para;</a></h1>
+<h1 id="threads-that-disagree-take-turns">Threads that disagree take turns<a class="headerlink" href="#threads-that-disagree-take-turns" title="Permanent link">&para;</a></h1>
+<h2 id="in-plain-words">In plain words<a class="headerlink" href="#in-plain-words" title="Permanent link">&para;</a></h2>
+<p>The GPU runs threads in teams called warps. When teammates take different branches, the real chip parks some, runs the others, and joins them back later. Some instructions make teammates swap values, so they must be at the same place at the same time. We run such programs in turns: each turn, the teammates furthest behind take one step while the rest wait. It is like a tour group where the stragglers always walk next, so everyone meets at every stop.</p>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>The translator runs each lane as a loop over a guest pc. Warp collectives (VOTE, SHFL, MATCH, REDUX, tensor ops) and BAR trade data through workgroup barriers, which every invocation must reach together. With lanes at different pcs that is undefined behaviour, and partial-mask votes could not be replayed.</p>
+<p>The translator runs each thread as a loop over its own program counter, the pc. Collectives, instructions where teammates swap values such as VOTE and SHFL, need every thread to reach the same Vulkan barrier together. So does BAR, the chip's own barrier. With threads at different pcs that is undefined behaviour, and votes by part of a warp could not be reproduced.</p>
 <h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Structurize the guest control flow into Vulkan loops and selections.</li>
-<li>Native subgroup operations only.</li>
-<li>Keep the pc loop and schedule it uniformly across the workgroup.</li>
+<li>Rebuild the game's jumps as nested Vulkan loops and ifs.</li>
+<li>Use only Vulkan's subgroups, its own name for warps.</li>
+<li>Keep the pc loop, and run it in turns across the whole thread group.</li>
 </ul>
 <h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
-<p>Keep the pc loop. A program with collectives or BAR steps every invocation together: each step the workgroup votes the lowest runnable pc, lanes at that pc run it, the rest sit out with memory effects masked. BSSY and BSYNC tokens are tracked per lane, and BAR arrivals per barrier id until the required lanes arrive. Programs without collectives keep the free per-lane loop. Shared-memory exchange is the reference everywhere.</p>
-<h3 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h3>
+<p>Keep the pc loop. A program with collectives or BAR moves every thread of its group, the workgroup, together. Each turn the group votes for the lowest pc any thread waits at. Threads at that pc run one step, and the rest sit out with their memory writes masked.</p>
+<p>BSSY and BSYNC, the chip's "rejoin here" markers, are tracked per thread. BAR arrivals are counted per barrier until all the required threads arrive. Programs without collectives keep the free per-thread loop. Swapping values through shared memory is the one method on every device.</p>
+<table>
+<thead>
+<tr>
+<th>Device fact</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NVIDIA warp width</td>
+<td>32 threads</td>
+</tr>
+<tr>
+<td>Subgroup width on lavapipe</td>
+<td>8 threads</td>
+</tr>
+</tbody>
+</table>
+<h3 id="what-this-makes-easy">What this makes easy<a class="headerlink" href="#what-this-makes-easy" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Good, because divergent votes, shuffles and barriers match silicon, including the partial-mask cases.</li>
-<li>Good, because it runs on lavapipe, whose subgroups are 8 lanes wide.</li>
-<li>Bad, because programs with collectives pay a vote and a barrier per step.</li>
-<li>Bad, because fairness under spin loops is not verified.</li>
+<li>Votes, shuffles and barriers after a branch match the real chip, including votes by part of a warp.</li>
+<li>It runs on lavapipe, whose subgroups are narrower than a warp.</li>
+</ul>
+<h3 id="what-this-makes-hard">What this makes hard<a class="headerlink" href="#what-this-makes-hard" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Programs with collectives pay a vote and a barrier on every step.</li>
+<li>Whether a thread spinning in a wait loop ever lets the others move is not verified.</li>
 </ul>
 <h3 id="confirmation">Confirmation<a class="headerlink" href="#confirmation" title="Permanent link">&para;</a></h3>
-<p>The warp scoreboard passes on Intel and lavapipe, and tests cover unequal branch lengths, nested tokens and early exit.</p>
+<p>The warp scoreboard passes on Intel and lavapipe, and tests cover branches of unequal length, nested markers and early exit.</p>
 <p>Sources: core/src/gpu/sm86/mod.rs <code>translate_program</code>, core/src/gpu/sm86/warp.rs.</p>
 
 

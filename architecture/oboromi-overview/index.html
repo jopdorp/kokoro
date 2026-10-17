@@ -27,7 +27,7 @@
     
     
       
-        <title>oboromi overview - oboromi</title>
+        <title>Emulator overview - oboromi</title>
       
     
     
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#oboromi-overview" class="md-skip">
+        <a href="#emulator-overview" class="md-skip">
           Skip to content
         </a>
       
@@ -109,7 +109,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              oboromi overview
+              Emulator overview
             
           </span>
         </div>
@@ -364,7 +364,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -382,7 +382,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -408,10 +408,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-parts" class="md-nav__link">
+  <a href="#which-parts-exist" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The parts
+        Which parts exist?
       
     </span>
   </a>
@@ -419,10 +419,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-a-frame-reaches-the-window" class="md-nav__link">
+  <a href="#how-does-a-frame-reach-the-window" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How a frame reaches the window
+        How does a frame reach the window?
       
     </span>
   </a>
@@ -430,10 +430,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-this-means-for-the-gpu-work" class="md-nav__link">
+  <a href="#why-does-the-gpu-work-start-at-the-hardware" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What this means for the GPU work
+        Why does the GPU work start at the hardware?
       
     </span>
   </a>
@@ -805,7 +805,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -841,7 +841,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -877,7 +877,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -913,7 +913,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -949,7 +949,7 @@
   <span class="md-ellipsis">
     
   
-    HMMA as DontUnroll loops
+    Exact matrix sums as loops
   
 
     
@@ -985,7 +985,7 @@
   <span class="md-ellipsis">
     
   
-    Synchronous pusher and draw snapshots
+    Commands run in order
   
 
     
@@ -1021,7 +1021,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -1057,7 +1057,7 @@
   <span class="md-ellipsis">
     
   
-    Silicon-first verification
+    Real chips are the reference
   
 
     
@@ -1167,10 +1167,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-parts" class="md-nav__link">
+  <a href="#which-parts-exist" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The parts
+        Which parts exist?
       
     </span>
   </a>
@@ -1178,10 +1178,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-a-frame-reaches-the-window" class="md-nav__link">
+  <a href="#how-does-a-frame-reach-the-window" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How a frame reaches the window
+        How does a frame reach the window?
       
     </span>
   </a>
@@ -1189,10 +1189,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-this-means-for-the-gpu-work" class="md-nav__link">
+  <a href="#why-does-the-gpu-work-start-at-the-hardware" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What this means for the GPU work
+        Why does the GPU work start at the hardware?
       
     </span>
   </a>
@@ -1216,110 +1216,111 @@
 
 
 
-<h1 id="oboromi-overview">oboromi overview<a class="headerlink" href="#oboromi-overview" title="Permanent link">&para;</a></h1>
-<p>oboromi is a Rust emulator for the Nintendo Switch 2, with a Qt front end over a C FFI. It is early: it cannot boot firmware or a game. This page maps the parts outside the GPU in rough strokes, so the GPU pages have context.</p>
+<h1 id="emulator-overview">Emulator overview<a class="headerlink" href="#emulator-overview" title="Permanent link">&para;</a></h1>
+<p>Outside the GPU, oboromi is a skeleton: the emulated CPU runs, but nothing loads a game and the operating system services are names only. So no game ever sends the GPU work. Tests write GPU commands into emulated memory by hand instead, the way a game's graphics driver would.</p>
 <pre class="mermaid"><code>flowchart TB
-    subgraph Front["front end"]
-        QT["Qt window&lt;br/&gt;buttons, display widget"] --&gt; BR["RustBridge.cpp"]
+    subgraph Front["Front end"]
+        QT["Qt window&lt;br/&gt;Buttons and the picture"] --&gt; BR["RustBridge.cpp&lt;br/&gt;C++ side of the bridge"]
     end
-    BR --&gt;|"extern C"| FFI["core/src/ffi.rs"]
-    FFI --&gt; TESTS["tests&lt;br/&gt;CPU and GPU self-tests"]
-    FFI --&gt; GPU["gpu&lt;br/&gt;frames and demos"]
-    subgraph Core["oboromi-core"]
-        SYS["sys::State&lt;br/&gt;one field per service"]
-        NN["nn&lt;br/&gt;service stubs, HIPC header"]
-        CPU["cpu::CpuManager&lt;br/&gt;8 Unicorn AArch64 cores"]
-        RAM[("guest RAM&lt;br/&gt;flat, base 0")]
-        FS["fs&lt;br/&gt;memory-mapped files"]
-        AUD["audio&lt;br/&gt;empty"]
+    BR --&gt;|"C function calls"| FFI["Core/src/ffi.rs&lt;br/&gt;Rust side of the bridge"]
+    FFI --&gt; TESTS["Tests&lt;br/&gt;CPU and GPU self-checks"]
+    FFI --&gt; GPU["gpu&lt;br/&gt;Frames and demos"]
+    subgraph Core["oboromi-core crate"]
+        SYS["sys::State&lt;br/&gt;One entry per OS service"]
+        NN["nn&lt;br/&gt;Empty services, message header only"]
+        CPU["cpu::CpuManager&lt;br/&gt;Emulated ARM cores"]
+        RAM[("Guest RAM&lt;br/&gt;The console's memory, one block")]
+        FS["fs&lt;br/&gt;File access wrapper"]
+        AUD["Audio&lt;br/&gt;Empty"]
     end
     SYS --&gt; NN
     CPU --&gt; RAM
     TESTS --&gt; CPU</code></pre>
-<h2 id="the-parts">The parts<a class="headerlink" href="#the-parts" title="Permanent link">&para;</a></h2>
+<p><em>The parts outside the GPU, and how the window reaches them.</em></p>
+<h2 id="which-parts-exist">Which parts exist?<a class="headerlink" href="#which-parts-exist" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>part</th>
-<th>where</th>
-<th>what it does today</th>
-<th>state</th>
+<th>Part</th>
+<th>Where</th>
+<th>What it does today</th>
+<th>State</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>CPU cores</td>
-<td>core/src/cpu</td>
-<td>eight Unicorn AArch64 cores share one pinned RAM block; run, step, registers, reads and writes</td>
-<td>real</td>
+<td>Core/src/cpu</td>
+<td>Eight emulated ARM cores on Unicorn, a CPU emulator library; they share one memory block and can run, step, and read or write registers and memory</td>
+<td>Real</td>
 </tr>
 <tr>
-<td>guest RAM</td>
+<td>Guest RAM</td>
 <td>cpu_manager.rs</td>
-<td>one flat 12 GiB block at address 0, lazily backed by the host OS</td>
-<td>real</td>
+<td>One flat 12 GiB block at address 0; the host OS only backs the parts that are touched</td>
+<td>Real</td>
 </tr>
 <tr>
-<td>loader</td>
-<td>none</td>
-<td>no NSO, NRO or ELF loader, so guest code is placed by tests</td>
-<td>missing</td>
+<td>Loader</td>
+<td>None</td>
+<td>Nothing reads a game's executable (NSO, NRO or ELF), so tests place guest code by hand</td>
+<td>Missing</td>
 </tr>
 <tr>
-<td>SVCs and hooks</td>
-<td>none</td>
-<td>no supervisor calls, no memory hooks</td>
-<td>missing</td>
+<td>System calls</td>
+<td>None</td>
+<td>No SVCs, the calls a game makes into the Switch kernel, and no memory hooks</td>
+<td>Missing</td>
 </tr>
 <tr>
-<td>services</td>
-<td>core/src/nn</td>
-<td>a <code>State {}</code> per service name, registered by <code>start_host_services</code>; HIPC decodes a header and ignores it</td>
-<td>stub</td>
+<td>Services</td>
+<td>Core/src/nn</td>
+<td>An empty <code>State {}</code> per OS service name; HIPC, the Switch's service message format, has its header decoded and ignored</td>
+<td>Stub</td>
 </tr>
 <tr>
 <td>GPU services</td>
-<td>nn: nvdrv, nvmap names, vi, host1x</td>
-<td>names only, no ioctls; the GPU work drives the GPU directly</td>
-<td>stub</td>
+<td>nn: nvdrv, nvmap, vi, host1x</td>
+<td>The GPU driver, GPU memory, display and sync services exist as names only, with no ioctls (driver control calls)</td>
+<td>Stub</td>
 </tr>
 <tr>
-<td>filesystem</td>
-<td>core/src/fs</td>
-<td>a memory-mapped file wrapper</td>
-<td>stub</td>
+<td>Filesystem</td>
+<td>Core/src/fs</td>
+<td>A wrapper that maps a file into memory</td>
+<td>Stub</td>
 </tr>
 <tr>
-<td>audio</td>
-<td>core/src/audio</td>
-<td>empty module</td>
-<td>stub</td>
+<td>Audio</td>
+<td>Core/src/audio</td>
+<td>An empty module</td>
+<td>Stub</td>
 </tr>
 <tr>
-<td>display</td>
-<td>core/src/display.rs</td>
-<td>holds the last presented RGBA8 frame and calls the GUI back</td>
-<td>real</td>
+<td>Display</td>
+<td>Core/src/display.rs</td>
+<td>Holds the last finished frame and tells the window</td>
+<td>Real</td>
 </tr>
 <tr>
 <td>FFI</td>
-<td>core/src/ffi.rs</td>
-<td>test runners, frame render calls, frame read and callback</td>
-<td>real</td>
+<td>Core/src/ffi.rs</td>
+<td>The Rust functions the C++ window calls: run tests, render frames, read the frame</td>
+<td>Real</td>
 </tr>
 <tr>
 <td>GUI</td>
-<td>gui-qt</td>
-<td>CPU and GPU test buttons, Render Test Frame, Demo and Triangle toggles, the display widget</td>
-<td>real</td>
+<td>Gui-qt</td>
+<td>Buttons for CPU and GPU tests, Render Test Frame, Demo and Triangle, and the picture</td>
+<td>Real</td>
 </tr>
 </tbody>
 </table>
-<h2 id="how-a-frame-reaches-the-window">How a frame reaches the window<a class="headerlink" href="#how-a-frame-reaches-the-window" title="Permanent link">&para;</a></h2>
-<p>The core never touches the GUI. A renderer calls <code>display::present</code>, which bumps a generation counter, copies the pixels and fires the registered C callback. The Qt display widget then reads the frame through FFI and letterboxes it.</p>
-<p>Why: event driven, no polling, and the core stays testable without a window.</p>
-<h2 id="what-this-means-for-the-gpu-work">What this means for the GPU work<a class="headerlink" href="#what-this-means-for-the-gpu-work" title="Permanent link">&para;</a></h2>
-<p>Nothing upstream of the GPU exists yet: no game issues ioctls, and no channel or address space is set up by the OS layer. So the GPU work starts at the hardware interface and is driven by host-written pushbuffers in guest memory. When a loader and <code>nvdrv</code> exist, they plug in where those tests write today.</p>
+<h2 id="how-does-a-frame-reach-the-window">How does a frame reach the window?<a class="headerlink" href="#how-does-a-frame-reach-the-window" title="Permanent link">&para;</a></h2>
+<p>The core never calls the window directly. A renderer calls <code>display::present</code>, which copies the pixels, bumps a frame counter and fires a callback the window registered. The window then reads the frame through FFI and scales it to fit.</p>
+<p>Why: the window redraws only when a frame arrives, and the core stays testable without a window.</p>
+<h2 id="why-does-the-gpu-work-start-at-the-hardware">Why does the GPU work start at the hardware?<a class="headerlink" href="#why-does-the-gpu-work-start-at-the-hardware" title="Permanent link">&para;</a></h2>
+<p>Nothing above the GPU exists yet. No game makes GPU driver calls, and the OS layer sets up no command stream or GPU address space. So the GPU work starts where the hardware starts, and tests write its command lists into guest memory. When a loader and the <code>nvdrv</code> GPU driver service exist, they will write those lists instead.</p>
 <p>Verified by: the CPU self-tests (<code>core/src/tests/run.rs</code>, <code>multicore_test.rs</code>) and an offscreen screenshot of the window after Render Test Frame.</p>
 <p>Sources: core/src/cpu/cpu_manager.rs, core/src/cpu/unicorn_interface.rs, core/src/nn/mod.rs, core/src/nn/hipc.rs, core/src/sys/mod.rs, core/src/display.rs, core/src/ffi.rs, gui-qt/src/MainWindow.cpp, README.md.</p>
 

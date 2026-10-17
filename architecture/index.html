@@ -355,7 +355,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -725,7 +725,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -761,7 +761,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -797,7 +797,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -833,7 +833,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -869,7 +869,7 @@
   <span class="md-ellipsis">
     
   
-    HMMA as DontUnroll loops
+    Exact matrix sums as loops
   
 
     
@@ -905,7 +905,7 @@
   <span class="md-ellipsis">
     
   
-    Synchronous pusher and draw snapshots
+    Commands run in order
   
 
     
@@ -941,7 +941,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -977,7 +977,7 @@
   <span class="md-ellipsis">
     
   
-    Silicon-first verification
+    Real chips are the reference
   
 
     
@@ -1087,10 +1087,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-pages" class="md-nav__link">
+  <a href="#which-page-answers-what" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The pages
+        Which page answers what?
       
     </span>
   </a>
@@ -1098,10 +1098,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decisions" class="md-nav__link">
+  <a href="#where-are-the-design-choices-explained" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decisions
+        Where are the design choices explained?
       
     </span>
   </a>
@@ -1109,10 +1109,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#reading-order" class="md-nav__link">
+  <a href="#where-should-i-start" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reading order
+        Where should I start?
       
     </span>
   </a>
@@ -1137,85 +1137,86 @@
 
 
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p>oboromi emulates the Nintendo Switch 2. The CPU side runs ARM code on Unicorn over one flat RAM block, the firmware services are named stubs, and nothing loads a game yet. The GPU side is the part with real depth: it reads guest pushbuffers, translates the guest's SM86 shader machine code (SASS) to SPIR-V and runs it on any Vulkan device.</p>
+<p>The emulator is made of a Qt window, an emulated ARM CPU, stubs for the Switch's operating system services, and a GPU emulator. Only the GPU part does real work today. For example, the Triangle button writes GPU commands into the emulated console's memory, and the GPU part draws them on the PC's graphics card.</p>
 <pre class="mermaid"><code>flowchart TB
-    GUI["Qt GUI&lt;br/&gt;gui-qt"] --&gt;|"C FFI"| FFI["ffi.rs"]
-    FFI --&gt; SYS["sys::State&lt;br/&gt;services"]
-    FFI --&gt; CPU["cpu&lt;br/&gt;8 Unicorn cores"]
-    CPU --- RAM[("guest RAM&lt;br/&gt;one flat block")]
-    SYS --&gt; NN["nn&lt;br/&gt;service stubs"]
+    GUI["Qt window&lt;br/&gt;Buttons and the picture"] --&gt;|"C calls"| FFI["ffi.rs&lt;br/&gt;Rust functions the window calls"]
+    FFI --&gt; SYS["sys::State&lt;br/&gt;List of OS services"]
+    FFI --&gt; CPU["cpu&lt;br/&gt;Emulated ARM cores"]
+    CPU --- RAM[("Guest RAM&lt;br/&gt;The console's memory")]
+    SYS --&gt; NN["nn&lt;br/&gt;Empty service stubs"]
     FFI --&gt; ENG
-    subgraph GPU["gpu"]
-        FIFO["fifo + threed&lt;br/&gt;command processor"] --&gt; ENG["engine&lt;br/&gt;draws over guest memory"]
-        ENG --&gt; SASS["sm86&lt;br/&gt;SASS to SPIR-V"]
-        ENG --&gt; VK["compute + graphics&lt;br/&gt;Vulkan backend"]
+    subgraph GPU["GPU"]
+        FIFO["fifo + threed&lt;br/&gt;Reads the game's GPU commands"] --&gt; ENG["Engine&lt;br/&gt;Runs each draw against console memory"]
+        ENG --&gt; SASS["sm86&lt;br/&gt;Rewrites NVIDIA shader code for Vulkan"]
+        ENG --&gt; VK["compute + graphics&lt;br/&gt;Runs the work on the PC's GPU"]
         SASS --&gt; VK
-        CUDA["cubin&lt;br/&gt;CUDA kernel loader"] --&gt; SASS
+        CUDA["cubin&lt;br/&gt;Loads compiled CUDA programs"] --&gt; SASS
     end
-    ENG --&gt; DISP["display.rs&lt;br/&gt;last frame"]
-    DISP --&gt;|"frame callback"| GUI
+    ENG --&gt; DISP["display.rs&lt;br/&gt;Holds the last frame"]
+    DISP --&gt;|"New frame"| GUI
     classDef gpu stroke:#61b7df,stroke-width:3px
     class FIFO,ENG,SASS,VK,CUDA gpu</code></pre>
-<p>The blue-outlined boxes are the GPU work these pages describe. Everything else is context.</p>
-<h2 id="the-pages">The pages<a class="headerlink" href="#the-pages" title="Permanent link">&para;</a></h2>
+<p><em>The whole emulator. Blue outlines mark the GPU work.</em></p>
+<p>"Guest" in these pages means the emulated Switch 2, and "host" means the PC running oboromi.</p>
+<h2 id="which-page-answers-what">Which page answers what?<a class="headerlink" href="#which-page-answers-what" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>page</th>
-<th>what it answers</th>
+<th>Page</th>
+<th>Question it answers</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><a href="oboromi-overview/">oboromi overview</a></td>
-<td>what the rest of the emulator does today, and what is stub</td>
+<td><a href="oboromi-overview/">Emulator overview</a></td>
+<td>What works outside the GPU, and what is only a stub</td>
 </tr>
 <tr>
 <td><a href="gpu-pipeline/">GPU pipeline</a></td>
-<td>the path from a guest pushbuffer to pixels, and which branch holds what</td>
+<td>How a game's draw command becomes pixels, and which branch holds what</td>
 </tr>
 <tr>
 <td><a href="sass-translator/">SASS translator</a></td>
-<td>how SM86 machine code becomes SPIR-V</td>
+<td>How NVIDIA shader machine code becomes a Vulkan shader</td>
 </tr>
 <tr>
 <td><a href="vulkan-backend/">Vulkan backend</a></td>
-<td>device, pipelines, buffers, images and the latency rules</td>
+<td>How oboromi drives the PC's graphics card, and how it stays fast</td>
 </tr>
 <tr>
 <td><a href="command-processor-and-memory/">Command processor and memory</a></td>
-<td>GPFIFO, the 3D and compute classes, the page map and coherence</td>
+<td>How GPU commands are read, and how copies of memory stay correct</td>
 </tr>
 <tr>
 <td><a href="textures-and-tensors/">Textures and tensors</a></td>
-<td>TIC/TSC decode, texture layouts, the tensor core model</td>
+<td>How game images are decoded, and how matrix instructions are made exact</td>
 </tr>
 <tr>
 <td><a href="verification/">Verification</a></td>
-<td>the four test tiers and the bugs each one caught</td>
+<td>How each instruction is proven against a real chip</td>
 </tr>
 <tr>
 <td><a href="cuda/">CUDA</a></td>
-<td>running compiled CUDA kernels on the translator and natively</td>
+<td>How compiled NVIDIA compute programs run as test programs</td>
 </tr>
 <tr>
 <td><a href="demos/">Demos</a></td>
-<td>what the window can draw today and the planned scenes</td>
+<td>What the window draws today, and the scenes planned next</td>
 </tr>
 <tr>
 <td><a href="roadmap/">Roadmap</a></td>
-<td>open items by area, and the honest limits</td>
+<td>What is done, what is open, and the honest limits</td>
 </tr>
 <tr>
 <td><a href="../glossary/">Glossary</a></td>
-<td>SASS, SPIR-V, GPFIFO, TIC/TSC, QMD, SPH, cbuf and friends</td>
+<td>Every term, in one plain sentence plus an example</td>
 </tr>
 </tbody>
 </table>
-<h2 id="decisions">Decisions<a class="headerlink" href="#decisions" title="Permanent link">&para;</a></h2>
-<p>The choices that shaped the GPU work are recorded as ADRs under <a href="../adr/">docs/adr</a>: one page each, with the problem, the decision and what it costs.</p>
-<h2 id="reading-order">Reading order<a class="headerlink" href="#reading-order" title="Permanent link">&para;</a></h2>
-<p>New to the code: overview, then GPU pipeline, then the subsystem you are touching. Reviewing a GPU PR: GPU pipeline for the branch map, then verification for what has to pass.</p>
+<h2 id="where-are-the-design-choices-explained">Where are the design choices explained?<a class="headerlink" href="#where-are-the-design-choices-explained" title="Permanent link">&para;</a></h2>
+<p>Each big choice has a decision record (ADR): the problem, the choice, and what it costs. Every record opens with a short "In plain words" section. They are listed under <a href="../adr/">decision records</a>.</p>
+<h2 id="where-should-i-start">Where should I start?<a class="headerlink" href="#where-should-i-start" title="Permanent link">&para;</a></h2>
+<p>New to the code: read the overview, then the GPU pipeline, then the page for the part you are touching. Reviewing a GPU pull request: read the GPU pipeline for the branch map, then verification for what has to pass.</p>
 <p>Verified by: every page names its own checks in a "Verified by" line.</p>
 <p>Sources: core/src/lib.rs, core/src/gpu/mod.rs, gui-qt/src/MainWindow.cpp, README.md.</p>
 

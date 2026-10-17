@@ -355,7 +355,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -492,10 +492,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#parts" class="md-nav__link">
+  <a href="#what-are-the-parts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Parts
+        What are the parts?
       
     </span>
   </a>
@@ -503,10 +503,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#device-choices" class="md-nav__link">
+  <a href="#which-card-features-does-it-ask-for" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Device choices
+        Which card features does it ask for?
       
     </span>
   </a>
@@ -514,10 +514,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#latency-rules" class="md-nav__link">
+  <a href="#which-settings-can-change-per-draw" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Latency rules
+        Which settings can change per draw?
       
     </span>
   </a>
@@ -525,10 +525,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#lavapipe-as-the-ci-device" class="md-nav__link">
+  <a href="#how-does-it-stay-fast" class="md-nav__link">
     <span class="md-ellipsis">
       
-        lavapipe as the CI device
+        How does it stay fast?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-does-ci-run-on-lavapipe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why does CI run on lavapipe?
       
     </span>
   </a>
@@ -816,7 +827,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -852,7 +863,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -888,7 +899,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -924,7 +935,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -960,7 +971,7 @@
   <span class="md-ellipsis">
     
   
-    HMMA as DontUnroll loops
+    Exact matrix sums as loops
   
 
     
@@ -996,7 +1007,7 @@
   <span class="md-ellipsis">
     
   
-    Synchronous pusher and draw snapshots
+    Commands run in order
   
 
     
@@ -1032,7 +1043,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -1068,7 +1079,7 @@
   <span class="md-ellipsis">
     
   
-    Silicon-first verification
+    Real chips are the reference
   
 
     
@@ -1178,10 +1189,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#parts" class="md-nav__link">
+  <a href="#what-are-the-parts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Parts
+        What are the parts?
       
     </span>
   </a>
@@ -1189,10 +1200,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#device-choices" class="md-nav__link">
+  <a href="#which-card-features-does-it-ask-for" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Device choices
+        Which card features does it ask for?
       
     </span>
   </a>
@@ -1200,10 +1211,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#latency-rules" class="md-nav__link">
+  <a href="#which-settings-can-change-per-draw" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Latency rules
+        Which settings can change per draw?
       
     </span>
   </a>
@@ -1211,10 +1222,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#lavapipe-as-the-ci-device" class="md-nav__link">
+  <a href="#how-does-it-stay-fast" class="md-nav__link">
     <span class="md-ellipsis">
       
-        lavapipe as the CI device
+        How does it stay fast?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-does-ci-run-on-lavapipe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why does CI run on lavapipe?
       
     </span>
   </a>
@@ -1239,125 +1261,146 @@
 
 
 <h1 id="vulkan-backend">Vulkan backend<a class="headerlink" href="#vulkan-backend" title="Permanent link">&para;</a></h1>
-<p>The backend owns one Vulkan device and runs everything synchronously on one queue: compute dispatches for translated compute programs and CUDA kernels, graphics draws for the engine. Every submit waits on a fence and reads results back to host memory before it returns.</p>
+<p>The backend is the layer that drives the PC's graphics card through Vulkan. It opens the card once, uploads what a program needs, runs it, and copies the results back. For example, a compute run records one command list, submits it, waits until the card is done, and reads the output buffer.</p>
 <pre class="mermaid"><code>flowchart TB
-    DEV["gpu::device()&lt;br/&gt;VkState, created once"] --&gt; Q["one GRAPHICS and COMPUTE queue&lt;br/&gt;one command pool"]
-    Q --&gt; SUB["Submit&lt;br/&gt;one command buffer + one fence, behind a Mutex"]
-    SUB --&gt; CP["ComputePipeline&lt;br/&gt;dispatch"]
-    SUB --&gt; GP["GraphicsPipeline&lt;br/&gt;draw with dynamic rendering"]
-    CP --&gt; D0["Descriptors&lt;br/&gt;set 0"]
+    DEV["gpu::device()&lt;br/&gt;The one connection to the card"] --&gt; Q["One queue for drawing and compute&lt;br/&gt;One command pool"]
+    Q --&gt; SUB["Submit&lt;br/&gt;One command list and one done-flag, locked"]
+    SUB --&gt; CP["ComputePipeline&lt;br/&gt;A compute shader, ready to run"]
+    SUB --&gt; GP["GraphicsPipeline&lt;br/&gt;Vertex and pixel shaders, ready to draw"]
+    CP --&gt; D0["Descriptors&lt;br/&gt;The numbered data slots, set 0"]
     GP --&gt; D0
-    D0 --&gt; HB["HostBuffer&lt;br/&gt;cbufs, global window, vertices"]
-    D0 --&gt; HI["HostImage&lt;br/&gt;textures and surfaces"]
-    GP --&gt; RT["RenderTarget&lt;br/&gt;RGBA8 + optional D32"]</code></pre>
-<h2 id="parts">Parts<a class="headerlink" href="#parts" title="Permanent link">&para;</a></h2>
+    D0 --&gt; HB["HostBuffer&lt;br/&gt;Constants, guest memory window, vertices"]
+    D0 --&gt; HI["HostImage&lt;br/&gt;Textures and writable images"]
+    GP --&gt; RT["RenderTarget&lt;br/&gt;The image a draw paints, plus depth"]</code></pre>
+<p><em>What the backend owns, from the device down to the buffers a shader reads.</em></p>
+<p>All work goes through one queue, the place work is handed to the card. Each submit uses one command buffer, a recorded list of card commands, and one fence, a flag the card raises when it finishes. Every submit waits on its fence and copies results to host memory before it returns.</p>
+<h2 id="what-are-the-parts">What are the parts?<a class="headerlink" href="#what-are-the-parts" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>part</th>
-<th>file</th>
-<th>role</th>
+<th>Part</th>
+<th>File</th>
+<th>Role</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>VkState</code></td>
 <td>gpu/mod.rs</td>
-<td>instance, physical device, device, queue, pool, feature flags</td>
+<td>The Vulkan instance, the chosen card, its queue and command pool, and which optional features it has</td>
 </tr>
 <tr>
 <td><code>HostBuffer</code></td>
 <td>gpu/compute.rs</td>
-<td>host-visible buffer, cached memory preferred, explicit flush and invalidate</td>
+<td>A buffer the CPU can read and write; cached memory preferred, flushed and refreshed explicitly</td>
 </tr>
 <tr>
 <td><code>HostImage</code></td>
 <td>gpu/compute.rs</td>
-<td>2D image uploaded through staging with all its mip levels, kept in GENERAL</td>
+<td>A 2D image with all its mip levels (smaller copies), uploaded through a staging buffer</td>
 </tr>
 <tr>
 <td><code>Descriptors</code></td>
 <td>gpu/compute.rs</td>
-<td>the set-0 layout shared by compute and graphics</td>
+<td>The layout of numbered data slots, shared by compute and drawing</td>
 </tr>
 <tr>
 <td><code>ComputePipeline</code></td>
 <td>gpu/compute.rs</td>
-<td>compute pipeline; <code>VkState::dispatch</code> records, barriers, submits, waits</td>
+<td>A compiled compute shader; <code>VkState::dispatch</code> records, submits and waits</td>
 </tr>
 <tr>
 <td><code>GraphicsPipeline</code></td>
 <td>gpu/graphics.rs</td>
-<td>vertex + fragment pipeline for one colour format and optional depth</td>
+<td>Compiled vertex and pixel shaders for one colour format, with optional depth</td>
 </tr>
 <tr>
 <td><code>RenderTarget</code></td>
 <td>gpu/graphics.rs</td>
-<td>offscreen colour and depth images, read back after each draw</td>
+<td>Offscreen colour and depth images, read back after each draw</td>
 </tr>
 </tbody>
 </table>
-<h2 id="device-choices">Device choices<a class="headerlink" href="#device-choices" title="Permanent link">&para;</a></h2>
+<h2 id="which-card-features-does-it-ask-for">Which card features does it ask for?<a class="headerlink" href="#which-card-features-does-it-ask-for" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>choice</th>
-<th>why</th>
+<th>Choice</th>
+<th>Why</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Vulkan 1.3, first device with a GRAPHICS and COMPUTE queue</td>
-<td>dynamic rendering without render pass objects</td>
+<td>Vulkan 1.3, the first card with a queue for both drawing and compute</td>
+<td>Dynamic rendering: drawing straight into images without render pass objects</td>
 </tr>
 <tr>
-<td>shaderFloat16, shaderFloat64, shaderInt64 when present</td>
-<td>fp16, fp64 and 64-bit integer SASS ops</td>
+<td>16-bit and 64-bit floats, 64-bit integers, when present</td>
+<td>SASS has instructions on all of these</td>
 </tr>
 <tr>
-<td>int64 buffer and shared atomics when present</td>
-<td>64-bit ATOM and ATOMS; Intel lacks the shared one</td>
+<td>64-bit atomics on buffers and shared memory, when present</td>
+<td>For SASS's 64-bit ATOM and ATOMS; Intel lacks the shared-memory one</td>
 </tr>
 <tr>
-<td>VK_KHR_compute_shader_derivatives, linear groups</td>
-<td>TMML and derivatives in compute programs</td>
+<td>Compute shader derivatives</td>
+<td>TMML, which asks which mip level a texture read would use, needs them in compute</td>
 </tr>
 <tr>
-<td>SignedZeroInfNanPreserve and DenormPreserve per width</td>
-<td>drivers fold <code>x + -x</code> to zero and Intel flushes f16 and f64 denormals; the guest does neither</td>
+<td>Keep signed zeros, infinities, NaNs and denormals at every float width</td>
+<td>Drivers fold <code>x + -x</code> to zero and Intel flushes tiny floats to zero; the Switch 2's GPU does neither</td>
 </tr>
 <tr>
-<td>a missing ICD maps to <code>NoDevice</code></td>
-<td>tests skip cleanly on machines without Vulkan</td>
+<td>No Vulkan driver found means <code>NoDevice</code></td>
+<td>Tests skip cleanly on machines without Vulkan</td>
 </tr>
 </tbody>
 </table>
-<p>Dynamic state, so one pipeline serves every value: viewport, scissor, cull mode, front face, primitive topology within its class, depth test, depth write, depth compare and blend constants. The pipeline key keeps only what Vulkan cannot change at draw time: shader hashes, vertex layout, topology class, colour write mask and the depth attachment.</p>
-<h2 id="latency-rules">Latency rules<a class="headerlink" href="#latency-rules" title="Permanent link">&para;</a></h2>
+<h2 id="which-settings-can-change-per-draw">Which settings can change per draw?<a class="headerlink" href="#which-settings-can-change-per-draw" title="Permanent link">&para;</a></h2>
+<p>A Vulkan pipeline is a compiled bundle of shaders and settings. Building one is slow, so oboromi keeps as much as possible as dynamic state, settings changed per draw for free.</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Settings</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dynamic, changed per draw</td>
+<td>Viewport, scissor, cull mode, front face, triangle or line type within its group, depth test, depth write, depth compare, blend constants</td>
+</tr>
+<tr>
+<td>Fixed, part of the pipeline key</td>
+<td>Shader hashes, vertex layout, primitive group, colour write mask, depth image present</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-does-it-stay-fast">How does it stay fast?<a class="headerlink" href="#how-does-it-stay-fast" title="Permanent link">&para;</a></h2>
 <ul>
-<li>No allocation per frame: the device is a process-wide singleton, the command buffer and fence are reused, demo pipelines are built once and kept in a static.</li>
-<li>Cached host memory for readback, since reads from uncached memory are slow.</li>
-<li>The engine caches modules by SPH and code hash, pipelines by key, buffer mirrors by guest-physical ranges, and refreshes a mirror only when its pages changed.</li>
+<li>Nothing is allocated per frame. The card connection is created once per process, the command buffer and fence are reused, and demo pipelines are built once.</li>
+<li>Results are read from cached host memory, because reading uncached memory is slow.</li>
+<li>The engine caches translated shaders by content, pipelines by key, and buffer copies by guest memory range. A copy refreshes only when its memory changed.</li>
 </ul>
-<p>measured on an Intel Arc (MTL), p50, <code>cargo run --release -p oboromi-core --example perf</code>:</p>
+<p>Measured on an Intel Arc (MTL), p50, <code>cargo run --release -p oboromi-core --example perf</code>:</p>
 <table>
 <thead>
 <tr>
-<th>path</th>
-<th>latency</th>
+<th>Path</th>
+<th>Latency</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>translate 1000 instructions</td>
+<td>Translate 1000 instructions</td>
 <td>326 µs</td>
 </tr>
 <tr>
-<td>dispatch, fence and readback</td>
+<td>Dispatch, fence and readback</td>
 <td>135 µs</td>
 </tr>
 <tr>
-<td>draw and readback, 64x64 triangle</td>
+<td>Draw and readback, 64x64 triangle</td>
 <td>193 µs</td>
 </tr>
 <tr>
@@ -1369,14 +1412,14 @@
 <td>4.7 ms</td>
 </tr>
 <tr>
-<td>pushbuffer triangle at 1080p</td>
+<td>Pushbuffer triangle at 1080p</td>
 <td>6.6 ms</td>
 </tr>
 </tbody>
 </table>
-<h2 id="lavapipe-as-the-ci-device">lavapipe as the CI device<a class="headerlink" href="#lavapipe-as-the-ci-device" title="Permanent link">&para;</a></h2>
-<p>The Ubuntu CI job installs mesa's lavapipe and spirv-tools, pins <code>VK_DRIVER_FILES</code> to the lavapipe ICD, runs the whole suite on it and then runs the perf example as a latency baseline. Every GPU test also runs locally on Intel. Where lavapipe differs from silicon, the fixture lists say so per device.</p>
-<p>Verified by: the Vulkan validation layer clean on Intel and lavapipe for dispatch, draw and depth paths; the suite skipping without an ICD.</p>
+<h2 id="why-does-ci-run-on-lavapipe">Why does CI run on lavapipe?<a class="headerlink" href="#why-does-ci-run-on-lavapipe" title="Permanent link">&para;</a></h2>
+<p>Mesa's lavapipe is a Vulkan driver that runs on the CPU, so CI needs no graphics card. The Ubuntu CI job installs lavapipe and the SPIR-V tools and points Vulkan at lavapipe. It runs the whole suite, then prints the perf numbers as a baseline. Every GPU test also runs locally on Intel. Where lavapipe differs from the real chip, the test fixtures list the difference for that device.</p>
+<p>Verified by: the Vulkan validation layer, a debug layer that reports API misuse, clean on Intel and lavapipe for dispatch, draw and depth; and the suite skipping without a Vulkan driver.</p>
 <p>Sources: core/src/gpu/{mod,compute,graphics,engine}.rs, core/examples/perf.rs, .github/workflows/ci.yml, PR #79 body.</p>
 
 

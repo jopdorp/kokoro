@@ -355,7 +355,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -604,10 +604,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-cubin-runner" class="md-nav__link">
+  <a href="#how-does-the-cubin-runner-work" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The cubin runner
+        How does the cubin runner work?
       
     </span>
   </a>
@@ -615,10 +615,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-native-path" class="md-nav__link">
+  <a href="#how-does-the-native-path-work" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The native path
+        How does the native path work?
       
     </span>
   </a>
@@ -626,10 +626,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#kernels-that-run" class="md-nav__link">
+  <a href="#which-kernels-run" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Kernels that run
+        Which kernels run?
       
     </span>
   </a>
@@ -805,7 +805,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -841,7 +841,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -877,7 +877,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -913,7 +913,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -949,7 +949,7 @@
   <span class="md-ellipsis">
     
   
-    HMMA as DontUnroll loops
+    Exact matrix sums as loops
   
 
     
@@ -985,7 +985,7 @@
   <span class="md-ellipsis">
     
   
-    Synchronous pusher and draw snapshots
+    Commands run in order
   
 
     
@@ -1021,7 +1021,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -1057,7 +1057,7 @@
   <span class="md-ellipsis">
     
   
-    Silicon-first verification
+    Real chips are the reference
   
 
     
@@ -1167,10 +1167,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-cubin-runner" class="md-nav__link">
+  <a href="#how-does-the-cubin-runner-work" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The cubin runner
+        How does the cubin runner work?
       
     </span>
   </a>
@@ -1178,10 +1178,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-native-path" class="md-nav__link">
+  <a href="#how-does-the-native-path-work" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The native path
+        How does the native path work?
       
     </span>
   </a>
@@ -1189,10 +1189,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#kernels-that-run" class="md-nav__link">
+  <a href="#which-kernels-run" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Kernels that run
+        Which kernels run?
       
     </span>
   </a>
@@ -1217,92 +1217,122 @@
 
 
 <h1 id="cuda">CUDA<a class="headerlink" href="#cuda" title="Permanent link">&para;</a></h1>
-<p>The Switch 2's GPU runs the same SM86 machine code a desktop Ampere card runs, so CUDA kernels compiled with <code>nvcc -arch=sm_86</code> are real guest-shaped programs. oboromi runs them two ways: through the translator on any Vulkan device, and natively on an NVIDIA card through libcuda.</p>
+<p>CUDA is NVIDIA's way of writing general programs for its GPUs. The Switch 2 runs the same machine code as a desktop Ampere card, so CUDA programs compiled for that card make good real-world test programs. For example, NVIDIA's Mandelbrot sample runs through the translator and draws the right picture.</p>
+<p>The emulator runs compiled CUDA programs through the translator, on any Vulkan device. It can also run them natively on an NVIDIA card through libcuda, NVIDIA's driver library.</p>
 <pre class="mermaid"><code>flowchart LR
-    CU["kernel.cu"] --&gt;|"nvcc -arch=sm_86 -cubin"| CUBIN["cubin&lt;br/&gt;ELF64"]
-    CUBIN --&gt; LOAD["Kernel::load&lt;br/&gt;cubin.rs"]
-    LOAD --&gt; LAUNCH["Kernel::launch&lt;br/&gt;cbuf0 like the driver"]
-    LAUNCH --&gt; TR["translator + Vulkan&lt;br/&gt;any device"]
-    SASS["SM86 program words"] --&gt; WR["seed cubin writer&lt;br/&gt;cuda.rs"]
+    CU["kernel.cu&lt;br/&gt;CUDA source"] --&gt;|"nvcc -arch=sm_86 -cubin"| CUBIN["cubin&lt;br/&gt;Compiled kernels in an ELF file"]
+    CUBIN --&gt; LOAD["Kernel::load&lt;br/&gt;Finds code, constants, shared size"]
+    LOAD --&gt; LAUNCH["Kernel::launch&lt;br/&gt;Fills constant buffer 0 like the driver"]
+    LAUNCH --&gt; TR["Translator + Vulkan&lt;br/&gt;Any graphics card"]
+    SASS["Guest shader code"] --&gt; WR["Seed cubin writer&lt;br/&gt;Wraps the code as a CUDA program"]
     WR --&gt; NAT["libcuda.so.1&lt;br/&gt;NVIDIA card only"]
-    TR --&gt; CMP{"same bytes?"}
+    TR --&gt; CMP{"Same bytes?"}
     NAT --&gt; CMP</code></pre>
-<h2 id="the-cubin-runner">The cubin runner<a class="headerlink" href="#the-cubin-runner" title="Permanent link">&para;</a></h2>
-<p><code>Kernel::load</code> reads the ELF sections <code>.text.&lt;kernel&gt;</code>, <code>.nv.info.&lt;kernel&gt;</code>, <code>.nv.constant&lt;bank&gt;</code> and <code>.nv.shared.&lt;kernel&gt;</code>, takes the SM number from <code>e_flags</code>, accepts sm_80 to sm_89 only, and finds the parameter area from <code>EIATTR_PARAM_CBANK</code> and <code>EIATTR_KPARAM_INFO</code>. <code>Kernel::launch</code> fills constant bank 0 the way the CUDA driver does:</p>
+<p><em>Both ways a compiled CUDA program runs, and the byte comparison between them.</em></p>
+<h2 id="how-does-the-cubin-runner-work">How does the cubin runner work?<a class="headerlink" href="#how-does-the-cubin-runner-work" title="Permanent link">&para;</a></h2>
+<p>A kernel is one CUDA program, and a cubin is the ELF file nvcc, NVIDIA's compiler, puts it in. <code>Kernel::load</code> reads the kernel's code, info, constant and shared-memory sections. It takes the chip version from the ELF header, accepts sm_80 to sm_89 only, and finds where the kernel's parameters go.</p>
+<p><code>Kernel::launch</code> fills constant buffer 0, the small read-only table every kernel gets, the way the CUDA driver does:</p>
 <table>
 <thead>
 <tr>
-<th>cbuf0 offset</th>
-<th>holds</th>
-<th>note</th>
+<th>Offset in cbuf0</th>
+<th>Holds</th>
+<th>Note</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>0x0</td>
-<td>block dimensions</td>
-<td>ntid x, y, z</td>
+<td>Block dimensions</td>
+<td>Threads per group in x, y, z</td>
 </tr>
 <tr>
 <td>0xc</td>
-<td>grid dimensions</td>
-<td>nctaid x, y, z</td>
+<td>Grid dimensions</td>
+<td>Groups in x, y, z</td>
 </tr>
 <tr>
 <td>0x28</td>
-<td>initial stack pointer for R1</td>
-<td>silicon gives a driver address; here the top of the translator's local array</td>
+<td>Initial stack pointer for R1</td>
+<td>The real card gives a driver address; here the top of the translator's local array</td>
 </tr>
 <tr>
 <td>0x118</td>
-<td>memory descriptor</td>
-<td>zero on silicon, zero here</td>
+<td>Memory descriptor</td>
+<td>Zero on the card, zero here</td>
 </tr>
 <tr>
 <td>0x160 on</td>
-<td>kernel parameters</td>
-<td>offsets and sizes from KPARAM_INFO</td>
+<td>Kernel parameters</td>
+<td>Offsets and sizes from the cubin's <code>EIATTR_KPARAM_INFO</code></td>
 </tr>
 </tbody>
 </table>
-<p>Why this ABI: it was captured from the driver on silicon, so a cubin compiled today runs without patching.</p>
-<h2 id="the-native-path">The native path<a class="headerlink" href="#the-native-path" title="Permanent link">&para;</a></h2>
-<p><code>cuda.rs</code>, behind the <code>cuda</code> feature, wraps a guest SM86 program in a cubin derived from a small seed kernel: it replaces <code>.text</code>, the parameter area, the shared size, the instruction offsets and the metadata, and keeps the seed's ELF header and segments. It opens <code>libcuda.so.1</code> at run time with no new crate, then <code>cuInit</code>, context, <code>cuModuleLoadData</code>, <code>cuLaunchKernel</code>, synchronize. <code>CudaDevice::run_native</code> copies buffers in and out.</p>
-<p>When it applies: a host with an NVIDIA card that loads sm_86 cubins and its driver, running compute programs. The translator stays the reference and the portable path; the native tests check both give the same bytes. Graphics stages do not go native.</p>
-<h2 id="kernels-that-run">Kernels that run<a class="headerlink" href="#kernels-that-run" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>kernel</th>
-<th>source</th>
-<th>result</th>
+<th>Section read</th>
+<th>Holds</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>mul-add <code>c[i] = a[i] * b[i] + i</code></td>
-<td>core/tests/fixtures/kernels.cu</td>
-<td>bit for bit equal to the RTX 3090 capture</td>
+<td><code>.text.&lt;kernel&gt;</code></td>
+<td>The machine code</td>
 </tr>
 <tr>
-<td>gradient</td>
-<td>core/tests/fixtures/kernels.cu</td>
-<td>same hash as on silicon</td>
+<td><code>.nv.info.&lt;kernel&gt;</code></td>
+<td>Parameter layout, from <code>EIATTR_PARAM_CBANK</code> and <code>EIATTR_KPARAM_INFO</code></td>
+</tr>
+<tr>
+<td><code>.nv.constant&lt;bank&gt;</code></td>
+<td>Constant data</td>
+</tr>
+<tr>
+<td><code>.nv.shared.&lt;kernel&gt;</code></td>
+<td>Shared memory size</td>
+</tr>
+</tbody>
+</table>
+<p>Why this layout: it was recorded from the real driver on a real card. So a cubin compiled today runs without patching.</p>
+<h2 id="how-does-the-native-path-work">How does the native path work?<a class="headerlink" href="#how-does-the-native-path-work" title="Permanent link">&para;</a></h2>
+<p><code>cuda.rs</code>, behind the <code>cuda</code> cargo feature, wraps a guest program in a cubin made from a small seed kernel. It swaps in the code, parameter area, shared size, instruction offsets and metadata, and keeps the seed's ELF header and segments.</p>
+<p>It opens <code>libcuda.so.1</code> at run time, with no new crate. Then it initialises CUDA, makes a context, loads the module, launches it and waits. <code>CudaDevice::run_native</code> copies buffers in and out.</p>
+<p>When it applies: a host with an NVIDIA card and driver that load sm_86 cubins, running compute programs. The translator stays the reference and the portable path, and the native tests check both give the same bytes. Graphics shaders never run natively.</p>
+<h2 id="which-kernels-run">Which kernels run?<a class="headerlink" href="#which-kernels-run" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Kernel</th>
+<th>Source</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mul-add <code>c[i] = a[i] * b[i] + i</code></td>
+<td>Core/tests/fixtures/kernels.cu</td>
+<td>Bit for bit equal to the RTX 3090 recording</td>
+</tr>
+<tr>
+<td>Gradient</td>
+<td>Core/tests/fixtures/kernels.cu</td>
+<td>Same hash as on the real card</td>
 </tr>
 <tr>
 <td>Mandelbrot0, float</td>
 <td>NVIDIA cuda-samples, BSD-3</td>
-<td>correct image, see below</td>
+<td>Correct image, see below</td>
 </tr>
 </tbody>
 </table>
-<p>measured, p50 per launch:</p>
+<p>Measured, p50 per launch:</p>
 <table>
 <thead>
 <tr>
-<th>run</th>
-<th>device</th>
-<th>time</th>
+<th>Run</th>
+<th>Device</th>
+<th>Time</th>
 </tr>
 </thead>
 <tbody>
@@ -1312,17 +1342,17 @@
 <td>10.2 ms</td>
 </tr>
 <tr>
-<td>gradient 1080p on the translator</td>
+<td>Gradient 1080p on the translator</td>
 <td>Intel Arc (MTL)</td>
 <td>3.4 ms</td>
 </tr>
 <tr>
-<td>mul-add, native, copies included</td>
+<td>Mul-add, native, copies included</td>
 <td>RTX A6000</td>
 <td>1.0 ms</td>
 </tr>
 <tr>
-<td>gradient, native, copies included</td>
+<td>Gradient, native, copies included</td>
 <td>RTX A6000</td>
 <td>6.8 ms</td>
 </tr>
@@ -1333,7 +1363,7 @@
 </tr>
 </tbody>
 </table>
-<p>The Mandelbrot reference image's provenance is unknown, so that last row is a sanity check, not a pass mark.</p>
+<p>Nobody knows how the Mandelbrot reference image was made. So that last row is a sanity check, not a pass mark.</p>
 <p>Planned next, in order: nbody and particles, simpleTexture, Sobel, box and bilateral filters, fluids and smoke, marching cubes.</p>
 <p>Verified by: <code>cubin_kernels_match_silicon</code> on Intel and lavapipe, and <code>native_mul_add_matches_translator</code> and <code>native_gradient_matches_translator</code> on the RTX A6000 (they skip without libcuda).</p>
 <p>Sources: core/src/gpu/cubin.rs and core/src/gpu/cuda.rs on gpu-instructions, core/src/tests/gpu/cuda.rs, core/tests/fixtures/kernels.cu and cuda-seed.cu.</p>

@@ -353,7 +353,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -723,7 +723,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -759,7 +759,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -795,7 +795,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -831,7 +831,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -867,7 +867,7 @@
   <span class="md-ellipsis">
     
   
-    HMMA as DontUnroll loops
+    Exact matrix sums as loops
   
 
     
@@ -903,7 +903,7 @@
   <span class="md-ellipsis">
     
   
-    Synchronous pusher and draw snapshots
+    Commands run in order
   
 
     
@@ -939,7 +939,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -975,7 +975,7 @@
   <span class="md-ellipsis">
     
   
-    Silicon-first verification
+    Real chips are the reference
   
 
     
@@ -1020,6 +1020,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1036,6 +1054,135 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#chips-and-code-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chips and code formats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-commands-reach-the-gpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How commands reach the GPU
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shaders-and-their-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shaders and their data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-the-gpu-runs-threads" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the GPU runs threads
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#textures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Textures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tensor-cores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tensor cores
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vulkan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vulkan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-rest-of-the-emulator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The rest of the emulator
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tools-tests-and-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools, tests and references
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1088,6 +1235,124 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#chips-and-code-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chips and code formats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-commands-reach-the-gpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How commands reach the GPU
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shaders-and-their-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shaders and their data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-the-gpu-runs-threads" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the GPU runs threads
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#textures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Textures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tensor-cores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tensor cores
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vulkan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vulkan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-rest-of-the-emulator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The rest of the emulator
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tools-tests-and-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools, tests and references
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1104,145 +1369,867 @@
 
 
 <h1 id="glossary">Glossary<a class="headerlink" href="#glossary" title="Permanent link">&para;</a></h1>
-<p>Each term is explained once, here. The architecture pages use them without repeating the explanation.</p>
+<p>A game talks to its GPU through command words in memory and small programs called shaders. Each piece on that path has its own name. For example, to draw a triangle the game writes a command list and points the GPU at it. The GPU then runs a shader for every covered pixel.</p>
 <pre class="mermaid"><code>flowchart LR
-    GPFIFO --&gt; PB["pushbuffer"] --&gt; M["methods"]
-    M --&gt; C3["3D class: SPH, cbuf, TIC/TSC"]
-    M --&gt; CC["compute class: QMD"]
-    C3 --&gt; SASS
+    GPFIFO["GPFIFO&lt;br/&gt;Queue of pointers to command lists"] --&gt; PB["Pushbuffer&lt;br/&gt;One command list in memory"] --&gt; M["Methods&lt;br/&gt;Single register writes"]
+    M --&gt; C3["3D class&lt;br/&gt;Drawing settings: shaders, constants, textures"]
+    M --&gt; CC["Compute class&lt;br/&gt;Compute launches, described by a QMD"]
+    C3 --&gt; SASS["SASS&lt;br/&gt;NVIDIA shader machine code"]
     CC --&gt; SASS
-    SASS --&gt;|"translator"| SPIRV["SPIR-V"]</code></pre>
+    SASS --&gt;|"Translator"| SPIRV["SPIR-V&lt;br/&gt;The shader format Vulkan runs"]</code></pre>
+<p><em>How a game's commands lead to shader code a PC's GPU can run.</em></p>
+<h2 id="chips-and-code-formats">Chips and code formats<a class="headerlink" href="#chips-and-code-formats" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>term</th>
-<th>meaning</th>
+<th>Term</th>
+<th>What it is</th>
+<th>Example</th>
 </tr>
 </thead>
 <tbody>
 <tr>
+<td>GPU</td>
+<td>The graphics chip: many small cores running the same program on many pixels or numbers at once.</td>
+<td>Shading every pixel of a frame in parallel.</td>
+</tr>
+<tr>
+<td>Guest, host</td>
+<td>The guest is the emulated Switch 2 and its memory; the host is the PC running oboromi.</td>
+<td>A guest address points into emulated console RAM.</td>
+</tr>
+<tr>
+<td>Shader</td>
+<td>A small program the GPU runs once per vertex, pixel or work item.</td>
+<td>A pixel shader that returns one pixel's colour.</td>
+</tr>
+<tr>
 <td>SASS</td>
-<td>NVIDIA's native GPU machine code. On SM86 every instruction is 128 bits, with its scheduling bits inside the word.</td>
+<td>NVIDIA's native GPU machine code, the instructions the chip really executes.</td>
+<td><code>FADD R0, R1, R2</code> adds two floats; on SM86 each instruction is a 128-bit word.</td>
 </tr>
 <tr>
 <td>SM86</td>
-<td>the Ampere instruction set of the GA102 family (RTX 3090, A6000). The Switch 2's T239 uses the same encoding table.</td>
+<td>The instruction set of NVIDIA's Ampere desktop chips, which the Switch 2 also uses.</td>
+<td>An RTX 3090 runs SM86 code.</td>
+</tr>
+<tr>
+<td>SM88</td>
+<td>CUDA's name for the Switch 2 GPU's instruction set; its encoding table equals SM86's.</td>
+<td><code>nvdisasm --binary SM88</code> decodes Switch 2 code.</td>
+</tr>
+<tr>
+<td>Ampere</td>
+<td>NVIDIA's GPU generation shared by desktop cards and the Switch 2.</td>
+<td>RTX 30 series cards are Ampere.</td>
 </tr>
 <tr>
 <td>T239</td>
-<td>the Switch 2's system-on-chip. Its GPU is the GA10F, an Ampere part.</td>
+<td>The Switch 2's system-on-chip: ARM CPU cores plus an Ampere GPU called GA10F.</td>
+<td>The main chip inside every Switch 2.</td>
 </tr>
 <tr>
 <td>GA102</td>
-<td>the desktop Ampere chip the silicon captures come from.</td>
+<td>The desktop Ampere chip the reference results are recorded on.</td>
+<td>RTX 3090 and RTX A6000 are GA102 cards.</td>
+</tr>
+<tr>
+<td>Silicon</td>
+<td>Real hardware, as opposed to an emulator or a CPU-based driver.</td>
+<td>"matches silicon" means an RTX 3090 gave the same bytes.</td>
 </tr>
 <tr>
 <td>SPIR-V</td>
-<td>the binary shader language Vulkan consumes. The translator writes it.</td>
+<td>The binary shader format Vulkan accepts, like bytecode for GPUs.</td>
+<td>The translator writes one SPIR-V module per guest program.</td>
 </tr>
 <tr>
-<td>spirv-val</td>
-<td>the Khronos validator for SPIR-V modules.</td>
+<td>Module</td>
+<td>One SPIR-V program, ready to hand to a Vulkan driver.</td>
+<td>The translated Julia demo shader.</td>
 </tr>
 <tr>
-<td>nvdisasm</td>
-<td>NVIDIA's disassembler. It carries the instruction table the decoder is generated from.</td>
+<td>Translator</td>
+<td>oboromi's code that rewrites SASS into SPIR-V.</td>
+<td><code>core/src/gpu/sm86</code>.</td>
 </tr>
 <tr>
-<td>lavapipe</td>
-<td>Mesa's Vulkan driver that runs on the CPU (also called llvmpipe). The CI device.</td>
+<td>Encoding class</td>
+<td>One row of NVIDIA's instruction table: a bit pattern plus its fields.</td>
+<td>An add with a register operand and one with a constant are two classes.</td>
+</tr>
+<tr>
+<td>Handler</td>
+<td>The translator function that emits SPIR-V for one instruction family.</td>
+<td>The FADD handler emits a float add.</td>
+</tr>
+<tr>
+<td>Opcode</td>
+<td>The name of an instruction.</td>
+<td><code>IMAD</code> is integer multiply-add.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-commands-reach-the-gpu">How commands reach the GPU<a class="headerlink" href="#how-commands-reach-the-gpu" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>What it is</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Channel</td>
+<td>One stream of commands from a program to the GPU.</td>
+<td>A game's renderer usually owns one.</td>
 </tr>
 <tr>
 <td>GPFIFO</td>
-<td>the ring of 8-byte entries a channel reads. Each entry points at a pushbuffer and gives its length.</td>
+<td>A ring of small entries, each pointing at a pushbuffer and giving its length.</td>
+<td>The game appends one entry per batch of commands.</td>
 </tr>
 <tr>
-<td>pushbuffer</td>
-<td>a list of 32-bit words in guest memory: method headers followed by their data.</td>
+<td>Pushbuffer</td>
+<td>A list of 32-bit command words in guest memory: a header word, then data words.</td>
+<td>"set viewport width to 1920" is one header and one data word.</td>
 </tr>
 <tr>
-<td>method</td>
-<td>a register write to a GPU class, addressed by offset.</td>
+<td>Method</td>
+<td>One register write to a GPU engine, named by its register offset.</td>
+<td>Writing the vertex count before a draw.</td>
 </tr>
 <tr>
-<td>subchannel</td>
-<td>one of eight slots a channel binds a class to with SET_OBJECT; each method header names one.</td>
+<td>Class</td>
+<td>A GPU engine's set of registers, identified by a number.</td>
+<td>0xC797 is the Ampere 3D engine, 0xC7C0 compute, 0xC76F the channel.</td>
 </tr>
 <tr>
-<td>class</td>
-<td>a GPU engine's register interface: 0xC797 is the Ampere 3D class, 0xC7C0 compute, 0xC76F the channel.</td>
+<td>Subchannel</td>
+<td>One of eight slots a channel binds a class into, so each header can pick an engine.</td>
+<td>Subchannel 0 holds the 3D class after <code>SET_OBJECT</code>.</td>
 </tr>
 <tr>
-<td>MME</td>
-<td>the macro engine that expands macro calls into method writes. Ampere uses MME64.</td>
+<td><code>SET_OBJECT</code></td>
+<td>The channel method that binds a class to a subchannel.</td>
+<td>Sent once at the start of a command stream.</td>
+</tr>
+<tr>
+<td>Draw trigger</td>
+<td>The method write that means "draw now with the current settings".</td>
+<td><code>DRAW_VERTEX_ARRAY_BEGIN_END_INSTANCE_FIRST</code>.</td>
+</tr>
+<tr>
+<td>Snapshot</td>
+<td>A frozen copy of the GPU settings at the moment of a draw or launch.</td>
+<td><code>DrawSnapshot</code> holds the viewport the draw used.</td>
+</tr>
+<tr>
+<td>Semaphore</td>
+<td>A memory word the GPU writes or waits on, to tell the CPU how far it got.</td>
+<td>A release writes a counter when a frame is done.</td>
+</tr>
+<tr>
+<td>Syncpoint</td>
+<td>The Switch's hardware counter for the same job, managed by the OS.</td>
+<td>The display waits on one before showing a frame.</td>
+</tr>
+<tr>
+<td>Report</td>
+<td>A value the GPU writes to memory on request.</td>
+<td>A counter or timestamp after a draw.</td>
+</tr>
+<tr>
+<td>MME, MME64</td>
+<td>A small macro processor in the GPU that expands one call into many method writes.</td>
+<td>One macro call that sets up a whole draw.</td>
 </tr>
 <tr>
 <td>QMD</td>
-<td>queue meta data: the 256-byte compute launch descriptor in guest memory (grid, block, program, cbufs).</td>
+<td>Queue meta data: a block in guest memory describing one compute launch.</td>
+<td>Grid size, threads per group, program address, constant buffers.</td>
+</tr>
+<tr>
+<td>Dispatch</td>
+<td>One compute launch: run a program over a grid of threads.</td>
+<td>One dispatch per frame of the Julia demo.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="shaders-and-their-data">Shaders and their data<a class="headerlink" href="#shaders-and-their-data" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>What it is</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stage</td>
+<td>Which step of drawing a shader belongs to.</td>
+<td>Vertex, fragment or compute.</td>
+</tr>
+<tr>
+<td>Vertex shader</td>
+<td>Runs once per corner of a triangle and computes where it lands on screen.</td>
+<td>Multiplying a position by the camera matrix.</td>
+</tr>
+<tr>
+<td>Fragment shader</td>
+<td>Runs once per covered pixel and computes its colour; also called a pixel shader.</td>
+<td>Sampling a texture and returning the colour.</td>
+</tr>
+<tr>
+<td>Compute shader</td>
+<td>A shader not tied to drawing, run over a grid of threads for general work.</td>
+<td>The Julia set demo.</td>
 </tr>
 <tr>
 <td>SPH</td>
-<td>shader program header: the block before a graphics program that names its stage and the attributes it reads and writes.</td>
+<td>Shader program header: a block before a graphics program naming its stage, inputs and outputs.</td>
+<td>"vertex stage, writes position and one colour".</td>
 </tr>
 <tr>
 <td>IMAP, OMAP</td>
-<td>the SPH's input and output attribute maps.</td>
+<td>The SPH's input and output maps: which attributes a shader reads and writes.</td>
+<td>OMAP bit for "writes generic attribute 0".</td>
+</tr>
+<tr>
+<td>Attribute</td>
+<td>A per-vertex value passed between stages.</td>
+<td>Position, colour or texture coordinate.</td>
+</tr>
+<tr>
+<td>Interpolation</td>
+<td>Blending a vertex value across a triangle's pixels; "flat" means no blending.</td>
+<td>A colour fading from one corner to another.</td>
 </tr>
 <tr>
 <td>cbuf</td>
-<td>constant buffer: a read-only buffer a shader reads with <code>c[bank][offset]</code>. Bank 0 carries launch data for compute.</td>
+<td>Constant buffer: a small read-only table of numbers the game hands the shader.</td>
+<td>The camera matrix, read as <code>c[bank][offset]</code>.</td>
 </tr>
 <tr>
-<td>TIC</td>
-<td>texture image control: a 32-byte texture header in a pool (format, size, layout, address, mips).</td>
+<td>Bank</td>
+<td>Which of a shader's constant buffers an access names.</td>
+<td>Bank 0 carries launch data in compute, such as the grid size.</td>
 </tr>
 <tr>
-<td>TSC</td>
-<td>texture sampler control: a 32-byte sampler entry in a pool (wrap, filters, LOD).</td>
+<td>Global memory</td>
+<td>The GPU's view of main memory, read and written by address.</td>
+<td><code>LDG</code> loads from it, <code>STG</code> stores to it.</td>
 </tr>
 <tr>
-<td>handle</td>
-<td>a cbuf word whose low 20 bits index the TIC pool and top 12 bits the TSC pool.</td>
+<td>Shared memory</td>
+<td>A small fast scratch area shared by the threads of one workgroup.</td>
+<td>Threads swapping partial sums.</td>
 </tr>
 <tr>
-<td>block-linear</td>
-<td>NVIDIA's tiled texture layout made of GOBs; pitch-linear is plain rows.</td>
+<td>Local memory</td>
+<td>Per-thread scratch memory for values that do not fit in registers.</td>
+<td>A large per-thread array.</td>
 </tr>
 <tr>
-<td>GOB</td>
-<td>group of bytes: 64 bytes by 8 rows, the tile block-linear is built from.</td>
+<td>Register</td>
+<td>A named per-thread variable inside the GPU core.</td>
+<td><code>R0</code> to <code>R253</code>; <code>RZ</code> always reads zero.</td>
 </tr>
 <tr>
-<td>warp</td>
-<td>32 threads that run one instruction stream together; a lane is one of them.</td>
+<td>Predicate</td>
+<td>A one-bit register that decides whether an instruction runs.</td>
+<td><code>@P0 FADD</code> adds only where <code>P0</code> is true.</td>
+</tr>
+<tr>
+<td>Uniform datapath</td>
+<td>Per-warp registers holding one value shared by all its threads.</td>
+<td><code>UR0</code> to <code>UR62</code> and predicates <code>UP0</code> to <code>UP6</code>.</td>
+</tr>
+<tr>
+<td>pc</td>
+<td>Program counter: the position of the next instruction.</td>
+<td>A branch sets the pc to its target.</td>
+</tr>
+<tr>
+<td>Basic block</td>
+<td>A run of instructions entered only at the top and left only at the bottom.</td>
+<td>The body of a loop without inner branches.</td>
+</tr>
+<tr>
+<td>Attribute space</td>
+<td>The address range an instruction uses to name an attribute.</td>
+<td>Position sits at 0x70.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-the-gpu-runs-threads">How the GPU runs threads<a class="headerlink" href="#how-the-gpu-runs-threads" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>What it is</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Thread, invocation, lane</td>
+<td>One running copy of a shader; Vulkan says invocation, and a lane is a thread's slot in a warp.</td>
+<td>The thread shading one pixel.</td>
+</tr>
+<tr>
+<td>Warp</td>
+<td>A team of threads that runs one instruction stream in lockstep.</td>
+<td>NVIDIA warps are 32 threads.</td>
+</tr>
+<tr>
+<td>Subgroup</td>
+<td>Vulkan's name for a warp; its width depends on the device.</td>
+<td>lavapipe's subgroups are 8 wide.</td>
+</tr>
+<tr>
+<td>Workgroup</td>
+<td>A group of threads that can share memory and wait for each other; CUDA calls it a block.</td>
+<td>256 threads working on one tile of an image.</td>
+</tr>
+<tr>
+<td>Divergence</td>
+<td>Threads of one warp taking different sides of a branch.</td>
+<td>Pixels inside and outside a circle.</td>
+</tr>
+<tr>
+<td>Reconvergence</td>
+<td>The point where diverged threads join up again.</td>
+<td>The end of an if-else.</td>
 </tr>
 <tr>
 <td>BSSY, BSYNC</td>
-<td>the SM86 pair that marks where diverged lanes of a warp reconverge.</td>
+<td>The SM86 instruction pair marking where diverged threads of a warp join again.</td>
+<td><code>BSSY</code> before an if, <code>BSYNC</code> after it.</td>
+</tr>
+<tr>
+<td>Barrier</td>
+<td>A point every thread of a group must reach before any goes on.</td>
+<td><code>BAR</code> before reading what others wrote to shared memory.</td>
+</tr>
+<tr>
+<td>Collective</td>
+<td>An instruction where threads of a warp exchange values.</td>
+<td><code>VOTE</code> asks which threads have a condition; <code>SHFL</code> reads a teammate's register.</td>
+</tr>
+<tr>
+<td>Structured control flow</td>
+<td>SPIR-V's rule that branches must form nested loops and ifs, with no free jumps.</td>
+<td>No <code>goto</code> into the middle of a loop.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="textures">Textures<a class="headerlink" href="#textures" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>What it is</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Texture</td>
+<td>An image a shader reads with filtering.</td>
+<td>A brick wall image on a model.</td>
+</tr>
+<tr>
+<td>Sampler</td>
+<td>The settings for reading a texture: edge wrapping, filtering, level of detail.</td>
+<td>Repeat at the edges, smooth between pixels.</td>
+</tr>
+<tr>
+<td>TIC</td>
+<td>Texture image control: a header describing one texture's format, size, layout, address and mip levels.</td>
+<td>One 32-byte entry per texture.</td>
+</tr>
+<tr>
+<td>TSC</td>
+<td>Texture sampler control: an entry holding one sampler's settings.</td>
+<td>One 32-byte entry per sampler.</td>
+</tr>
+<tr>
+<td>Pool</td>
+<td>A table of TIC or TSC entries in guest memory.</td>
+<td>A game's texture pool with hundreds of headers.</td>
+</tr>
+<tr>
+<td>Handle</td>
+<td>A cbuf word that picks one TIC entry and one TSC entry.</td>
+<td>Low 20 bits pick the texture, top 12 bits the sampler.</td>
+</tr>
+<tr>
+<td>Mip level</td>
+<td>A smaller copy of the same texture, used when it appears far away.</td>
+<td>A 512 pixel texture with 256, 128 and smaller copies.</td>
+</tr>
+<tr>
+<td>LOD</td>
+<td>Level of detail: which mip level a read uses.</td>
+<td>LOD 0 is full size.</td>
+</tr>
+<tr>
+<td>Format</td>
+<td>How a pixel's bytes are laid out.</td>
+<td><code>A8B8G8R8</code> is four 8-bit channels; <code>BC1</code>, <code>BC3</code>, <code>BC7</code> are compressed.</td>
+</tr>
+<tr>
+<td>sRGB</td>
+<td>A colour encoding matching how screens show brightness, decoded to linear before maths.</td>
+<td>Most photos and base-colour textures.</td>
+</tr>
+<tr>
+<td>Pitch-linear</td>
+<td>Plain rows of pixels, one after another.</td>
+<td>A screenshot in memory.</td>
+</tr>
+<tr>
+<td>Block-linear</td>
+<td>NVIDIA's tiled layout that keeps nearby pixels close in memory.</td>
+<td>Most textures a game uploads.</td>
+</tr>
+<tr>
+<td>GOB</td>
+<td>Group of bytes: the small tile block-linear layouts are built from.</td>
+<td>64 bytes wide and 8 rows high.</td>
+</tr>
+<tr>
+<td>Deswizzle</td>
+<td>Reorder tiled pixels back into plain rows.</td>
+<td>Turning a block-linear texture into a Vulkan image.</td>
+</tr>
+<tr>
+<td>Surface</td>
+<td>An image a shader writes pixel by pixel instead of sampling; Vulkan calls it a storage image.</td>
+<td><code>SUST</code> stores one pixel.</td>
+</tr>
+<tr>
+<td>Render target</td>
+<td>The image a draw writes its pixels into.</td>
+<td>A colour image plus an optional depth image.</td>
+</tr>
+<tr>
+<td>Depth</td>
+<td>Per-pixel distance, used to hide what is behind.</td>
+<td>A wall in front of a door.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="tensor-cores">Tensor cores<a class="headerlink" href="#tensor-cores" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>What it is</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tensor core</td>
+<td>A unit that multiplies small matrices in one instruction.</td>
+<td>AI inference and upscaling use them.</td>
 </tr>
 <tr>
 <td>HMMA, IMMA</td>
-<td>warp-wide matrix multiply-accumulate on tensor cores, for floats and integers.</td>
+<td>Matrix multiply-accumulate on tensor cores, for half-precision floats and for integers.</td>
+<td>One HMMA computes <code>D = A × B + C</code> across a warp.</td>
 </tr>
 <tr>
-<td>uniform datapath</td>
-<td>the per-warp scalar registers UR0 to UR62 and predicates UP0 to UP6.</td>
+<td>DMMA, BMMA</td>
+<td>The same for double-precision floats and for single bits.</td>
+<td>DMMA for scientific maths.</td>
 </tr>
+<tr>
+<td>LDSM, MOVM</td>
+<td>Load and rearrange matrix pieces for tensor instructions.</td>
+<td>Loading a tile from shared memory.</td>
+</tr>
+<tr>
+<td>Matrix fragment</td>
+<td>The part of a matrix one thread holds.</td>
+<td>A few elements of row 3 of <code>A</code>.</td>
+</tr>
+<tr>
+<td>TF32</td>
+<td>A reduced-precision float format tensor cores use for speed.</td>
+<td>32 bits of storage, fewer mantissa bits used.</td>
+</tr>
+<tr>
+<td>Truncation</td>
+<td>Dropping low bits instead of rounding them.</td>
+<td>1.27 truncated to one decimal is 1.2.</td>
+</tr>
+<tr>
+<td>IEEE order</td>
+<td>Adding numbers one at a time, rounding after each step, as standard float rules do.</td>
+<td><code>((a + b) + c) + d</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="vulkan">Vulkan<a class="headerlink" href="#vulkan" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>What it is</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vulkan</td>
+<td>The cross-vendor API programs use to drive a GPU.</td>
+<td>The same code runs on Intel, AMD and NVIDIA.</td>
+</tr>
+<tr>
+<td>ICD</td>
+<td>Installable client driver: the library that gives Vulkan a device.</td>
+<td>lavapipe's ICD file.</td>
+</tr>
+<tr>
+<td>Queue</td>
+<td>Where a program submits work to the GPU.</td>
+<td>One queue that takes both graphics and compute.</td>
+</tr>
+<tr>
+<td>Command buffer</td>
+<td>A recorded list of GPU commands submitted in one go.</td>
+<td>"bind pipeline, dispatch, copy back".</td>
+</tr>
+<tr>
+<td>Fence</td>
+<td>A flag the GPU sets when submitted work finishes, so the CPU can wait.</td>
+<td>Waiting for a dispatch before reading its output.</td>
+</tr>
+<tr>
+<td>Pipeline</td>
+<td>A compiled bundle of shaders plus fixed settings, needed before any draw or dispatch.</td>
+<td>Vertex shader, fragment shader, vertex layout and colour format.</td>
+</tr>
+<tr>
+<td>Dynamic state</td>
+<td>Settings that can change per draw without building a new pipeline.</td>
+<td>Viewport and cull mode.</td>
+</tr>
+<tr>
+<td>Dynamic rendering</td>
+<td>Drawing straight into images, without Vulkan's older render pass objects.</td>
+<td>One call names the colour and depth images.</td>
+</tr>
+<tr>
+<td>Descriptor</td>
+<td>A small record telling a shader where one buffer or image is.</td>
+<td>"binding 9 is this buffer".</td>
+</tr>
+<tr>
+<td>Binding</td>
+<td>A numbered slot a shader reads a resource from; the host plugs a buffer or image into it.</td>
+<td>Binding 9 holds the global memory window.</td>
+</tr>
+<tr>
+<td>Descriptor set</td>
+<td>A group of bindings plugged in together.</td>
+<td>oboromi uses only set 0.</td>
+</tr>
+<tr>
+<td>Uniform buffer</td>
+<td>A small read-only buffer behind a binding.</td>
+<td>A guest cbuf.</td>
+</tr>
+<tr>
+<td>Storage buffer, SSBO</td>
+<td>A large buffer a shader can read and write.</td>
+<td>The global memory window.</td>
+</tr>
+<tr>
+<td>std140</td>
+<td>Vulkan's layout rule for uniform buffers, which pads each array element to 16 bytes.</td>
+<td>Why cbufs are declared as <code>uvec4</code> arrays.</td>
+</tr>
+<tr>
+<td>uvec4</td>
+<td>Four 32-bit unsigned integers, 16 bytes in total.</td>
+<td>One row of a cbuf array.</td>
+</tr>
+<tr>
+<td>Resource list</td>
+<td>The bindings a translated module declares, with what each one holds.</td>
+<td>"binding 1 is cbuf 0, binding 12 is the texture at cbuf 0 offset 0x10".</td>
+</tr>
+<tr>
+<td>Validation layer</td>
+<td>A Vulkan debug layer that reports misuse of the API.</td>
+<td>Catching an image used in the wrong layout.</td>
+</tr>
+<tr>
+<td>spirv-val</td>
+<td>The Khronos tool that checks a SPIR-V module is valid.</td>
+<td>It rejected a compute shader that used <code>OpKill</code>.</td>
+</tr>
+<tr>
+<td>lavapipe</td>
+<td>Mesa's Vulkan driver that runs on the CPU, also called llvmpipe.</td>
+<td>The device in CI.</td>
+</tr>
+<tr>
+<td>DontUnroll</td>
+<td>A SPIR-V hint asking the driver not to copy a loop body out.</td>
+<td>Keeps a four-pass loop as a loop.</td>
+</tr>
+<tr>
+<td>Inlining</td>
+<td>A compiler pasting a function's body into every caller.</td>
+<td>A helper function vanishing from the compiled code.</td>
+</tr>
+<tr>
+<td>Register spill</td>
+<td>Moving values to slower memory when a program needs more registers than the core has.</td>
+<td>Intel spilling in the tensor loops.</td>
+</tr>
+<tr>
+<td>Readback</td>
+<td>Copying results from GPU memory back to CPU memory.</td>
+<td>Reading a frame's pixels after a draw.</td>
+</tr>
+<tr>
+<td>Denormal</td>
+<td>A tiny float close to zero that some hardware flushes to zero.</td>
+<td>1e-40 as a 32-bit float.</td>
+</tr>
+<tr>
+<td>NaN</td>
+<td>"not a number", the float result of an invalid operation.</td>
+<td><code>0.0 / 0.0</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="memory">Memory<a class="headerlink" href="#memory" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>What it is</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
 <tr>
 <td>VA, PA</td>
-<td>GPU virtual address and guest-physical address.</td>
+<td>GPU virtual address, which shaders use, and guest-physical address, where the bytes sit in emulated RAM.</td>
+<td>One VA can be repointed to another PA.</td>
 </tr>
 <tr>
-<td>cubin</td>
-<td>an ELF file holding compiled CUDA kernels for one SM version.</td>
+<td>Page</td>
+<td>The fixed-size chunk the address map works in.</td>
+<td>64 KiB here.</td>
+</tr>
+<tr>
+<td>Page map</td>
+<td>The table that turns GPU virtual pages into guest-physical pages.</td>
+<td><code>PageMap</code> in <code>memory.rs</code>.</td>
+</tr>
+<tr>
+<td>Remap</td>
+<td>Pointing a GPU address at different memory.</td>
+<td>A game moving a vertex buffer.</td>
+</tr>
+<tr>
+<td>Aliasing</td>
+<td>Two addresses sharing the same memory.</td>
+<td>A texture that is also a render target.</td>
+</tr>
+<tr>
+<td>Mirror</td>
+<td>A host copy of a guest buffer, kept for Vulkan.</td>
+<td>The vertex buffer copy a draw reads.</td>
+</tr>
+<tr>
+<td>Generation</td>
+<td>A counter stamped on each page write, so a copy can tell it is stale.</td>
+<td>A mirror refreshes when its pages' generation moved.</td>
+</tr>
+<tr>
+<td>Coherence</td>
+<td>Keeping all copies of the same data in agreement.</td>
+<td>The CPU seeing the pixels a draw wrote.</td>
+</tr>
+<tr>
+<td>Global memory window</td>
+<td>One storage buffer holding the guest memory range a program can touch.</td>
+<td>The output image of the gradient program.</td>
+</tr>
+<tr>
+<td>Memory descriptor</td>
+<td>An extra policy word the compiler attaches to some loads and stores; it is not part of the address.</td>
+<td><code>LDG.E desc[UR4][R2.64]</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-rest-of-the-emulator">The rest of the emulator<a class="headerlink" href="#the-rest-of-the-emulator" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>What it is</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unicorn</td>
+<td>The CPU emulator library oboromi's ARM cores run on.</td>
+<td>It executes AArch64 instructions.</td>
+</tr>
+<tr>
+<td>AArch64</td>
+<td>The 64-bit ARM instruction set the Switch 2's CPU runs.</td>
+<td>The game's main code.</td>
+</tr>
+<tr>
+<td>FFI</td>
+<td>Foreign function interface: the Rust functions the C++ Qt window calls.</td>
+<td><code>ffi.rs</code>.</td>
 </tr>
 <tr>
 <td>HLE</td>
-<td>high-level emulation: implementing a firmware service's behaviour instead of running its code.</td>
+<td>High-level emulation: writing a firmware service's behaviour instead of running its code.</td>
+<td>Answering a "get time" call directly.</td>
 </tr>
 <tr>
-<td>Unicorn</td>
-<td>the CPU emulator library oboromi's ARM cores run on.</td>
+<td>Service</td>
+<td>An OS process a game talks to.</td>
+<td><code>nvdrv</code> is the GPU driver service, <code>vi</code> the display service.</td>
+</tr>
+<tr>
+<td>HIPC</td>
+<td>The Switch's message format for calling services.</td>
+<td>A header plus arguments in a buffer.</td>
+</tr>
+<tr>
+<td>SVC</td>
+<td>Supervisor call: a system call into the Switch kernel.</td>
+<td>Mapping memory.</td>
+</tr>
+<tr>
+<td>Ioctl</td>
+<td>A control call into a driver.</td>
+<td>An <code>nvdrv</code> call that allocates GPU memory.</td>
+</tr>
+<tr>
+<td>nvmap, host1x</td>
+<td>The Switch's GPU memory allocator and its sync and DMA unit.</td>
+<td><code>nvmap</code> hands out buffer handles.</td>
+</tr>
+<tr>
+<td>NSO, NRO</td>
+<td>Switch executable file formats.</td>
+<td>A game's main program is an NSO.</td>
+</tr>
+<tr>
+<td>Loader</td>
+<td>The code that places a game's executable in memory and starts it.</td>
+<td>Missing in oboromi today.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="tools-tests-and-references">Tools, tests and references<a class="headerlink" href="#tools-tests-and-references" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>What it is</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nvdisasm</td>
+<td>NVIDIA's disassembler; the decoder is generated from the instruction table it carries.</td>
+<td>Turning a 128-bit word into <code>FADD R0, R1, R2</code>.</td>
+</tr>
+<tr>
+<td>nvcc</td>
+<td>NVIDIA's CUDA compiler.</td>
+<td><code>nvcc -arch=sm_86 -cubin kernel.cu</code>.</td>
+</tr>
+<tr>
+<td>CUDA</td>
+<td>NVIDIA's way of writing general GPU programs in C++.</td>
+<td>A kernel that adds two arrays.</td>
+</tr>
+<tr>
+<td>Kernel</td>
+<td>A CUDA program launched over a grid of threads.</td>
+<td>The mul-add test kernel.</td>
+</tr>
+<tr>
+<td>cubin</td>
+<td>An ELF file holding compiled CUDA kernels for one SM version.</td>
+<td><code>kernels.cubin</code>.</td>
+</tr>
+<tr>
+<td>libcuda</td>
+<td>NVIDIA's driver library that runs CUDA programs on its cards.</td>
+<td><code>libcuda.so.1</code>.</td>
+</tr>
+<tr>
+<td>Capture</td>
+<td>One recording of an instruction run on a real card: inputs, instruction, outputs.</td>
+<td>An integer add with its result registers.</td>
+</tr>
+<tr>
+<td>Fixture</td>
+<td>A stored test case, here usually a capture.</td>
+<td>One line of <code>sm86-thread.jsonl</code>.</td>
+</tr>
+<tr>
+<td>Scoreboard test</td>
+<td>A test that replays every capture and fails on any unlisted mismatch.</td>
+<td><code>fixtures_match_silicon</code>.</td>
+</tr>
+<tr>
+<td>Seed kernel</td>
+<td>A small compiled CUDA program used as a carrier for one patched instruction.</td>
+<td><code>cuda-seed.cu</code>.</td>
+</tr>
+<tr>
+<td>Ryujinx</td>
+<td>An open-source Switch 1 emulator whose GPU code is a reference.</td>
+<td>Its texture size calculator.</td>
+</tr>
+<tr>
+<td>NAK</td>
+<td>Mesa's open-source shader compiler for NVIDIA GPUs.</td>
+<td>Its shader header layout.</td>
+</tr>
+<tr>
+<td>Open-gpu-doc</td>
+<td>NVIDIA's public hardware headers.</td>
+<td><code>clc797.h</code>, the 3D class registers.</td>
+</tr>
+<tr>
+<td>Mesa</td>
+<td>The open-source graphics driver stack on Linux.</td>
+<td>It ships lavapipe.</td>
+</tr>
+<tr>
+<td>glTF</td>
+<td>A standard 3D model file format.</td>
+<td>The BoomBox sample model.</td>
+</tr>
+<tr>
+<td>PBR</td>
+<td>Physically based rendering: lighting that follows real material behaviour.</td>
+<td>Metal and rough surfaces lit by one light.</td>
 </tr>
 </tbody>
 </table>

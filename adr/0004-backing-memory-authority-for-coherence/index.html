@@ -27,7 +27,7 @@
     
     
       
-        <title>Backing memory is the authority - oboromi</title>
+        <title>RAM is the one true copy - oboromi</title>
       
     
     
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#guest-memory-is-the-authority-for-coherence" class="md-skip">
+        <a href="#emulated-ram-is-the-one-true-copy-of-all-data" class="md-skip">
           Skip to content
         </a>
       
@@ -109,7 +109,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Backing memory is the authority
+              RAM is the one true copy
             
           </span>
         </div>
@@ -353,7 +353,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -725,7 +725,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -761,7 +761,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -797,7 +797,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -842,7 +842,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -868,7 +868,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -902,6 +902,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#in-plain-words" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In plain words
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -925,10 +936,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#what-this-makes-easy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        What this makes easy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-this-makes-hard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this makes hard
       
     </span>
   </a>
@@ -974,7 +996,7 @@
   <span class="md-ellipsis">
     
   
-    HMMA as DontUnroll loops
+    Exact matrix sums as loops
   
 
     
@@ -1010,7 +1032,7 @@
   <span class="md-ellipsis">
     
   
-    Synchronous pusher and draw snapshots
+    Commands run in order
   
 
     
@@ -1046,7 +1068,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -1082,7 +1104,7 @@
   <span class="md-ellipsis">
     
   
-    Silicon-first verification
+    Real chips are the reference
   
 
     
@@ -1192,6 +1214,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#in-plain-words" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In plain words
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1215,10 +1248,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#what-this-makes-easy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        What this makes easy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-this-makes-hard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this makes hard
       
     </span>
   </a>
@@ -1258,20 +1302,27 @@
 
 
 
-<h1 id="guest-memory-is-the-authority-for-coherence">Guest memory is the authority for coherence<a class="headerlink" href="#guest-memory-is-the-authority-for-coherence" title="Permanent link">&para;</a></h1>
+<h1 id="emulated-ram-is-the-one-true-copy-of-all-data">Emulated RAM is the one true copy of all data<a class="headerlink" href="#emulated-ram-is-the-one-true-copy-of-all-data" title="Permanent link">&para;</a></h1>
+<h2 id="in-plain-words">In plain words<a class="headerlink" href="#in-plain-words" title="Permanent link">&para;</a></h2>
+<p>Vulkan cannot read the emulated console's RAM directly, so the emulator keeps PC-side copies of game data. Copies can go stale: the game might move a buffer, change it from the CPU, or draw into memory it later reads as a texture. So emulated RAM is the only truth. Every copy remembers where it came from and when, and every draw writes its pixels back to RAM before it returns. Think of a shared master file: anyone holding a printout checks the date before using it.</p>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>The engine keeps host copies of guest data: buffer mirrors, render targets, compiled modules. The guest can remap a VA, write a buffer from the CPU, or render into memory it later samples. Host copies must never show what guest memory does not hold.</p>
+<p>The engine keeps host copies of game data: buffer copies, the images draws paint into, and translated shaders. The game can repoint a GPU address, write a buffer from the CPU, or draw into memory it later reads. A host copy must never show what the game's memory does not hold.</p>
 <h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
-<p>Guest RAM is the one source of truth. Every host resource is keyed by the guest-physical ranges behind it, not by VA. A <code>MemoryTracker</code> stamps each physical page write with a global generation and its writer. A mirror refreshes when its ranges' generation moved. Every draw writes its target back to guest RAM before <code>submit</code> returns, and stores the generation it left. A target whose pages changed outside its own draws is an error until loading it is implemented.</p>
-<h3 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h3>
+<p>Guest RAM is the one source of truth. Every host copy is keyed by guest-physical ranges, where the bytes really sit in emulated RAM. It is not keyed by GPU virtual address, which the game can point elsewhere.</p>
+<p>A <code>MemoryTracker</code> stamps each page write with a global counter, the generation, and who wrote it, CPU or GPU. A copy refreshes when the counter on its pages moved.</p>
+<p>Every draw writes its render target, the image it painted, back to guest RAM before <code>submit</code> returns. It also records the counter it left. A target whose pages changed outside its own draws is an error until loading it is implemented.</p>
+<h3 id="what-this-makes-easy">What this makes easy<a class="headerlink" href="#what-this-makes-easy" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Good, because remaps and aliasing are correct by construction, and render to texture is a read of guest memory.</li>
-<li>Good, because a CPU read after <code>submit</code> always sees GPU results.</li>
-<li>Bad, because every draw pays a readback; fine for the demos, not for a title at full speed.</li>
-<li>Bad, because page granularity refreshes whole pages for small writes.</li>
+<li>Moved and shared memory are right by construction, and drawing into a texture then reading it is just a read of RAM.</li>
+<li>A CPU read after <code>submit</code> always sees what the GPU wrote.</li>
+</ul>
+<h3 id="what-this-makes-hard">What this makes hard<a class="headerlink" href="#what-this-makes-hard" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Every draw pays for copying its pixels back, which is fine for demos but too slow for a game at full speed.</li>
+<li>A small write refreshes a whole page.</li>
 </ul>
 <h3 id="confirmation">Confirmation<a class="headerlink" href="#confirmation" title="Permanent link">&para;</a></h3>
-<p>The engine acceptance test remaps a vertex VA between draws and checks the next draw follows it.</p>
+<p>The engine acceptance test repoints a vertex buffer address between draws and checks the next draw follows it.</p>
 <p>Sources: core/src/gpu/memory.rs, core/src/gpu/engine.rs.</p>
 
 

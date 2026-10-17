@@ -355,7 +355,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -520,10 +520,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#gpfifo-and-method-headers" class="md-nav__link">
+  <a href="#what-does-a-command-look-like" class="md-nav__link">
     <span class="md-ellipsis">
       
-        GPFIFO and method headers
+        What does a command look like?
       
     </span>
   </a>
@@ -531,10 +531,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-3d-class-0xc797" class="md-nav__link">
+  <a href="#what-does-the-3d-engine-keep" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The 3D class, 0xC797
+        What does the 3D engine keep?
       
     </span>
   </a>
@@ -542,10 +542,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-compute-class-0xc7c0" class="md-nav__link">
+  <a href="#how-is-a-compute-launch-read" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The compute class, 0xC7C0
+        How is a compute launch read?
       
     </span>
   </a>
@@ -553,10 +553,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#page-map-and-coherence" class="md-nav__link">
+  <a href="#how-do-gpu-addresses-become-memory" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Page map and coherence
+        How do GPU addresses become memory?
       
     </span>
   </a>
@@ -564,10 +564,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#deferred" class="md-nav__link">
+  <a href="#what-is-still-missing-and-why" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Deferred
+        What is still missing, and why?
       
     </span>
   </a>
@@ -827,7 +827,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -863,7 +863,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -899,7 +899,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -935,7 +935,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -971,7 +971,7 @@
   <span class="md-ellipsis">
     
   
-    HMMA as DontUnroll loops
+    Exact matrix sums as loops
   
 
     
@@ -1007,7 +1007,7 @@
   <span class="md-ellipsis">
     
   
-    Synchronous pusher and draw snapshots
+    Commands run in order
   
 
     
@@ -1043,7 +1043,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -1079,7 +1079,7 @@
   <span class="md-ellipsis">
     
   
-    Silicon-first verification
+    Real chips are the reference
   
 
     
@@ -1189,10 +1189,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#gpfifo-and-method-headers" class="md-nav__link">
+  <a href="#what-does-a-command-look-like" class="md-nav__link">
     <span class="md-ellipsis">
       
-        GPFIFO and method headers
+        What does a command look like?
       
     </span>
   </a>
@@ -1200,10 +1200,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-3d-class-0xc797" class="md-nav__link">
+  <a href="#what-does-the-3d-engine-keep" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The 3D class, 0xC797
+        What does the 3D engine keep?
       
     </span>
   </a>
@@ -1211,10 +1211,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-compute-class-0xc7c0" class="md-nav__link">
+  <a href="#how-is-a-compute-launch-read" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The compute class, 0xC7C0
+        How is a compute launch read?
       
     </span>
   </a>
@@ -1222,10 +1222,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#page-map-and-coherence" class="md-nav__link">
+  <a href="#how-do-gpu-addresses-become-memory" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Page map and coherence
+        How do GPU addresses become memory?
       
     </span>
   </a>
@@ -1233,10 +1233,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#deferred" class="md-nav__link">
+  <a href="#what-is-still-missing-and-why" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Deferred
+        What is still missing, and why?
       
     </span>
   </a>
@@ -1261,116 +1261,181 @@
 
 
 <h1 id="command-processor-and-memory">Command processor and memory<a class="headerlink" href="#command-processor-and-memory" title="Permanent link">&para;</a></h1>
-<p>The command processor reads GPFIFO entries, splits pushbuffers into method writes and routes each write to the class bound on its subchannel. Guest memory sits behind a GPU page map, and the guest's own RAM stays the one copy every host resource is checked against.</p>
-<h2 id="gpfifo-and-method-headers">GPFIFO and method headers<a class="headerlink" href="#gpfifo-and-method-headers" title="Permanent link">&para;</a></h2>
+<p>The command processor is the GPU's front desk: it reads the command lists a game writes and hands each command to the right engine. Memory follows one rule: the emulated console RAM holds the only real copy of anything. For example, if a game moves a vertex buffer, the next draw reads the new place, because every copy is checked against RAM.</p>
+<h2 id="what-does-a-command-look-like">What does a command look like?<a class="headerlink" href="#what-does-a-command-look-like" title="Permanent link">&para;</a></h2>
+<p>A game puts commands in a pushbuffer, a list of 32-bit words in guest memory. It then adds an entry to the GPFIFO, a ring of pointers to those lists. Each command starts with a header word saying which register to write, on which engine, and how many data words follow.</p>
 <table>
 <thead>
 <tr>
-<th>item</th>
-<th>bits</th>
-<th>meaning</th>
+<th>Item</th>
+<th>Bits</th>
+<th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>entry word 0</td>
+<td>GPFIFO entry word 0</td>
 <td>31:2</td>
-<td>pushbuffer address, low part</td>
+<td>Pushbuffer address, low part</td>
 </tr>
 <tr>
-<td>entry word 1</td>
+<td>GPFIFO entry word 1</td>
 <td>7:0, 9, 30:10, 31</td>
-<td>address high byte, level, length in words, sync</td>
+<td>Address high byte, level, length in words, sync</td>
 </tr>
 <tr>
-<td>header</td>
+<td>Header</td>
 <td>11:0</td>
-<td>method, as a word index</td>
+<td>Method, the register to write, as a word index</td>
 </tr>
 <tr>
-<td>header</td>
+<td>Header</td>
 <td>15:13</td>
-<td>subchannel</td>
+<td>Subchannel, the slot that picks the engine</td>
 </tr>
 <tr>
-<td>header</td>
+<td>Header</td>
 <td>28:16</td>
-<td>count, or the value for immediate mode</td>
+<td>How many data words follow, or the value itself in immediate mode</td>
 </tr>
 <tr>
-<td>header</td>
+<td>Header</td>
 <td>31:29</td>
-<td>mode: 1 incrementing, 3 non-incrementing, 4 immediate, 5 increment once, 7 end of segment</td>
+<td>Mode: 1 incrementing, 3 non-incrementing, 4 immediate, 5 increment once, 7 end of segment</td>
 </tr>
 </tbody>
 </table>
-<p>Methods below 0x40 belong to the channel: <code>SET_OBJECT</code> binds a class id to the subchannel, <code>SEMAPHORE_A</code> to <code>D</code> produce acquire and release events. Anything else goes to the bound class, and an unbound subchannel or unknown class is an error.</p>
+<p>Low method numbers belong to the channel, the command stream itself. Its <code>SET_OBJECT</code> binds an engine, a class, to a subchannel, and its <code>SEMAPHORE_A</code> to <code>D</code> methods write "got this far" signals. Every other method goes to the class bound on the header's subchannel. An empty subchannel or an unknown class is an error.</p>
 <pre class="mermaid"><code>flowchart LR
-    GP["GPFIFO entry"] --&gt; PB["pushbuffer words"]
-    PB --&gt; HDR{"method &lt; 0x40?"}
-    HDR --&gt;|"yes"| CH["channel&lt;br/&gt;SET_OBJECT, semaphores"]
-    HDR --&gt;|"no"| SUB{"class on subchannel"}
-    SUB --&gt;|"0xC797"| TD["3D register file&lt;br/&gt;DrawSnapshot"]
-    SUB --&gt;|"0xC7C0"| CC["compute class, own branch&lt;br/&gt;QMD, DispatchSnapshot"]
-    SUB --&gt;|"other"| ERR["error by name"]</code></pre>
-<h2 id="the-3d-class-0xc797">The 3D class, 0xC797<a class="headerlink" href="#the-3d-class-0xc797" title="Permanent link">&para;</a></h2>
-<p><code>ThreeD</code> keeps the raw register words plus dirty groups (vertex streams, attributes, colour targets, viewport and scissor, shader programs, cbuf binds, blend and depth, index buffer). At a draw trigger it emits a <code>DrawSnapshot</code>: topology, counts, vertex streams and attributes, the six shader program slots, colour target 0, viewport, scissor, write mask, depth, cull, blend flags, the index buffer and the bound cbufs per binding group. <code>LOAD_CONSTANT_BUFFER</code> is an ordered event too, so cbuf updates between draws land in order.</p>
-<h2 id="the-compute-class-0xc7c0">The compute class, 0xC7C0<a class="headerlink" href="#the-compute-class-0xc7c0" title="Permanent link">&para;</a></h2>
-<p>On <code>gpu/qmd-dispatch</code>: writing <code>SEND_SIGNALING_PCAS_B</code> fetches the 256-byte QMD at <code>SEND_PCAS_A</code> and decodes QMDV02_03 into a <code>DispatchSnapshot</code>: program address, grid, block, shared size, eight cbufs, two release semaphores, barrier and register counts, shared and local windows, sampler and texture pools. Other QMD versions are rejected.</p>
-<h2 id="page-map-and-coherence">Page map and coherence<a class="headerlink" href="#page-map-and-coherence" title="Permanent link">&para;</a></h2>
-<p><code>PageMap</code> maps GPU VA pages to guest-physical pages, one map per address space, in 64 KiB pages (the big page size Ryujinx maps with; the T239 value is unverified). Unmapped ranges are errors, never a guess. <code>MemoryTracker</code> stamps every write to a physical page with a global generation and its writer, CPU or GPU.</p>
+    GP["GPFIFO entry&lt;br/&gt;Pointer to a command list"] --&gt; PB["Pushbuffer words&lt;br/&gt;Headers and data"]
+    PB --&gt; HDR{"Channel method?&lt;br/&gt;Number below 0x40"}
+    HDR --&gt;|"Yes"| CH["Channel&lt;br/&gt;Bind engines, write signals"]
+    HDR --&gt;|"No"| SUB{"Which engine is on&lt;br/&gt;The subchannel?"}
+    SUB --&gt;|"0xC797"| TD["3D engine registers&lt;br/&gt;Frozen per draw"]
+    SUB --&gt;|"0xC7C0"| CC["Compute engine, own branch&lt;br/&gt;Reads the launch block"]
+    SUB --&gt;|"Other"| ERR["Named error"]</code></pre>
+<p><em>How one command word finds the engine it is meant for.</em></p>
+<h2 id="what-does-the-3d-engine-keep">What does the 3D engine keep?<a class="headerlink" href="#what-does-the-3d-engine-keep" title="Permanent link">&para;</a></h2>
+<p>The 3D class, 0xC797, is the drawing engine. <code>ThreeD</code> keeps its raw register words and notes which groups changed: vertex streams, attributes, colour targets, viewport and scissor, shaders, constant buffer bindings, blend and depth, and the index buffer.</p>
+<p>At each draw it freezes a <code>DrawSnapshot</code>, a copy of everything the draw needs. That covers the triangle type and counts, vertex streams and attributes, and every shader slot. It also holds the first colour target, viewport, scissor, write mask, depth, culling, blending, the index buffer and the bound constant buffers.</p>
+<p>A constant buffer, or cbuf, is a small read-only table the game hands a shader, such as the camera matrix. <code>LOAD_CONSTANT_BUFFER</code> updates one, and it is an ordered event too. So a cbuf changed between draws reaches the right draw.</p>
+<h2 id="how-is-a-compute-launch-read">How is a compute launch read?<a class="headerlink" href="#how-is-a-compute-launch-read" title="Permanent link">&para;</a></h2>
+<p>The compute class, 0xC7C0, lives on the <code>gpu/qmd-dispatch</code> branch. A launch is described by a QMD, a fixed-size block in guest memory. Writing <code>SEND_SIGNALING_PCAS_B</code> makes the class fetch the QMD at <code>SEND_PCAS_A</code> and decode it into a <code>DispatchSnapshot</code>.</p>
 <table>
 <thead>
 <tr>
-<th>resource</th>
-<th>keyed by</th>
-<th>refreshed when</th>
+<th>QMD field group</th>
+<th>What it holds</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>buffer mirror (vertices, cbufs)</td>
-<td>guest-physical ranges</td>
-<td>the ranges' generation moved</td>
+<td>Program</td>
+<td>The shader's address</td>
 </tr>
 <tr>
-<td>render target</td>
-<td>ranges, format, size, depth</td>
-<td>always written back after the draw</td>
+<td>Grid and block</td>
+<td>How many thread groups, and how many threads per group</td>
 </tr>
 <tr>
-<td>shader module</td>
-<td>hash of SPH and code</td>
-<td>never, the key is the content</td>
+<td>Memory</td>
+<td>Shared memory size, shared and local memory windows</td>
+</tr>
+<tr>
+<td>Constant buffers</td>
+<td>Eight cbuf bindings</td>
+</tr>
+<tr>
+<td>Signals</td>
+<td>Two release semaphores</td>
+</tr>
+<tr>
+<td>Limits</td>
+<td>Barrier and register counts</td>
+</tr>
+<tr>
+<td>Textures</td>
+<td>The sampler and texture pools</td>
+</tr>
+<tr>
+<td>Version</td>
+<td>QMDV02_03 only; others are rejected</td>
 </tr>
 </tbody>
 </table>
-<p>The rule: guest memory is the authority. Every GPU result is written back before <code>submit</code> returns, and a colour target whose pages changed outside its own draws is an error until loading is implemented, never a stale image. Remapping a VA to other pages changes what the next draw reads.</p>
-<p>Why: identity by physical page survives remaps and aliasing, and nothing can show a frame the guest's memory does not hold. See <a href="../../adr/0004-backing-memory-authority-for-coherence/">ADR-0004</a>.</p>
-<h2 id="deferred">Deferred<a class="headerlink" href="#deferred" title="Permanent link">&para;</a></h2>
+<h2 id="how-do-gpu-addresses-become-memory">How do GPU addresses become memory?<a class="headerlink" href="#how-do-gpu-addresses-become-memory" title="Permanent link">&para;</a></h2>
+<p>Shaders use GPU virtual addresses (VA), which the game can point anywhere. <code>PageMap</code> turns them into guest-physical addresses (PA), the place in emulated RAM where the bytes really sit. There is one map per GPU address space, and an address outside it is an error, never a guess.</p>
+<p><code>MemoryTracker</code> stamps every write to a physical page with a global counter, the generation, and who wrote it, CPU or GPU. A host copy compares that counter with the one it was made from, so it knows when it is stale.</p>
 <table>
 <thead>
 <tr>
-<th>item</th>
-<th>why it waits</th>
+<th>Fact</th>
+<th>Value</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>MME64 macros</td>
-<td>no Ampere header; the only public MME64 docs are Turing's</td>
+<td>Page size</td>
+<td>64 KiB, the big page size Ryujinx uses; the T239 value is unverified</td>
 </tr>
 <tr>
-<td>syncpoint and channel ioctls, nvdrv, nvmap, address-space ioctls</td>
-<td>no loader or guest issues them yet</td>
+<td>Map scope</td>
+<td>One per GPU address space</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Host copy</th>
+<th>Keyed by</th>
+<th>Refreshed when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Buffer mirror: vertices, cbufs</td>
+<td>Guest-physical ranges</td>
+<td>The ranges' generation moved</td>
 </tr>
 <tr>
-<td>semaphore acquire</td>
-<td>errors by name in the engine</td>
+<td>Render target, the image a draw paints</td>
+<td>Ranges, format, size, depth</td>
+<td>Always written back after the draw</td>
+</tr>
+<tr>
+<td>Translated shader</td>
+<td>Hash of shader header and code</td>
+<td>Never, the key is the content</td>
+</tr>
+</tbody>
+</table>
+<p>The rule: guest memory is the authority. Every GPU result is written back before <code>submit</code> returns. A colour target whose pages changed outside its own draws is an error until loading is implemented, never a stale image. Repointing a VA changes what the next draw reads.</p>
+<p>Why: keying by physical page stays right when memory is remapped or shared. And nothing can show a frame the guest's memory does not hold. See <a href="../../adr/0004-backing-memory-authority-for-coherence/">ADR-0004</a>.</p>
+<h2 id="what-is-still-missing-and-why">What is still missing, and why?<a class="headerlink" href="#what-is-still-missing-and-why" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Why it waits</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MME64 macros, the GPU's built-in macro processor</td>
+<td>No Ampere header exists; the only public MME64 docs are Turing's</td>
+</tr>
+<tr>
+<td>Syncpoint and channel calls, nvdrv, nvmap, address-space calls</td>
+<td>No loader or game makes them yet</td>
+</tr>
+<tr>
+<td>Semaphore acquire, waiting on a signal</td>
+<td>The engine reports it as a named error</td>
 </tr>
 <tr>
 <td>2D, DMA and inline-to-memory classes</td>
-<td>not needed by the first scenes</td>
+<td>The first scenes do not need them</td>
 </tr>
 </tbody>
 </table>

@@ -355,7 +355,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -436,10 +436,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-steps" class="md-nav__link">
+  <a href="#how-does-a-draw-reach-vulkan" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The steps
+        How does a draw reach Vulkan?
       
     </span>
   </a>
@@ -447,10 +447,54 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#branch-map" class="md-nav__link">
+  <a href="#what-happens-at-each-step" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Branch map
+        What happens at each step?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-does-submit-wait-for-every-draw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why does submit wait for every draw?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-freeze-the-settings-at-each-draw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why freeze the settings at each draw?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#does-compute-work-take-the-same-road" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does compute work take the same road?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#which-branch-holds-what" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which branch holds what?
       
     </span>
   </a>
@@ -794,7 +838,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -830,7 +874,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -866,7 +910,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -902,7 +946,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -938,7 +982,7 @@
   <span class="md-ellipsis">
     
   
-    HMMA as DontUnroll loops
+    Exact matrix sums as loops
   
 
     
@@ -974,7 +1018,7 @@
   <span class="md-ellipsis">
     
   
-    Synchronous pusher and draw snapshots
+    Commands run in order
   
 
     
@@ -1010,7 +1054,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -1046,7 +1090,7 @@
   <span class="md-ellipsis">
     
   
-    Silicon-first verification
+    Real chips are the reference
   
 
     
@@ -1156,10 +1200,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-steps" class="md-nav__link">
+  <a href="#how-does-a-draw-reach-vulkan" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The steps
+        How does a draw reach Vulkan?
       
     </span>
   </a>
@@ -1167,10 +1211,54 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#branch-map" class="md-nav__link">
+  <a href="#what-happens-at-each-step" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Branch map
+        What happens at each step?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-does-submit-wait-for-every-draw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why does submit wait for every draw?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-freeze-the-settings-at-each-draw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why freeze the settings at each draw?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#does-compute-work-take-the-same-road" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does compute work take the same road?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#which-branch-holds-what" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which branch holds what?
       
     </span>
   </a>
@@ -1195,118 +1283,132 @@
 
 
 <h1 id="gpu-pipeline">GPU pipeline<a class="headerlink" href="#gpu-pipeline" title="Permanent link">&para;</a></h1>
-<p>A guest asks the GPU for work by writing a pushbuffer into its own memory and pointing a GPFIFO entry at it. oboromi follows that path end to end: decode the methods, collect the 3D state into a snapshot at each draw, translate the guest's shader machine code, draw with Vulkan, and write the result back to guest memory, where the display reads it.</p>
+<p>A game draws by writing a list of commands into memory and telling the GPU where the list is. The emulator reads that list, collects the settings for each draw, rewrites the game's shaders for Vulkan, and draws on the PC's graphics card. For example, a triangle takes a handful of commands: where the shaders are, where the vertices are, the viewport, then "draw".</p>
+<h2 id="how-does-a-draw-reach-vulkan">How does a draw reach Vulkan?<a class="headerlink" href="#how-does-a-draw-reach-vulkan" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>sequenceDiagram
-    participant RAM as Guest RAM
-    participant P as Pusher
-    participant C as 3D class
+    participant RAM as Guest RAM (console memory)
+    participant P as Pusher (reads command lists)
+    participant C as 3D class (drawing registers)
     participant E as Engine
-    participant T as Translator
-    participant V as Vulkan
-    E-&gt;&gt;P: GPFIFO entries
-    P-&gt;&gt;RAM: fetch words
-    P-&gt;&gt;C: method writes
-    C--&gt;&gt;P: DrawSnapshot
-    P--&gt;&gt;E: events, in order
-    E-&gt;&gt;RAM: read SPH, SASS
-    E-&gt;&gt;T: SASS, stage
-    T--&gt;&gt;E: SPIR-V
-    E-&gt;&gt;RAM: mirror buffers
-    E-&gt;&gt;V: pipeline, draw
-    V--&gt;&gt;E: pixels
-    E-&gt;&gt;RAM: write back
-    Note over E,RAM: present reads the surface from guest RAM</code></pre>
-<h2 id="the-steps">The steps<a class="headerlink" href="#the-steps" title="Permanent link">&para;</a></h2>
+    participant T as Translator (SASS to SPIR-V)
+    participant V as Vulkan (PC graphics card)
+    E-&gt;&gt;P: Queue of command lists
+    P-&gt;&gt;RAM: Fetch command words
+    P-&gt;&gt;C: Register writes
+    C--&gt;&gt;P: Frozen draw settings
+    P--&gt;&gt;E: Events, in command order
+    E-&gt;&gt;RAM: Read shader header and code
+    E-&gt;&gt;T: NVIDIA shader code
+    T--&gt;&gt;E: Vulkan shader
+    E-&gt;&gt;RAM: Copy the buffers the draw reads
+    E-&gt;&gt;V: Build pipeline, draw
+    V--&gt;&gt;E: Pixels
+    E-&gt;&gt;RAM: Write pixels back
+    Note over E,RAM: The display reads the finished image from guest RAM</code></pre>
+<p><em>One draw, from the game's command list to pixels back in console memory.</em></p>
+<p>The words on this path:</p>
+<ul>
+<li>A <strong>pushbuffer</strong> is one command list in guest memory, and the <strong>GPFIFO</strong> is the queue of pointers to those lists.</li>
+<li>A <strong>method</strong> is one command: a write to a GPU engine's register.</li>
+<li>The <strong>3D class</strong> is the drawing engine's register set.</li>
+<li><strong>SASS</strong> is NVIDIA's shader machine code, and <strong>SPIR-V</strong> is the shader format Vulkan accepts.</li>
+<li>A Vulkan <strong>pipeline</strong> bundles the shaders with the settings Vulkan must know before drawing.</li>
+</ul>
+<h2 id="what-happens-at-each-step">What happens at each step?<a class="headerlink" href="#what-happens-at-each-step" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>step</th>
-<th>code</th>
-<th>output</th>
+<th>Step</th>
+<th>Code</th>
+<th>Output</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>decode GPFIFO entry and method headers</td>
+<td>Read queue entries and command headers</td>
 <td>fifo.rs <code>Pusher::submit</code></td>
-<td>method writes per subchannel</td>
+<td>Register writes, each aimed at one engine</td>
 </tr>
 <tr>
-<td>bind classes with SET_OBJECT, run channel methods</td>
+<td>Bind engines to slots, run channel commands</td>
 <td>fifo.rs <code>channel</code></td>
-<td>semaphore events</td>
+<td>Semaphore events, the GPU's "I got this far" signals</td>
 </tr>
 <tr>
-<td>keep the 3D register file, snapshot at draw triggers</td>
+<td>Keep the drawing registers, freeze them at each draw</td>
 <td>threed.rs <code>ThreeD::write</code></td>
 <td><code>Event::Draw(DrawSnapshot)</code></td>
 </tr>
 <tr>
-<td>read shader headers and code, translate</td>
+<td>Read the shader header (SPH) and code, translate</td>
 <td>engine.rs <code>module</code>, sm86 <code>translate_program</code></td>
-<td>SPIR-V, cached by SPH and code hash</td>
+<td>SPIR-V, cached by a hash of header and code</td>
 </tr>
 <tr>
-<td>mirror buffers the draw reads</td>
+<td>Copy the buffers the draw reads</td>
 <td>engine.rs <code>mirror</code></td>
-<td>host buffers keyed by guest-physical ranges</td>
+<td>Host buffers, keyed by where they sit in guest RAM</td>
 </tr>
 <tr>
-<td>draw and read back</td>
+<td>Draw and read back</td>
 <td>graphics.rs <code>VkState::draw</code></td>
 <td>RGBA8 pixels</td>
 </tr>
 <tr>
-<td>write back and present</td>
+<td>Write back and show</td>
 <td>engine.rs <code>draw</code>, <code>present</code></td>
-<td>guest memory, then <code>display::present</code></td>
+<td>Guest memory, then <code>display::present</code></td>
 </tr>
 </tbody>
 </table>
-<p>Why synchronous: <code>Gpu::submit</code> returns only after every draw has landed in guest memory, so any later CPU read sees it. See <a href="../../adr/0006-synchronous-pusher-with-draw-snapshots/">ADR-0006</a>.</p>
-<p>Why a snapshot: the draw sees the registers as they were at the trigger, and later method writes cannot change a draw in flight.</p>
-<p>Compute work takes the same road through class 0xC7C0: a QMD in guest memory becomes a dispatch snapshot (see <a href="../command-processor-and-memory/">command processor</a>). Its execution in the engine is not wired yet.</p>
-<h2 id="branch-map">Branch map<a class="headerlink" href="#branch-map" title="Permanent link">&para;</a></h2>
+<h2 id="why-does-submit-wait-for-every-draw">Why does submit wait for every draw?<a class="headerlink" href="#why-does-submit-wait-for-every-draw" title="Permanent link">&para;</a></h2>
+<p><code>Gpu::submit</code> returns only after every draw has landed in guest memory. So any later CPU read sees the result, with no extra waiting. See <a href="../../adr/0006-synchronous-pusher-with-draw-snapshots/">ADR-0006</a>.</p>
+<h2 id="why-freeze-the-settings-at-each-draw">Why freeze the settings at each draw?<a class="headerlink" href="#why-freeze-the-settings-at-each-draw" title="Permanent link">&para;</a></h2>
+<p>A draw must see the registers as they were when it was issued. The frozen copy, the snapshot, keeps later commands from changing a draw that is still running.</p>
+<h2 id="does-compute-work-take-the-same-road">Does compute work take the same road?<a class="headerlink" href="#does-compute-work-take-the-same-road" title="Permanent link">&para;</a></h2>
+<p>Yes, through the compute class 0xC7C0. A QMD, the block in guest memory that describes one compute launch, becomes a dispatch snapshot (see <a href="../command-processor-and-memory/">command processor</a>). The engine does not run it yet.</p>
+<h2 id="which-branch-holds-what">Which branch holds what?<a class="headerlink" href="#which-branch-holds-what" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
-    main["main&lt;br/&gt;upstream"] --&gt; dev["gpu-dev&lt;br/&gt;PR 79"]
-    dev --&gt; instr["gpu-instructions&lt;br/&gt;PR 80"]
-    instr --&gt; gfx["gpu-graphics&lt;br/&gt;no PR yet"]
-    fam["family branches&lt;br/&gt;gpu/w*, gpu/tex-*, gpu/div-*"] --&gt;|"merge commits"| instr
-    gfxb["gpu/guest-memory, gpu/fifo,&lt;br/&gt;gpu/graphics-*, gpu/texture-blocklinear"] --&gt;|"merge commits"| gfx
-    qmd["gpu/qmd-dispatch"] -.-&gt;|"held"| gfx</code></pre>
+    main["main&lt;br/&gt;Upstream project"] --&gt; dev["gpu-dev&lt;br/&gt;Shader writer, Vulkan, harness; PR 79"]
+    dev --&gt; instr["gpu-instructions&lt;br/&gt;All compute instructions; PR 80"]
+    instr --&gt; gfx["gpu-graphics&lt;br/&gt;Drawing engine; no PR yet"]
+    fam["Instruction family branches&lt;br/&gt;gpu/w*, gpu/tex-*, gpu/div-*"] --&gt;|"Merge commits"| instr
+    gfxb["Graphics branches&lt;br/&gt;gpu/guest-memory, gpu/fifo,&lt;br/&gt;gpu/graphics-*, gpu/texture-blocklinear"] --&gt;|"Merge commits"| gfx
+    qmd["gpu/qmd-dispatch&lt;br/&gt;Compute launches"] -.-&gt;|"Held back"| gfx</code></pre>
+<p><em>Each branch stacks on the one to its left; side branches merge in with merge commits.</em></p>
 <table>
 <thead>
 <tr>
-<th>branch</th>
-<th>holds</th>
-<th>upstream</th>
+<th>Branch</th>
+<th>Holds</th>
+<th>Upstream</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>gpu-dev</td>
-<td>SPIR-V emitter sections, lazy types, owned Vulkan device, compute dispatch, display widget, register-io harness, perf example, profile script, CI tools</td>
+<td>The SPIR-V writer, the Vulkan device and compute dispatch, the display widget, the test harness, the perf example and profile script, CI tools</td>
 <td>PR #79, which contains #69 to #78</td>
 </tr>
 <tr>
 <td>gpu-instructions</td>
-<td>every compute instruction family, divergence, textures, tensors, silicon fixtures, Julia demo, cubin runner, native CUDA</td>
+<td>Every compute instruction family, divergence, textures, tensor cores, silicon fixtures (recordings from a real card), the Julia demo, the CUDA runners</td>
 <td>PR #80, stacked on #79</td>
 </tr>
 <tr>
 <td>gpu-graphics</td>
-<td>guest memory, GPFIFO and 3D class, graphics backend and stages, engine, block-linear textures, demo assets and scenes</td>
-<td>not opened</td>
+<td>Guest memory, the command reader and 3D class, the graphics backend and shader stages, the engine, tiled textures, demo assets and scenes</td>
+<td>Not opened</td>
 </tr>
 <tr>
 <td>gpu/qmd-dispatch</td>
-<td>0xC7C0 class and QMD decode</td>
-<td>pushed, waiting on the engine hooks</td>
+<td>The compute class and QMD reading</td>
+<td>Pushed, waiting on the engine hooks</td>
 </tr>
 </tbody>
 </table>
-<p>Each level merges the one below whenever it moves, with merge commits, never a rebase. gpu-graphics last merged gpu-instructions before the CUDA commits, so <code>cubin.rs</code> and <code>cuda.rs</code> are on gpu-instructions only for now.</p>
-<p>Verified by: the engine acceptance test <code>pushbuffer_triangle_lands_in_guest_memory_and_follows_vertex_remaps</code> on Intel and lavapipe, with the Vulkan validation layer clean.</p>
+<p>Each level merges the one below whenever it moves, with merge commits and never a rebase. The gpu-graphics branch last merged gpu-instructions before the CUDA commits. So <code>cubin.rs</code> and <code>cuda.rs</code> are only on gpu-instructions for now.</p>
+<p>Verified by: the engine acceptance test <code>pushbuffer_triangle_lands_in_guest_memory_and_follows_vertex_remaps</code> on Intel and lavapipe (Mesa's CPU-based Vulkan driver), with the Vulkan validation layer reporting no errors.</p>
 <p>Sources: core/src/gpu/{fifo,threed,engine,graphics}.rs, core/src/tests/gpu/engine.rs, PR #79 and #80 bodies, git history of the fork.</p>
 
 

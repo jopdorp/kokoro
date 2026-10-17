@@ -27,7 +27,7 @@
     
     
       
-        <title>One SSBO window for global memory - oboromi</title>
+        <title>One memory window - oboromi</title>
       
     
     
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#one-storage-buffer-window-for-guest-global-memory" class="md-skip">
+        <a href="#game-memory-reaches-a-shader-through-one-window-buffer" class="md-skip">
           Skip to content
         </a>
       
@@ -109,7 +109,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              One SSBO window for global memory
+              One memory window
             
           </span>
         </div>
@@ -353,7 +353,7 @@
   <span class="md-ellipsis">
     
   
-    oboromi overview
+    Emulator overview
   
 
     
@@ -725,7 +725,7 @@
   <span class="md-ellipsis">
     
   
-    Set-0 binding ABI
+    One table of data slots
   
 
     
@@ -770,7 +770,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -796,7 +796,7 @@
   <span class="md-ellipsis">
     
   
-    One SSBO window for global memory
+    One memory window
   
 
     
@@ -830,6 +830,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#in-plain-words" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In plain words
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -853,10 +864,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#what-this-makes-easy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        What this makes easy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-this-makes-hard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this makes hard
       
     </span>
   </a>
@@ -902,7 +924,7 @@
   <span class="md-ellipsis">
     
   
-    Uniform scheduling for divergence
+    Diverged threads take turns
   
 
     
@@ -938,7 +960,7 @@
   <span class="md-ellipsis">
     
   
-    Backing memory is the authority
+    RAM is the one true copy
   
 
     
@@ -974,7 +996,7 @@
   <span class="md-ellipsis">
     
   
-    HMMA as DontUnroll loops
+    Exact matrix sums as loops
   
 
     
@@ -1010,7 +1032,7 @@
   <span class="md-ellipsis">
     
   
-    Synchronous pusher and draw snapshots
+    Commands run in order
   
 
     
@@ -1046,7 +1068,7 @@
   <span class="md-ellipsis">
     
   
-    T239 decodes with the SM86 table
+    Switch 2 uses the desktop table
   
 
     
@@ -1082,7 +1104,7 @@
   <span class="md-ellipsis">
     
   
-    Silicon-first verification
+    Real chips are the reference
   
 
     
@@ -1192,6 +1214,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#in-plain-words" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In plain words
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1215,10 +1248,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#what-this-makes-easy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        What this makes easy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-this-makes-hard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this makes hard
       
     </span>
   </a>
@@ -1258,20 +1302,45 @@
 
 
 
-<h1 id="one-storage-buffer-window-for-guest-global-memory">One storage buffer window for guest global memory<a class="headerlink" href="#one-storage-buffer-window-for-guest-global-memory" title="Permanent link">&para;</a></h1>
+<h1 id="game-memory-reaches-a-shader-through-one-window-buffer">Game memory reaches a shader through one window buffer<a class="headerlink" href="#game-memory-reaches-a-shader-through-one-window-buffer" title="Permanent link">&para;</a></h1>
+<h2 id="in-plain-words">In plain words<a class="headerlink" href="#in-plain-words" title="Permanent link">&para;</a></h2>
+<p>Game shaders read memory by address, like a pointer in C. A Vulkan shader cannot use those addresses, because they point into the emulated console, not into the PC. So before each run the host copies the stretch of game memory the program may touch into one buffer, the window. The shader turns each game address into a position in that window by subtracting the window's start.</p>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>SASS loads and stores use 64-bit guest addresses. Vulkan shaders cannot dereference guest addresses, and buffer device addresses are host pointers that know nothing of the guest's page tables.</p>
+<p>SASS loads and stores use the game's own GPU addresses. Vulkan shaders cannot follow those. Vulkan's own shader pointers, buffer device addresses, point into host memory and know nothing about the game's address map.</p>
 <h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
-<p>All global memory a dispatch touches is one storage buffer at binding 9. The host resolves the guest range through the page map, gathers it into one buffer aligned down to 16 bytes, and puts the window's base VA in the support buffer. A translated LDG or STG subtracts the base and indexes the buffer. Unmapped ranges fail; buffer device addresses are not used.</p>
-<h3 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h3>
+<p>All main memory a run touches, called global memory, is one storage buffer at binding 9. A storage buffer is a large buffer a shader can read and write.</p>
+<p>The host looks the game's address range up in the page map, the table from GPU addresses to emulated RAM. It copies that range into one buffer and stores the window's start address in the helper slot, binding 0.</p>
+<table>
+<thead>
+<tr>
+<th>Window fact</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Start address</td>
+<td>Rounded down to a 16-byte boundary</td>
+</tr>
+<tr>
+<td>Widest access</td>
+<td>128 bits</td>
+</tr>
+</tbody>
+</table>
+<p>A translated <code>LDG</code> (load from global memory) or <code>STG</code> (store) subtracts the start and indexes the buffer. An address outside mapped memory fails with an error. Buffer device addresses are not used.</p>
+<h3 id="what-this-makes-easy">What this makes easy<a class="headerlink" href="#what-this-makes-easy" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Good, because one rule covers every load, store and atomic, at any width up to 128 bits.</li>
-<li>Good, because a missing mapping is an error, not a wild access.</li>
-<li>Bad, because the window must hold every byte the program may touch, so scattered accesses copy more than they use.</li>
-<li>Bad, because LDG and STG with a memory descriptor need care: the descriptor is not part of the address.</li>
+<li>One rule covers every load, store and atomic, at any width the chip has.</li>
+<li>A missing mapping is a clear error instead of a read of random memory.</li>
+</ul>
+<h3 id="what-this-makes-hard">What this makes hard<a class="headerlink" href="#what-this-makes-hard" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The window must hold every byte the program might touch, so scattered reads copy far more than they use.</li>
+<li>Some loads carry a memory descriptor, an extra policy word from the compiler, and it must not be added to the address.</li>
 </ul>
 <h3 id="confirmation">Confirmation<a class="headerlink" href="#confirmation" title="Permanent link">&para;</a></h3>
-<p>The compiled mul-add kernel and the gradient program match silicon through this window, and the memory tests cover remaps.</p>
+<p>The compiled mul-add kernel and the gradient program match the real card through this window, and the memory tests cover remaps.</p>
 <p>Sources: core/src/gpu/memory.rs <code>window</code>, core/src/gpu/sm86/access.rs, core/src/tests/gpu/harness.rs <code>run_grid</code>.</p>
 
 
