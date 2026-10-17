@@ -1415,7 +1415,7 @@
 
 
 <h1 id="demos">Demos<a class="headerlink" href="#demos" title="Permanent link">&para;</a></h1>
-<p>The Qt window has buttons that draw through the GPU work today. Six bigger scenes show more of the engine: post-effect, sprites, particles, BoomBox, FlightHelmet and a ray-traced one. For example, the Triangle button writes GPU commands into emulated memory every frame, and the full engine draws them.</p>
+<p>The Qt window has buttons that draw through the GPU work today. Larger scenes show post effects, sprites, particles, BoomBox, FlightHelmet, ray tracing and a dungeon. For example, the Triangle button writes GPU commands into emulated memory every frame, and the full engine draws them.</p>
 <h2 id="what-runs-today">What runs today?<a class="headerlink" href="#what-runs-today" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1470,6 +1470,11 @@
 <td>Bounce</td>
 <td><code>demo_bounce::render_bounce_frame</code></td>
 <td>Balls bounce in a box drawn with the particle shaders, and every hit plays a knock on a free voice</td>
+</tr>
+<tr>
+<td>Dungeon</td>
+<td><code>demo_dungeon::render_dungeon_frame</code></td>
+<td>A torchlit tour with PBR materials, simulated water, particles, two quality presets and spatial audren sound</td>
 </tr>
 </tbody>
 </table>
@@ -1621,10 +1626,10 @@
 <h3 id="dungeon">Dungeon<a class="headerlink" href="#dungeon" title="Permanent link">&para;</a></h3>
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon.mp4" type="video/mp4"></video>
 
-<p><em>Showcase: a 20-second, 1080p tour rendered offline at fixed 60 Hz, with audio from the emulated renderer. Ray-query shadows, reflections and ambient occlusion run on Intel Arc MTL. Wet cobblestone and rock use ambientCG 2K PBR maps, with layered fire, embers, smoke, heat haze, simulated water, foam, bubbles, drifting leaves, drips, bloom and volumetric torchlight. This is the console-oriented preset; its native Switch 2 frame budget remains unverified.</em></p>
+<p><em>Showcase: a 20-second, 1080p tour rendered offline at fixed 60 Hz, with audio from the emulated renderer. Ray-query shadows, reflections and ambient occlusion run on Intel Arc MTL. Wet cobblestone and rock use ambientCG 2K PBR maps, with layered fire, embers, smoke, heat haze, simulated water, foam, bubbles, drifting leaves, drips, bloom and volumetric torchlight. Measured median frame time is 146.0 ms on Intel Arc MTL. This is the console-oriented preset; its native Switch 2 frame budget remains unverified.</em></p>
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime.mp4" type="video/mp4"></video>
 
-<p><em>Realtime preset: also recorded offline at fixed 60 Hz. It keeps reduced versions of the effects, using baked shadow maps, half-resolution planar reflections, fewer particles and fog steps, and a smaller water grid. The preset name is a target, not a claim that this capture ran at 60 fps.</em></p>
+<p><em>Realtime preset: also recorded offline at fixed 60 Hz. It keeps reduced versions of the effects, using baked shadow maps, half-resolution planar reflections, fewer particles and fog steps, and a smaller water grid. Measured median frame time is 57.2 ms on Intel Arc MTL; it does not yet run at 60 fps.</em></p>
 <p>The Qt selector and <code>capture dungeon --quality realtime|showcase</code> select the presets;
 <code>--raytracing on|off</code> overrides ray queries. The checkbox is disabled on devices
 without ray-query support. The local Intel Arc MTL and lavapipe (LLVM 21.1.8)
@@ -1652,66 +1657,121 @@ running, so small on/off differences are not reliable effect-cost deltas.</p>
 <tbody>
 <tr>
 <td>Heightfield</td>
-<td style="text-align: right;">0.019</td>
+<td style="text-align: right;">0.022</td>
 <td style="text-align: right;">0.021</td>
 <td>N/A: direct GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Particle simulation</td>
-<td style="text-align: right;">0.016</td>
-<td style="text-align: right;">0.017</td>
+<td style="text-align: right;">0.020</td>
+<td style="text-align: right;">0.015</td>
 <td>N/A: direct GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Planar reflection</td>
-<td style="text-align: right;">1.170</td>
+<td style="text-align: right;">1.760</td>
 <td style="text-align: right;">0.000</td>
 <td>N/A: direct GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Instanced cave formations</td>
-<td style="text-align: right;">0.439</td>
-<td style="text-align: right;">1.049</td>
+<td style="text-align: right;">0.635</td>
+<td style="text-align: right;">0.968</td>
 <td>N/A: direct GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>PBR, shadows and wet reflections</td>
-<td style="text-align: right;">5.591</td>
-<td style="text-align: right;">41.532</td>
+<td style="text-align: right;">8.228</td>
+<td style="text-align: right;">39.149</td>
 <td>N/A: direct GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>River surface</td>
-<td style="text-align: right;">0.670</td>
-<td style="text-align: right;">9.173</td>
+<td style="text-align: right;">0.957</td>
+<td style="text-align: right;">8.450</td>
 <td>N/A: direct GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Flames, smoke and other sprites</td>
-<td style="text-align: right;">0.238</td>
-<td style="text-align: right;">0.322</td>
+<td style="text-align: right;">0.327</td>
+<td style="text-align: right;">0.298</td>
 <td>N/A: direct GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Volumetric fog</td>
-<td style="text-align: right;">0.148</td>
-<td style="text-align: right;">0.363</td>
+<td style="text-align: right;">0.202</td>
+<td style="text-align: right;">0.328</td>
 <td>N/A: direct GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Bloom, heat haze and tonemap</td>
-<td style="text-align: right;">1.514</td>
-<td style="text-align: right;">1.414</td>
+<td style="text-align: right;">2.053</td>
+<td style="text-align: right;">1.314</td>
 <td>N/A: direct GLSL</td>
 <td>unverified</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Effect setting</th>
+<th style="text-align: right;">Realtime frame ms</th>
+<th style="text-align: right;">Realtime GPU ms</th>
+<th style="text-align: right;">Showcase frame ms</th>
+<th style="text-align: right;">Showcase GPU ms</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>All enabled</td>
+<td style="text-align: right;">50.81</td>
+<td style="text-align: right;">14.10</td>
+<td style="text-align: right;">92.15</td>
+<td style="text-align: right;">50.55</td>
+</tr>
+<tr>
+<td>Ray queries off</td>
+<td style="text-align: right;">49.57</td>
+<td style="text-align: right;">12.34</td>
+<td style="text-align: right;">63.02</td>
+<td style="text-align: right;">13.13</td>
+</tr>
+<tr>
+<td>Fire sprites off</td>
+<td style="text-align: right;">58.13</td>
+<td style="text-align: right;">15.08</td>
+<td style="text-align: right;">91.23</td>
+<td style="text-align: right;">51.18</td>
+</tr>
+<tr>
+<td>Water surface off</td>
+<td style="text-align: right;">69.84</td>
+<td style="text-align: right;">14.87</td>
+<td style="text-align: right;">86.89</td>
+<td style="text-align: right;">45.86</td>
+</tr>
+<tr>
+<td>Bloom off</td>
+<td style="text-align: right;">59.00</td>
+<td style="text-align: right;">13.66</td>
+<td style="text-align: right;">98.19</td>
+<td style="text-align: right;">51.00</td>
+</tr>
+<tr>
+<td>Volumetric fog off</td>
+<td style="text-align: right;">52.41</td>
+<td style="text-align: right;">12.07</td>
+<td style="text-align: right;">90.34</td>
+<td style="text-align: right;">48.75</td>
 </tr>
 </tbody>
 </table>
@@ -1720,9 +1780,8 @@ native console trace. Dividing these times by an unrelated translator benchmark
 would give a misleading native estimate. An under-16.7 ms console total has <strong>not</strong>
 been established.</p>
 <p><a href="https://switchbrew.org/wiki/Switch_2:_Tegra_T239">Switchbrew reports</a> a 1536-core
-Ampere GPU, 12 GB memory and a 102 GB/s memory bus. The local conformance checklist
-explicitly prohibits deriving scheduler, RT or clock behavior from core count.
-The brief's approximately 1 GHz docked assumption gives a theoretical 3.07 TFLOPS,
+Ampere GPU, 12 GB memory and a 102 GB/s memory bus. The reported core count does not establish clocks or ray-query throughput.
+Assuming approximately 1 GHz docked gives a theoretical 3.07 TFLOPS,
 or 51.2 GFLOP/frame at 60 Hz, and the reported bus gives 1.70 GB/frame. Those are
 peak ceilings, not predicted frame times. The preset uses 96 particles per light,
 a 256×64 water grid, 24 fog samples per quarter-resolution pixel, four shadow
@@ -1730,8 +1789,31 @@ rays per contributing light, one short AO ray and one reflection ray on wet
 surfaces. Ray work still needs a native measurement and sizing pass before the
 console target can be claimed. Realtime uses 32 particles per light, 128×32 water,
 eight fog samples and a 960×540 planar reflection.</p>
-<!-- dungeon tour measurements -->
-
+<p>Full-tour release measurements on Intel Arc MTL, excluding the first three frames:</p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th style="text-align: right;">Median frame ms</th>
+<th style="text-align: right;">p95 frame ms</th>
+<th style="text-align: right;">Median summed GPU ms</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Realtime</td>
+<td style="text-align: right;">57.17</td>
+<td style="text-align: right;">134.60</td>
+<td style="text-align: right;">11.94</td>
+</tr>
+<tr>
+<td>Showcase</td>
+<td style="text-align: right;">146.03</td>
+<td style="text-align: right;">209.75</td>
+<td style="text-align: right;">82.51</td>
+</tr>
+</tbody>
+</table>
 <p>The other scene documents in <code>demos/scenes</code> list their guest memory layout and the register writes it sends. Every convention not yet confirmed is tagged "(verify)". The shaders are GLSL that <code>glslangValidator -V</code> accepts. NVIDIA's driver compiles them into the SM86 programs the scenes load.</p>
 <p>Compiling GLSL on a desktop card gives real SM86 code for each stage. It does not give the Switch 2's shader header or attribute conventions, so those stay tagged until a real game shows them.</p>
 <h2 id="where-do-the-assets-come-from">Where do the assets come from?<a class="headerlink" href="#where-do-the-assets-come-from" title="Permanent link">&para;</a></h2>
