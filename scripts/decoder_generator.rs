@@ -358,8 +358,8 @@ table, th, td {{
     Ok(())
 }
 
-pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
-    let list = collect_sass_instructions(&std::fs::read_to_string("sm_86_instructions.txt")?)?;
+pub fn generate(table_path: impl AsRef<std::path::Path>) -> Result<(), Box<dyn std::error::Error>> {
+    let list = collect_sass_instructions(&std::fs::read_to_string(table_path)?)?;
     let mut w = String::new();
     write_rust(&mut w, &list)?;
 
