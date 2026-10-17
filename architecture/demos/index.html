@@ -1427,7 +1427,7 @@
 <tr>
 <td>BoomBox</td>
 <td><code>demo::render_boombox_frame</code></td>
-<td>NVIDIA-compiled PBR shaders draw the BoomBox with five mipmapped textures and a depth buffer, turning once every eight seconds under a still light</td>
+<td>NVIDIA-compiled PBR shaders draw the BoomBox with five mipmapped textures and a depth buffer, turning once every eight seconds under a still light; run <code>demos/assets/fetch.sh</code> first</td>
 </tr>
 <tr>
 <td>Helmet</td>
@@ -1438,6 +1438,16 @@
 <td>Sprites</td>
 <td><code>demo_sprites::render_sprites_frame</code></td>
 <td>NVIDIA-compiled sprite shaders draw a scrolling parallax scene of blended sprites as one instanced draw</td>
+</tr>
+<tr>
+<td>Music</td>
+<td><code>demo_music::play_music</code></td>
+<td>A 16-bar loop plays through the audio renderer: synthesised samples on voices, a low-pass and an echo on the final mix</td>
+</tr>
+<tr>
+<td>Bounce</td>
+<td><code>demo_bounce::render_bounce_frame</code></td>
+<td>Balls bounce in a box drawn with the particle shaders, and every hit plays a knock on a free voice</td>
 </tr>
 </tbody>
 </table>
@@ -1517,9 +1527,8 @@
     PBR --&gt; FH["pbr-flighthelmet&lt;br/&gt;A heavy model"]
     PBR --&gt; RT["raytraced&lt;br/&gt;Shadows and reflections by ray queries"]
     TRI --&gt; SPR["sprites2d&lt;br/&gt;Layered 2D sprites"]
-    TRI --&gt; PART["particles&lt;br/&gt;Moved by a compute launch"]
-    RT -.-&gt;|"Still needs"| N1["Acceleration structures,&lt;br/&gt;Depth kept in guest memory"]</code></pre>
-<p><em>The six scenes. The ray-traced one still needs two engine features.</em></p>
+    TRI --&gt; PART["particles&lt;br/&gt;Moved by a compute launch"]</code></pre>
+<p><em>The six scenes.</em></p>
 <table>
 <thead>
 <tr>
@@ -1556,12 +1565,12 @@
 </tr>
 <tr>
 <td>raytraced</td>
-<td>BoomBox on a ground plane with ray-query shadows and reflections, plus ray-traced ambient occlusion</td>
-<td>rt.frag, rt_ao.comp</td>
+<td>BoomBox on a ground plane with ray-query shadows, metallic reflections and ambient occlusion</td>
+<td>pbr.vert, rt.frag</td>
 </tr>
 </tbody>
 </table>
-<p>The ray-traced scene is being built. It still needs two engine features.</p>
+<p>The ray-traced scene runs through <code>demo::render_raytraced_frame</code> or the <code>capture</code> example with <code>raytraced</code>. It requires ray queries and fragment subgroup operations.</p>
 <h3 id="what-do-the-new-scenes-look-like">What do the new scenes look like?<a class="headerlink" href="#what-do-the-new-scenes-look-like" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-sprites-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-sprites.mp4" type="video/mp4"></video>
 
@@ -1575,9 +1584,18 @@
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-boombox-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-boombox.mp4" type="video/mp4"></video>
 
 <p><em>BoomBox: the model turns on a turntable under a still light, so the shine and the glowing display move across it.</em></p>
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced.mp4" type="video/mp4"></video>
+
+<p><em>Ray-traced BoomBox: shadows fall on the ground, four rays darken sheltered surfaces, and metallic surfaces reflect the sky where reflection rays miss.</em></p>
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-helmet-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-helmet.mp4" type="video/mp4"></video>
 
 <p><em>FlightHelmet: six materials and fifteen textures through the same shaders, one draw per material.</em></p>
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-music-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-music.mp4" type="video/mp4"></video>
+
+<p><em>Music: four instruments made at startup play a looping tune through the audio renderer, with a low-pass and an echo on the mix.</em></p>
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-bounce-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-bounce.mp4" type="video/mp4"></video>
+
+<p><em>Bounce: every hit plays a knock, higher for small balls and louder for hard hits, panned to where it happened.</em></p>
 <p>Each scene document in <code>demos/scenes</code> lists its guest memory layout and the register writes it sends. Every convention not yet confirmed is tagged "(verify)". The shaders are GLSL that <code>glslangValidator -V</code> accepts. NVIDIA's driver compiles them into the SM86 programs the scenes load.</p>
 <p>Compiling GLSL on a desktop card gives real SM86 code for each stage. It does not give the Switch 2's shader header or attribute conventions, so those stay tagged until a real game shows them.</p>
 <h2 id="where-do-the-assets-come-from">Where do the assets come from?<a class="headerlink" href="#where-do-the-assets-come-from" title="Permanent link">&para;</a></h2>
@@ -1588,9 +1606,9 @@
     PY --&gt; T["slot.rgba8&lt;br/&gt;Textures, NVIDIA-tiled, with mip levels"]
     PY --&gt; M["manifest.json&lt;br/&gt;Layout, materials, source, licence"]</code></pre>
 <p><em>The converter turns a standard 3D model file into raw files the scenes copy into guest memory.</em></p>
-<p>BoomBox, Avocado and FlightHelmet are CC0 1.0 by Microsoft, from KhronosGroup's glTF-Sample-Assets. FlightHelmet is too big for the code branches, so <code>demos/assets/fetch.sh</code> pulls it from the assets branch. Base colour and emissive textures are sRGB, the others linear. DamagedHelmet is avoided because its source carries a non-commercial licence.</p>
+<p>BoomBox, Avocado and FlightHelmet are CC0 1.0 by Microsoft, from KhronosGroup's glTF-Sample-Assets. BoomBox and FlightHelmet are too big for the code branches, so <code>demos/assets/fetch.sh</code> pulls them from the assets branch. Base colour and emissive textures are sRGB, the others linear. DamagedHelmet is avoided because its source carries a non-commercial licence.</p>
 <p>Verified by: an offscreen screenshot of each button's output, the engine acceptance test for the triangle, the Julia centre test, and the block-linear tiling matching the converter.</p>
-<p>Sources: core/src/gpu/frame.rs, core/src/gpu/demo.rs, core/src/ffi.rs, gui-qt/src/MainWindow.cpp, demos/README, demos/scenes/*.md, demos/assets/README, scripts/gltf_to_raw.py, core/examples/perf.rs.</p>
+<p>Sources: core/src/gpu/frame.rs, core/src/gpu/demo.rs, core/src/gpu/demo_bounce.rs, core/src/audio/demo_music.rs, core/src/ffi.rs, gui-qt/src/MainWindow.cpp, demos/README, demos/scenes/*.md, demos/assets/README, scripts/gltf_to_raw.py, core/examples/perf.rs.</p>
 
 
 
