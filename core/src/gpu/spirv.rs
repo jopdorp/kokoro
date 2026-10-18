@@ -75,6 +75,7 @@ pub mod capability {
     pub const STORAGE_BUFFER_8BIT: u32 = 4448;
     pub const PHYSICAL_STORAGE_BUFFER_ADDRESSES: u32 = 5348;
     pub const COMPUTE_DERIVATIVE_GROUP_LINEAR: u32 = 5350;
+    pub const FRAGMENT_BARYCENTRIC: u32 = 5284;
     pub const VARIABLE_POINTERS: u32 = 4442;
     pub const DENORM_PRESERVE: u32 = 4464;
     pub const SIGNED_ZERO_INF_NAN_PRESERVE: u32 = 4466;
@@ -148,6 +149,7 @@ pub mod decoration {
     pub const DESCRIPTOR_SET: u32 = 34;
     pub const OFFSET: u32 = 35;
     pub const NO_CONTRACTION: u32 = 42;
+    pub const PER_VERTEX: u32 = 5285;
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -2,7 +2,7 @@
 mod tests {
     use crate::gpu::sm86::{ResourceKind, Stage, emit_module};
     use crate::tests::gpu::harness::spirv_val;
-    use crate::tests::gpu_test::inst::{ald, ald_phys, ast, ast_phys, exit, fmul, ipa, mov_cbuf};
+    use crate::tests::gpu_test::inst::{ald, ald_phys, ast, ast_phys, exit, fmul, ipa, ldtram, mov_cbuf};
 
     const SCALE: u32 = 8;
 
@@ -45,5 +45,13 @@ mod tests {
         let program = [ald_phys(0, 2, 3), ast_phys(4, 0), exit()];
         let expected = [AttributeMap { output: false, per_vertex: true }, AttributeMap { output: true, per_vertex: false }];
         assert_eq!(stage_interface(Stage::Geometry, &program), expected);
+    }
+
+    #[test]
+    fn ldtram_reads_fragment_per_vertex_attributes() {
+        use ResourceKind::AttributeMap;
+        let program = [ldtram(0, 0x80, false), ldtram(2, 0x84, true), exit()];
+        let expected = [AttributeMap { output: false, per_vertex: true }, ResourceKind::FragmentOutput { location: 0 }];
+        assert_eq!(stage_interface(Stage::Fragment, &program), expected);
     }
 }

@@ -208,8 +208,21 @@ impl<'a> Decoder<'a> {
         let address = self.global_address(inst, 32, 40);
         self.load_memory(ResourceKind::Local, address, sz, rd);
     }
-    pub fn ldtram(&mut self, _inst: u128) {
-        todo!("LDTRAM reads tessellation attribute memory, which is not implemented");
+    pub fn ldtram(&mut self, inst: u128) {
+        assert!(self.stage == Stage::Fragment, "LDTRAM in a {:?} module", self.stage);
+        let rd = (inst >> 16 & 0xff) as u32;
+        let ur = (inst >> 24 & 0x3f) as u32;
+        let base = self.load_ureg(ur);
+        let offset = self.cached_const_u32((inst >> 64 & 0xff) as u32 * 4);
+        let address = self.ir.emit_iadd(self.type_u32[1], base, offset);
+        let vertices: &[u32] = if inst >> 72 & 1 == 0 { &[0, 1] } else { &[2] };
+        for (i, &vertex) in vertices.iter().enumerate() {
+            let vertex = self.cached_const_u32(vertex);
+            let ptr = self.attribute_component(false, address, Some(vertex));
+            let value = self.ir.emit_load(self.type_f32[1], ptr);
+            let value = self.bitcast_u32(value);
+            self.store_register(nth_reg(rd, RZ, i as u32), value);
+        }
     }
     pub fn membar(&mut self, inst: u128) {
         let dstfmt = (((inst >> 76) & 0x7) << 0) as u32;

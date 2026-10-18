@@ -412,6 +412,11 @@ impl<'a> Decoder<'a> {
                 let ptr = self.ir.emit_type_pointer(storage, ty);
                 let var = self.ir.emit_variable(ptr, storage);
                 self.ir.emit_decorate(var, LOCATION, &[0]);
+                if per_vertex && self.stage == Stage::Fragment {
+                    self.ir.emit_extension("SPV_KHR_fragment_shader_barycentric");
+                    self.ir.emit_capability(spirv::capability::FRAGMENT_BARYCENTRIC);
+                    self.ir.emit_decorate(var, spirv::decoration::PER_VERTEX, &[]);
+                }
                 self.resources.push(Resource { kind, var });
                 var
             }

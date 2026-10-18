@@ -50,6 +50,7 @@ pub mod inst {
     const AST: u128 = 0x322 | 0xff << 24 | RC_RZ | NO_WRITE_SCOREBOARD;
     const IPA: u128 = 0x326 | 0xff << 32 | 7 << 81;
     const ISBERD: u128 = 0x923;
+    const LDTRAM: u128 = 0x3ad | 1 << 91;
     pub const IPA_CONSTANT: u128 = 1 << 78;
     pub const FP_ABS_B: u128 = 1 << 62;
     pub const FP_NEG_B: u128 = 1 << 63;
@@ -562,6 +563,10 @@ pub mod inst {
 
     pub fn isberd(rd: u32, ra: u32, offset: u32, base: u32, size: u32, skew: bool, output: bool) -> u128 {
         ISBERD | PT_GUARD | (rd as u128) << 16 | (ra as u128) << 24 | (offset as u128) << 40 | (size as u128) << 74 | (base as u128) << 76 | (skew as u128) << 78 | (output as u128) << 79
+    }
+
+    pub fn ldtram(rd: u32, attr: u32, vertex_c: bool) -> u128 {
+        LDTRAM | PT_GUARD | (rd as u128) << 16 | 63 << 24 | ((attr / 4) as u128) << 64 | (vertex_c as u128) << 72
     }
 
     pub mod cvt {
@@ -1138,6 +1143,8 @@ fn fixtures_match_nvdisasm() {
         (inst::ipa(1, 0x84, 0), "IPA.PASS R1, a[0x84] ;"),
         (inst::ipa(3, 0x3fc, inst::IPA_CONSTANT), "IPA.CONSTANT R3, a[0x3fc] ;"),
         (inst::isberd(4, 2, 0x10, 0, 2, true, false), "ISBERD.SKEW.32 R4, [R2+0x10] ;"),
+        (inst::ldtram(4, 0x80, false), "LDTRAM.AB R4, a[0x80] ;"),
+        (inst::ldtram(6, 0x90, true), "LDTRAM.C R6, a[0x90] ;"),
     ];
     use crate::tests::gpu::fp::fp16::tests as fp16;
     for (word, expected) in fixtures.iter().copied().chain(fp16::arith()).chain(fp16::compare()).chain(fp16::convert()) {
