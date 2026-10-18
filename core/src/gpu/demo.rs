@@ -5,6 +5,8 @@ use super::engine::{Geometry, Gpu};
 use super::frame::cache_root;
 use super::{VkState, device};
 use crate::tests::gpu::engine::{bytes, entry};
+#[cfg(test)]
+use crate::tests::gpu_test::inst::bra;
 use std::path::Path;
 use std::sync::{Mutex, atomic::{AtomicBool, Ordering}};
 
