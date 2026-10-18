@@ -32,7 +32,7 @@ fn main() {
     let pixels = vec![0; width * height * 4];
     let values: Vec<_> = params.iter().zip(&kernel.params).map(|(arg, &(_, size))| if arg == "out" { vec![] } else { value(arg, size) }).collect();
     let launch: Vec<_> = params.iter().zip(&values).map(|(arg, value)| if arg == "out" { Arg::Buffer(&pixels) } else { Arg::Value(value) }).collect();
-    let (banks, regions) = kernel.launch(grid, block, &launch, GLOBAL_BASE);
+    let (banks, regions) = kernel.launch(grid, block, false, &launch, GLOBAL_BASE).unwrap();
     let mut kernel_grid = Grid::new(device().unwrap(), &kernel.words, block, kernel.shared_bytes, &banks, &regions);
     let mut ms: Vec<f64> = (0..RUNS).map(|_| {
         let start = Instant::now();

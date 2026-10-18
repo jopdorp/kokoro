@@ -25,6 +25,14 @@ fn le(bytes: &[u8], at: usize, len: usize) -> Result<usize, String> {
     Ok(field.iter().rev().fold(0, |value, &byte| value << 8 | byte as usize))
 }
 
+fn undefined_symbol(symbols: &[u8], names: &[u8], target: &[u8]) -> Option<usize> {
+    symbols.chunks_exact(24).position(|symbol| {
+        let name = u32::from_le_bytes(symbol[..4].try_into().unwrap()) as usize;
+        u16::from_le_bytes(symbol[6..8].try_into().unwrap()) == 0
+            && names.get(name..).and_then(|name| name.split(|&byte| byte == 0).next()) == Some(target)
+    })
+}
+
 impl Kernel {
     pub fn load(elf: &[u8], name: &str) -> Result<Self, String> {
         if elf.get(..5) != Some(b"\x7fELF\x02") {
@@ -38,6 +46,16 @@ impl Kernel {
         }
         let (shoff, shnum) = (le(elf, 0x28, 8)?, le(elf, 0x3c, 2)?);
         let names = le(elf, shoff + le(elf, 0x3e, 2)? * 64 + 24, 8)?;
+        let vprintf = if let Some(symbols) = (shoff..shoff + shnum * 64).step_by(64).find(|&at| le(elf, at + 4, 4) == Ok(2)) {
+            let strings = shoff + le(elf, symbols + 40, 4)? * 64;
+            let table = |at| -> Result<&[u8], String> {
+                let (offset, size) = (le(elf, at + 24, 8)?, le(elf, at + 32, 8)?);
+                elf.get(offset..offset + size).ok_or("truncated cubin".into())
+            };
+            undefined_symbol(table(symbols)?, table(strings)?, b"vprintf")
+        } else {
+            None
+        };
         let sections = (shoff..shoff + shnum * 64).step_by(64).map(|at| {
             let name = elf.get(names + le(elf, at, 4)?..).and_then(|s| s.split(|&b| b == 0).next()).and_then(|s| std::str::from_utf8(s).ok());
             let (offset, size) = (le(elf, at + 24, 8)?, le(elf, at + 32, 8)?);
@@ -54,6 +72,9 @@ impl Kernel {
         let (mut base, mut params, mut at) = (0, Vec::new(), 0);
         while at < info.len() {
             let (attribute, payload) = (le(info, at + 1, 1)?, at + 4);
+            if attribute == 0x0f && vprintf.is_some_and(|symbol| le(info, payload, 4) == Ok(symbol)) {
+                return Err("CUDA device runtime call vprintf is unsupported".into());
+            }
             // PARAM_CBANK is a symbol u32 then the area's offset u16; KPARAM_INFO an index u32, the ordinal u16, the
             // offset u16, then a u32 with the size in bits 18..32 (field order as cuobjdump -elf prints them).
             match attribute {
@@ -83,7 +104,10 @@ impl Kernel {
 
     /// The constant banks for a `grid` x `block` launch with `args` in parameter order, and the (address, bytes)
     /// regions of global memory it needs: each buffer is placed from `base` up and passed as its address.
-    pub fn launch<'a>(&self, grid: [u32; 3], block: [u32; 3], args: &[Arg<'a>], base: u64) -> (Vec<(u32, Vec<u8>)>, Vec<(u64, &'a [u8])>) {
+    pub fn launch<'a>(&self, grid: [u32; 3], block: [u32; 3], cooperative: bool, args: &[Arg<'a>], base: u64) -> Result<(Vec<(u32, Vec<u8>)>, Vec<(u64, &'a [u8])>), String> {
+        if cooperative {
+            return Err("cooperative-grid launch is not modeled".into());
+        }
         assert_eq!(args.len(), self.params.len(), "the kernel takes {} parameters", self.params.len());
         let mut banks = self.banks.clone();
         let cbuf0 = &mut banks[0].1;
@@ -109,6 +133,24 @@ impl Kernel {
             assert_eq!(value.len(), size, "parameter at c[0x0][{offset:#x}] is {size} bytes");
             cbuf0[offset..offset + size].copy_from_slice(&value);
         }
-        (banks, regions)
+        Ok((banks, regions))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unresolved_vprintf_symbol_is_detected() {
+        let mut symbol = [0; 24];
+        symbol[..4].copy_from_slice(&1u32.to_le_bytes());
+        assert_eq!(undefined_symbol(&symbol, b"\0vprintf\0", b"vprintf"), Some(0));
+    }
+
+    #[test]
+    fn cooperative_grid_launch_is_rejected() {
+        let kernel = Kernel { words: vec![], shared_bytes: 0, banks: vec![(0, vec![])], params: vec![] };
+        assert_eq!(kernel.launch([1; 3], [1; 3], true, &[], 0).unwrap_err(), "cooperative-grid launch is not modeled");
     }
 }

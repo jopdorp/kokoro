@@ -332,7 +332,7 @@ pub fn run_grid(instructions: &[u128], block: [u32; 3], grid: [u32; 3], cbuf0: &
 /// global memory from `GLOBAL_BASE` up, returning the buffers after the launch, or `None` when there is no Vulkan device.
 pub fn run_kernel(cubin: &[u8], name: &str, grid: [u32; 3], block: [u32; 3], shared_bytes: u32, args: &[Arg]) -> Option<Vec<Vec<u8>>> {
     let kernel = Kernel::load(cubin, name).unwrap();
-    let (banks, regions) = kernel.launch(grid, block, args, GLOBAL_BASE);
+    let (banks, regions) = kernel.launch(grid, block, false, args, GLOBAL_BASE).unwrap();
     let state = vk_state()?;
     let shared_bytes = kernel.shared_bytes.checked_add(shared_bytes).expect("shared memory size overflow");
     Some(Grid::new(&state, &kernel.words, block, shared_bytes, &banks, &regions).run(grid))

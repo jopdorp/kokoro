@@ -48,7 +48,7 @@ fn breakdown(name: &str, [frame, gpu]: [f64; 2], copy: f64, present: f64, cold: 
 
 /// The kernel's grid and the cold microseconds of translating it and building its pipeline, spirv-val included.
 fn kernel_grid<'a>(state: &'a VkState, kernel: &Kernel, grid: [u32; 3], block: [u32; 3], args: &[Arg]) -> (Grid<'a>, f64) {
-    let (banks, regions) = kernel.launch(grid, block, args, GLOBAL_BASE);
+    let (banks, regions) = kernel.launch(grid, block, false, args, GLOBAL_BASE).unwrap();
     let t = Instant::now();
     let built = Grid::new(state, &kernel.words, block, kernel.shared_bytes, &banks, &regions);
     (built, since(t))
