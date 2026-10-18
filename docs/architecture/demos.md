@@ -59,6 +59,12 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 
 *The guest sends the Julia set shader through `nvdrv` and passes time through a small block of shader input data.*
 
+### Mandelbrot CUDA
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-mandelbrot.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-mandelbrot.mp4" type="video/mp4"></video>
+
+*NVIDIA's CUDA sample kernel runs unchanged through the translator. The guest owns the frame memory, launches the kernel through `nvdrv` each frame with the new zoom, and presents it.*
+
 ### Music
 
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-music.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-music.mp4" type="video/mp4"></video>
@@ -76,12 +82,6 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 ![Ray-traced scene without and with bounce light](https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-gi-proof.png)
 
 *The top row is without bounce light and the bottom row is with it. Look at the BoomBox picking up the wall colour near the lamp.*
-
-### Mandelbrot CUDA
-
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot-zoom-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot-zoom.mp4" type="video/mp4"></video>
-
-*This is NVIDIA's CUDA Mandelbrot sample, compiled to SM86 machine code and run unchanged through oboromi's translator. The host launches the same kernel once per frame with a smaller scale.*
 
 ## Dungeon
 
