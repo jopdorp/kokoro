@@ -198,11 +198,20 @@ impl<'a> Decoder<'a> {
     // predicate, 3..4 the BAR.RED operation, 5.. the thread count, 0 for every running lane of the CTA.
     pub fn bar(&mut self, inst: u128) {
         let ty = self.type_u32[1];
+        if inst >> 77 & 7 == 3 {
+            self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM_ARITHMETIC);
+            let scope = self.cached_const_u32(spirv::scope::SUBGROUP);
+            let predicate = self.pred_bit(false, (inst >> 87 & 7) as u32, inst >> 90 & 1 != 0);
+            let result = self.ir.emit_group_non_uniform_iadd(ty, scope, 1, predicate);
+            let ptr = self.barrier_token(BAR_RESULT);
+            self.ir.emit_store(ptr, result);
+            return;
+        }
         let (op, parks) = match inst >> 77 & 7 {
             0 | 4 => (0, true),
             1 => (0, false),
             2 => (inst >> 74 & 3, true),
-            3 => todo!("BAR.SCAN (class bar__SCAN_RR_RR: Rb, Rc, Pp with IDEST_SIZE = 0) writes no register, PTX has no bar.scan and ptxas never emits it, so the scan it leaves for B2R.RESULT is undocumented"),
+            3 => unreachable!(),
             mode => panic!("BAR mode {mode} is invalid"),
         };
         assert!(op != 3, "BAR.RED operation 3 is invalid");

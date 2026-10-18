@@ -184,6 +184,7 @@ pub mod inst {
     const BAR_SYNC: u128 = 0xb1d;
     pub const BAR_RED_POPC: u128 = 2 << 77;
     pub const BAR_RED_AND: u128 = BAR_RED_POPC | 1 << 74;
+    const BAR_SCAN: u128 = 0x31d | 3 << 77;
     const B2R_RESULT: u128 = 0x31c | 1 << 78;
     const WARPSYNC_IMM: u128 = 0x948;
     const BRA: u128 = 0x947;
@@ -408,6 +409,10 @@ pub mod inst {
 
     pub fn bar(mode: u128, count: u32) -> u128 {
         bar_sync() | mode | (count as u128) << 42
+    }
+
+    pub fn bar_scan(rb: u32, pp: u32) -> u128 {
+        BAR_SCAN | PT_GUARD | NO_WRITE_SCOREBOARD | (rb as u128) << 32 | (pp as u128) << 87
     }
 
     pub fn b2r_result(rd: u32, pu: u32) -> u128 {
@@ -1041,6 +1046,7 @@ fn fixtures_match_nvdisasm() {
         (inst::bar(inst::BAR_RED_AND, 0), "BAR.RED.AND 0x0, P0 ;"),
         (inst::bar(inst::BAR_RED_POPC, 0), "BAR.RED.POPC 0x0, P0 ;"),
         (inst::b2r_result(5, 2), "B2R.RESULT R5, P2 ;"),
+        (inst::bar_scan(4, 0), "BAR.SCAN R4, R4, P0 ;"),
         (inst::warpsync(0xffff), "WARPSYNC 0xffff;"),
         (inst::s2r(1, 33), "S2R R1, SR_TID.X ;"),
         (inst::cs2r(4, 80, false), "CS2R.32 R4, SR_CLOCKLO;"),

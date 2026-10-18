@@ -202,6 +202,21 @@ mod tests {
     }
 
     #[test]
+    fn bar_scan_unverified_on_silicon() {
+        let seeds = lanes(|_| {
+            let mut regs = vec![0; PRED + 1];
+            regs[PRED] = 1;
+            regs
+        });
+        let program = [inst::bar_scan(4, 0), inst::b2r_result(5, 2)];
+        let Some((regs, _)) = run_lanes(&program, &seeds, &[], &[]) else { return };
+        assert_eq!(regs[0][5], 1);
+        for pair in regs.windows(2) {
+            assert!(pair[1][5] == 1 || pair[1][5] == pair[0][5] + 1);
+        }
+    }
+
+    #[test]
     fn bar_short_of_its_thread_count_reports_the_stuck_lanes() {
         let seeds = seeds(|lane| vec![(PRED, ((lane == 31) as u32) << 1)]);
         let program = [inst::guard(inst::exit(), 1, false), inst::bar(0, LANES), inst::exit()];
