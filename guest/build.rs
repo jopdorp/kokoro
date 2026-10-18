@@ -6,6 +6,8 @@ fn main() {
     for (name, data) in [
         ("vertices", dungeon.vertices),
         ("indices", dungeon.indices),
+        ("ray-geometry", dungeon.ray_geometry),
+        ("ray-indices", dungeon.ray_indices),
         ("lights", dungeon.lights),
         ("zones", dungeon.zones),
         ("props", dungeon.props),

@@ -23,6 +23,16 @@ pub const RAY_CONSTANTS: u64 = TLAS + 0x800;
 pub const ACCELERATION_STRUCTURE_MAGIC: u32 = u32::from_le_bytes(*b"OAS1");
 pub const GEOMETRY_WORDS: usize = 20;
 #[derive(Clone, Copy)]
+pub struct AccelerationStructureGeometry {
+    pub vertices: u64,
+    pub stride: u32,
+    pub vertex_count: u32,
+    pub indices: u64,
+    pub index_count: u32,
+    pub opaque: bool,
+    pub transform: [[f32; 4]; 3],
+}
+#[derive(Clone, Copy)]
 pub struct RayGeometry {
     pub model_vertices: u32,
     pub model_indices: u32,
@@ -116,16 +126,21 @@ pub fn room_frame(seconds: f32, traced: bool, sqrt: impl Fn(f32) -> f32) -> ([f3
 }
 
 pub fn acceleration_structure(model: Matrix, layout: RayGeometry, words: &mut impl Extend<u32>) {
-    words.extend([ACCELERATION_STRUCTURE_MAGIC, 2]);
-    let mut geometry = |vertex_count, indices, index_count, transform: [[f32; 4]; 3]| {
-        words.extend(split(VERTICES));
-        words.extend([48, vertex_count]);
-        words.extend(split(indices));
-        words.extend([index_count, 1]);
-        words.extend(transform.into_iter().flatten().map(f32::to_bits));
-    };
-    geometry(layout.model_vertices, layout.indices_va, layout.model_indices, core::array::from_fn(|row| core::array::from_fn(|column| model[column][row])));
-    geometry(layout.vertex_count, layout.indices_va + (u64::from(layout.model_indices) + 30) * 4, layout.index_count - layout.model_indices - 30 - layout.light_count, [IDENTITY[0], IDENTITY[1], IDENTITY[2]]);
+    acceleration_structure_registry(&[
+        AccelerationStructureGeometry { vertices: VERTICES, stride: 48, vertex_count: layout.model_vertices, indices: layout.indices_va, index_count: layout.model_indices, opaque: true, transform: core::array::from_fn(|row| core::array::from_fn(|column| model[column][row])) },
+        AccelerationStructureGeometry { vertices: VERTICES, stride: 48, vertex_count: layout.vertex_count, indices: layout.indices_va + (u64::from(layout.model_indices) + 30) * 4, index_count: layout.index_count - layout.model_indices - 30 - layout.light_count, opaque: true, transform: [IDENTITY[0], IDENTITY[1], IDENTITY[2]] },
+    ], words);
+}
+
+pub fn acceleration_structure_registry(geometry: &[AccelerationStructureGeometry], words: &mut impl Extend<u32>) {
+    words.extend([ACCELERATION_STRUCTURE_MAGIC, geometry.len() as u32]);
+    for geometry in geometry {
+        words.extend(split(geometry.vertices));
+        words.extend([geometry.stride, geometry.vertex_count]);
+        words.extend(split(geometry.indices));
+        words.extend([geometry.index_count, u32::from(geometry.opaque)]);
+        words.extend(geometry.transform.into_iter().flatten().map(f32::to_bits));
+    }
 }
 
 pub fn init(width: u32, height: u32, target: u64, vertex_bytes: u64, indices_va: u64, textures: u32, words: &mut impl Extend<u32>) {
