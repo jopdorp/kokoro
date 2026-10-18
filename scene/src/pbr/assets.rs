@@ -79,7 +79,8 @@ fn floats(values: &[f32]) -> Vec<u8> {
 }
 
 fn vertex(out: &mut Vec<u8>, position: [f32; 3], normal: [f32; 3]) {
-    out.extend(floats(&[position[0], position[1], position[2], normal[0], normal[1], normal[2], 1.0, 0.0, 0.0, 1.0, 0.0, 0.0]));
+    let tangent = if normal[0].abs() > 0.9 { [0.0, 0.0, 1.0] } else { [1.0, 0.0, 0.0] };
+    out.extend(floats(&[position[0], position[1], position[2], normal[0], normal[1], normal[2], tangent[0], tangent[1], tangent[2], 1.0, 0.0, 0.0]));
 }
 
 fn quad(vertices: &mut Vec<u8>, indices: &mut Vec<u32>, corners: [[f32; 3]; 4], normal: [f32; 3]) -> [u32; 2] {
@@ -131,9 +132,10 @@ pub struct Asset {
     pub light_count: u32,
     pub light_first: u32,
     pub material_count: usize,
+    pub texture_count: u32,
 }
 impl Asset {
-pub fn load(read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: u32, room: bool, traced: bool) -> Result<Self, String> {
+pub fn load(read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: u32, room: bool, traced: bool, showcase: bool) -> Result<Self, String> {
         let text = String::from_utf8(read("manifest.json")?).map_err(|e| e.to_string())?;
         let manifest = Json::parse(&mut text.as_str()).ok_or("manifest.json does not parse")?;
         let [mut vertices, mut indices] = [read("vertices.bin")?, read("indices.bin")?];
@@ -246,7 +248,8 @@ pub fn load(read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: 
         writes.push((VERTEX_TABLE, bytes(&vertex_table)));
         // The rig's programs stop at their last EXIT; the self-branch a compiled program ends with marks the end.
         let programs: [&[u8]; 2] = if traced {
-            [include_bytes!("../../../core/tests/fixtures/driver-shaders/rt.vert.bin"), include_bytes!("../../../core/tests/fixtures/driver-shaders/rt.frag.bin")]
+            let pixel: &[u8] = if showcase { include_bytes!("../../../core/tests/fixtures/driver-shaders/rt.frag.bin") } else { include_bytes!("../../../core/tests/fixtures/driver-shaders/rt-realtime.frag.bin") };
+            [include_bytes!("../../../core/tests/fixtures/driver-shaders/rt.vert.bin"), pixel]
         } else {
             [include_bytes!("../../../core/tests/fixtures/driver-shaders/pbr.vert.bin"), include_bytes!("../../../core/tests/fixtures/driver-shaders/pbr.frag.bin")]
         };
@@ -272,19 +275,10 @@ pub fn load(read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: 
         let mut words = Vec::new();
         init(width, height, target, vertices.len() as u64, indices_va, (tic.len() / 8) as u32, &mut words);
         writes.push((PUSHBUFFER, bytes(&words)));
-        Ok(Self { writes, target, end, draws, blends, textures: texture_va, fit, model_vertices, model_indices: model_indices as u32, vertex_count: (vertices.len()/48) as u32, index_count: (indices.len()/4) as u32, indices_va, light_count, light_first, material_count: materials.len() + if room { ROOM_MATERIALS.len() } else { 0 } })
+        Ok(Self { writes, target, end, draws, blends, textures: texture_va, fit, model_vertices, model_indices: model_indices as u32, vertex_count: (vertices.len()/48) as u32, index_count: (indices.len()/4) as u32, indices_va, light_count, light_first, material_count: materials.len() + if room { ROOM_MATERIALS.len() } else { 0 }, texture_count: (tic.len() / 8) as u32 })
     }
 }
 
 pub fn view_projection(width: u32, height: u32, eye: [f32; 3]) -> Matrix {
-        let (near, far, focal) = (0.1, 20.0, 1.0 / (22.5f32.to_radians()).tan());
-        let projection = [[focal * height as f32 / width as f32, 0.0, 0.0, 0.0], [0.0, -focal, 0.0, 0.0], [0.0, 0.0, far / (near - far), -1.0], [0.0, 0.0, near * far / (near - far), 0.0]];
-        let length = eye.iter().map(|v| v * v).sum::<f32>().sqrt();
-        let back = eye.map(|v| v / length);
-        let side_length = (back[0] * back[0] + back[2] * back[2]).sqrt();
-        let right = [back[2] / side_length, 0.0, -back[0] / side_length];
-        let up = [-back[1] * right[2], back[2] * right[0] - back[0] * right[2], -back[1] * right[0]];
-        let mut view = [[right[0], up[0], back[0], 0.0], [right[1], up[1], back[1], 0.0], [right[2], up[2], back[2], 0.0], [0.0; 4]];
-        view[3] = [-right.iter().zip(eye).map(|(a, b)| a * b).sum::<f32>(), -up.iter().zip(eye).map(|(a, b)| a * b).sum::<f32>(), -length, 1.0];
-    multiply(projection, view)
+    super::view_projection(width, height, eye, f32::sqrt)
 }

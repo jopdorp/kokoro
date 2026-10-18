@@ -30,14 +30,16 @@ fn main() {
     std::fs::write(out.join("biquad.bin"), scene::sound::assets::biquad()).unwrap();
     let pitches: Vec<f32> = (-12..=15).map(|n| 2f32.powf(n as f32 / 12.0)).collect();
     std::fs::write(out.join("music.rs"), format!("const SAMPLES: [(u64,u32); 4] = {samples:?};\nconst PITCHES: [f32; 28] = {pitches:?};\nconst BIQUAD: [u8;10] = {:?};\n", scene::sound::assets::biquad())).unwrap();
-    for (name, directory) in [("boombox", "boombox"), ("helmet", "flighthelmet")] {
+    for (name, directory, room, traced) in [("boombox", "boombox", false, false), ("helmet", "flighthelmet", false, false), ("raytraced", "boombox", true, true)] {
         println!("cargo:rerun-if-changed=../demos/assets/{directory}");
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../demos/assets").join(directory);
-    let asset = scene::pbr::assets::Asset::load(&|file| std::fs::read(dir.join(file)).map_err(|e| e.to_string()), 1920, 1080, false, false).expect("run demos/assets/fetch.sh before building guests");
+    let asset = scene::pbr::assets::Asset::load(&|file| std::fs::read(dir.join(file)).map_err(|e| e.to_string()), 1920, 1080, room, traced, false).expect("run demos/assets/fetch.sh before building guests");
     let mut data = Vec::new();
     let writes: Vec<_> = asset.writes.iter().map(|(va, bytes)| { let offset = data.len(); data.extend(bytes); (*va, offset, bytes.len()) }).collect();
     std::fs::write(out.join(format!("{name}.bin")), data).unwrap();
+    let showcase = traced.then(|| [include_bytes!("../core/tests/fixtures/driver-shaders/rt.frag.bin").as_slice(), &scene::sass::bra(-16).to_le_bytes()].concat()).unwrap_or_default();
+    std::fs::write(out.join(format!("{name}-showcase.bin")), showcase).unwrap();
     let blends = asset.blends.iter().map(|blend| match blend { Some(words) => format!("Some(&{words:?})"), None => "None".into() }).collect::<Vec<_>>().join(", ");
-    std::fs::write(out.join(format!("{name}.rs")), format!("const WRITES: &[(u64, usize, usize)] = &{writes:?};\nconst BLENDS: &[Option<&[u32]>] = &[{blends}];\nconst DRAWS: &[[u32; 3]] = &{:?};\nconst FIT: ([f32; 3], f32) = {:?};\nconst VIEW: scene::pbr::Matrix = {:?};\nconst TARGET: u64 = {};\nconst END: u64 = {};\nconst INIT_WORDS: usize = {};\n", asset.draws, asset.fit, scene::pbr::assets::view_projection(1920, 1080, scene::pbr::EYE), asset.target, asset.end, asset.writes.last().unwrap().1.len()/4)).unwrap();
+    std::fs::write(out.join(format!("{name}.rs")), format!("const WRITES: &[(u64, usize, usize)] = &{writes:?};\nconst BLENDS: &[Option<&[u32]>] = &[{blends}];\nconst DRAWS: &[[u32; 3]] = &{:?};\nconst FIT: ([f32; 3], f32) = {:?};\nconst VIEW: scene::pbr::Matrix = {:?};\nconst TARGET: u64 = {};\nconst END: u64 = {};\nconst INIT_WORDS: usize = {};\nconst ROOM: bool = {room};\nconst TRACED: bool = {traced};\nconst GEOMETRY: scene::pbr::RayGeometry = scene::pbr::RayGeometry {{ model_vertices: {}, model_indices: {}, vertex_count: {}, index_count: {}, indices_va: {}, light_count: {} }};\nconst LIGHT_FIRST: u32 = {};\nconst MATERIAL_COUNT: usize = {};\nconst TEXTURE_COUNT: u32 = {};\nconst SHOWCASE_DATA: &[u8] = include_bytes!(concat!(env!(\"OUT_DIR\"), \"/{name}-showcase.bin\"));\n", asset.draws, asset.fit, scene::pbr::assets::view_projection(1920, 1080, scene::pbr::EYE), asset.target, asset.end, asset.writes.last().unwrap().1.len()/4, asset.model_vertices, asset.model_indices, asset.vertex_count, asset.index_count, asset.indices_va, asset.light_count, asset.light_first, asset.material_count, asset.texture_count)).unwrap();
 }
 }
