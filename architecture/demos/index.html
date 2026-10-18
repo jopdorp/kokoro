@@ -1626,7 +1626,7 @@
 <h3 id="dungeon">Dungeon<a class="headerlink" href="#dungeon" title="Permanent link">&para;</a></h3>
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon.mp4" type="video/mp4"></video>
 
-<p><em>Showcase: rendered offline at 1080p60 and sized for the console; native Switch 2 performance remains unverified. An irregular river runs through the cave, with torch reflections, shallow pebbles, bank foam and mist. Clustered wet stone formations, drips, layered flames and dispersing smoke accompany the approved audren mix. Measured offline median frame time on Intel Arc MTL is 98.5 ms. The dungeon's shaders are compiled from GLSL for now.</em></p>
+<p><em>Showcase: rendered offline at 1080p60 with ray-query shadows, reflections and ambient occlusion ON. Sized for the console; native Switch 2 performance remains unverified. Gentle river waves reveal the pebble bed, with filtered torch reflections, drifting volumetric mist, rounded wet formations and hanging stalactites with drips. Measured offline median frame time on Intel Arc MTL is 100.1 ms. The dungeon's shaders are compiled from GLSL for now.</em></p>
 <p>Console cost estimate: translated/twin efficiency cannot be measured while these shaders use native GLSL. Only raw Intel GPU measurements are available; a native console total below 16.7 ms has not been established.</p>
 <table>
 <thead>
@@ -1649,56 +1649,56 @@
 <tr>
 <td>Particle simulation</td>
 <td style="text-align: right;">0.043</td>
-<td style="text-align: right;">0.037</td>
+<td style="text-align: right;">0.036</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Planar reflection</td>
-<td style="text-align: right;">1.024</td>
+<td style="text-align: right;">0.480</td>
 <td style="text-align: right;">0.000</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Instanced cave formations</td>
-<td style="text-align: right;">0.402</td>
-<td style="text-align: right;">0.154</td>
+<td style="text-align: right;">0.148</td>
+<td style="text-align: right;">0.141</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>PBR, shadows and wet reflections</td>
-<td style="text-align: right;">9.403</td>
-<td style="text-align: right;">87.338</td>
+<td style="text-align: right;">4.803</td>
+<td style="text-align: right;">88.338</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>River surface</td>
-<td style="text-align: right;">0.014</td>
-<td style="text-align: right;">0.053</td>
+<td style="text-align: right;">0.015</td>
+<td style="text-align: right;">0.056</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Flames, smoke and other sprites</td>
-<td style="text-align: right;">0.248</td>
-<td style="text-align: right;">0.636</td>
+<td style="text-align: right;">0.311</td>
+<td style="text-align: right;">0.717</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Height fog, moon shaft and bloom prefilter</td>
-<td style="text-align: right;">0.293</td>
-<td style="text-align: right;">0.476</td>
+<td style="text-align: right;">0.298</td>
+<td style="text-align: right;">0.472</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Bloom reconstruction, heat haze and tonemap</td>
-<td style="text-align: right;">1.717</td>
-<td style="text-align: right;">1.288</td>
+<td style="text-align: right;">1.875</td>
+<td style="text-align: right;">1.308</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
@@ -1706,14 +1706,13 @@
 </table>
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime.mp4" type="video/mp4"></video>
 
-<p><em>Realtime preset: recorded offline at 1080p60, with baked shadows, planar reflections and reduced particle, water and fog budgets. The standalone live-audio tour measures 14.40 ms median and 21.67 ms p95 on Intel Arc MTL; stable 60 fps is not established. The dungeon's shaders are compiled from GLSL for now.</em></p>
-<p>Full-tour release measurements, 1200 frames per run with the first three excluded.
-GPU times are Vulkan timestamp medians, summed within each frame across main and
-reflection draws. Per-pass medians need not sum to the median total. Frame wall
-times include GPU waits and audio but exclude PPM file writes. Offline capture uses
-deterministic synchronous audio; the standalone live harness drains the audio ring
-on a separate clock, without a window or audio device. Measurements share the laptop
-with other work. Both published clips retain the approved round-three WAV and normalization.</p>
+<p><em>Realtime preset: recorded offline at 1080p60, with baked shadows, filtered planar reflections and reduced particle, water, formation and fog budgets. Six selected lamps light each view. The standalone live-audio tour measures 9.67 ms median and 13.50 ms p95 on Intel Arc MTL. The dungeon's shaders are compiled from GLSL for now.</em></p>
+<p>Release measurements use 1200 frames per run, excluding the first three. GPU times
+are Vulkan timestamp medians, summed within each frame across main and reflection
+draws. Per-pass medians need not sum to the median total. Frame times include GPU
+waits and audio but exclude PPM writes. Offline capture uses synchronous audio;
+the live harness drains the audio ring on a separate clock without a window or audio
+device. Both clips retain the approved round-three WAV and normalization.</p>
 <table>
 <thead>
 <tr>
@@ -1725,73 +1724,100 @@ with other work. Both published clips retain the approved round-three WAV and no
 </thead>
 <tbody>
 <tr>
-<td>Realtime, live audio worker</td>
-<td style="text-align: right;">14.40</td>
-<td style="text-align: right;">21.67</td>
-<td style="text-align: right;">10.39</td>
+<td>Realtime live tour</td>
+<td style="text-align: right;">9.67</td>
+<td style="text-align: right;">13.50</td>
+<td style="text-align: right;">5.81</td>
 </tr>
 <tr>
-<td>Realtime, offline capture</td>
-<td style="text-align: right;">23.74</td>
-<td style="text-align: right;">39.67</td>
-<td style="text-align: right;">13.23</td>
+<td>Realtime cave entrance</td>
+<td style="text-align: right;">14.49</td>
+<td style="text-align: right;">15.08</td>
+<td style="text-align: right;">10.73</td>
 </tr>
 <tr>
-<td>Showcase, offline capture</td>
-<td style="text-align: right;">98.54</td>
-<td style="text-align: right;">188.21</td>
-<td style="text-align: right;">90.20</td>
+<td>Realtime cave downstream</td>
+<td style="text-align: right;">13.15</td>
+<td style="text-align: right;">13.70</td>
+<td style="text-align: right;">9.43</td>
+</tr>
+<tr>
+<td>Realtime offline capture</td>
+<td style="text-align: right;">18.38</td>
+<td style="text-align: right;">34.90</td>
+<td style="text-align: right;">8.04</td>
+</tr>
+<tr>
+<td>Showcase offline capture</td>
+<td style="text-align: right;">100.14</td>
+<td style="text-align: right;">211.66</td>
+<td style="text-align: right;">91.10</td>
 </tr>
 </tbody>
 </table>
+<p>Cave GPU timings, realtime preset:</p>
 <table>
 <thead>
 <tr>
-<th>Graphics host stage</th>
-<th style="text-align: right;">Before ms</th>
-<th style="text-align: right;">After ms</th>
+<th>Pass</th>
+<th style="text-align: right;">Entrance ms</th>
+<th style="text-align: right;">Downstream ms</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Preparation and uploads</td>
-<td style="text-align: right;">0.863</td>
-<td style="text-align: right;">0.263</td>
+<td>Heightfield</td>
+<td style="text-align: right;">0.016</td>
+<td style="text-align: right;">0.016</td>
 </tr>
 <tr>
-<td>Command encoding and draw state</td>
-<td style="text-align: right;">0.458</td>
-<td style="text-align: right;">0.081</td>
+<td>Particle simulation</td>
+<td style="text-align: right;">0.035</td>
+<td style="text-align: right;">0.035</td>
 </tr>
 <tr>
-<td>Queue submission</td>
-<td style="text-align: right;">2.557</td>
-<td style="text-align: right;">0.171</td>
+<td>Planar reflection</td>
+<td style="text-align: right;">0.643</td>
+<td style="text-align: right;">0.510</td>
 </tr>
 <tr>
-<td>Active host total</td>
-<td style="text-align: right;">3.856</td>
-<td style="text-align: right;">0.457</td>
+<td>Instanced cave formations</td>
+<td style="text-align: right;">0.836</td>
+<td style="text-align: right;">1.042</td>
 </tr>
 <tr>
-<td>GPU fence wait</td>
-<td style="text-align: right;">22.832</td>
-<td style="text-align: right;">13.694</td>
+<td>PBR, shadows and wet reflections</td>
+<td style="text-align: right;">6.450</td>
+<td style="text-align: right;">5.000</td>
+</tr>
+<tr>
+<td>River surface</td>
+<td style="text-align: right;">0.248</td>
+<td style="text-align: right;">0.455</td>
+</tr>
+<tr>
+<td>Flames, smoke and other sprites</td>
+<td style="text-align: right;">0.879</td>
+<td style="text-align: right;">0.737</td>
+</tr>
+<tr>
+<td>Height fog, moon shaft and bloom prefilter</td>
+<td style="text-align: right;">0.279</td>
+<td style="text-align: right;">0.280</td>
+</tr>
+<tr>
+<td>Bloom reconstruction, heat haze and tonemap</td>
+<td style="text-align: right;">1.326</td>
+<td style="text-align: right;">1.341</td>
 </tr>
 </tbody>
 </table>
-<p>The earlier graphics timer included GPU waits. Active host work is now
-0.457 ms median (0.619 ms p95), below the 8 ms CPU target;
-blocking graphics wall time is 14.32 ms. The scene already batches opaque
-materials and instances formations and sprites. It now reuses recorded Vulkan
-commands, with 49 recordings over the tour and three submissions per frame instead
-of fifteen. Heightfield results remain on the GPU. No guest pushbuffer or FIFO decode
-is involved in this native GLSL path. The audio worker keeps mixing off the frame thread.</p>
+<p>Active graphics CPU in the live tour is 0.454 ms median. Recorded Vulkan commands are reused, heightfield vertices stay on the GPU, and the audio worker keeps mixing off the frame thread. No guest pushbuffer or FIFO decode is involved in this native GLSL path. These measurements do not establish stable 60 fps on other hardware.</p>
 <p>The scene uses one opaque batch, instanced formations and sprites, and a water
 draw; offscreen room batches and cave formations are culled. Realtime additionally
 renders the reflected scene. Showcase uses 96 particles per light, a 256x64 water
 grid, 24 quarter-resolution fog steps, four shadow rays per contributing flame,
-one AO ray and one reflection ray on wet surfaces. Realtime uses 24 particles per
+one AO ray, one reflection ray on wet floors and three nearby rays on the river. Realtime uses 24 particles per
 light, a 96x24 water grid, four fog steps and a 480x270 planar reflection. Ten
 128px shadow cubemaps are baked, with at most two nearby lights
 casting shadows; rock textures use the dominant face projection.
