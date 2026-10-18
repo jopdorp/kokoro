@@ -1626,7 +1626,7 @@
 <h3 id="dungeon">Dungeon<a class="headerlink" href="#dungeon" title="Permanent link">&para;</a></h3>
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon.mp4" type="video/mp4"></video>
 
-<p><em>Showcase: rendered offline at 1080p60 and sized for the console; native Switch 2 performance remains unverified. Layered fire, smoke, wet PBR stone, ray-query shadows and reflections, moving water, fog, dust and moonlight accompany the audren mix. Measured median frame time on Intel Arc MTL is 141.2 ms. The dungeon's shaders are compiled from GLSL for now.</em></p>
+<p><em>Showcase: rendered offline at 1080p60 and sized for the console; native Switch 2 performance remains unverified. Layered fire, soft smoke, wet PBR stone, ray-query shadows and reflections, wave-driven water with bank foam and low mist, dust and moonlight accompany the audren mix. Measured median frame time on Intel Arc MTL is 143.5 ms. The dungeon's shaders are compiled from GLSL for now.</em></p>
 <p>Console cost estimate: translated/twin efficiency cannot be measured while these shaders use native GLSL. Only raw Intel GPU measurements are available; a native console total below 16.7 ms has not been established.</p>
 <table>
 <thead>
@@ -1641,64 +1641,64 @@
 <tbody>
 <tr>
 <td>Heightfield</td>
-<td style="text-align: right;">0.021</td>
-<td style="text-align: right;">0.021</td>
+<td style="text-align: right;">0.022</td>
+<td style="text-align: right;">0.020</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Particle simulation</td>
-<td style="text-align: right;">0.017</td>
-<td style="text-align: right;">0.015</td>
+<td style="text-align: right;">0.045</td>
+<td style="text-align: right;">0.039</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Planar reflection</td>
-<td style="text-align: right;">1.757</td>
+<td style="text-align: right;">0.755</td>
 <td style="text-align: right;">0.000</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Instanced cave formations</td>
-<td style="text-align: right;">0.353</td>
-<td style="text-align: right;">0.097</td>
+<td style="text-align: right;">0.302</td>
+<td style="text-align: right;">0.102</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>PBR, shadows and wet reflections</td>
-<td style="text-align: right;">9.804</td>
-<td style="text-align: right;">77.700</td>
+<td style="text-align: right;">8.814</td>
+<td style="text-align: right;">80.604</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>River surface</td>
-<td style="text-align: right;">0.032</td>
-<td style="text-align: right;">0.062</td>
+<td style="text-align: right;">0.026</td>
+<td style="text-align: right;">0.067</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
 <td>Flames, smoke and other sprites</td>
-<td style="text-align: right;">0.225</td>
-<td style="text-align: right;">0.178</td>
+<td style="text-align: right;">0.249</td>
+<td style="text-align: right;">0.347</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
-<td>Height fog and moon shaft</td>
-<td style="text-align: right;">0.217</td>
-<td style="text-align: right;">0.412</td>
+<td>Height fog, moon shaft and bloom prefilter</td>
+<td style="text-align: right;">0.309</td>
+<td style="text-align: right;">0.515</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
 <tr>
-<td>Bloom, heat haze and tonemap</td>
-<td style="text-align: right;">1.899</td>
-<td style="text-align: right;">1.411</td>
+<td>Bloom reconstruction, heat haze and tonemap</td>
+<td style="text-align: right;">1.872</td>
+<td style="text-align: right;">1.341</td>
 <td>N/A: native GLSL</td>
 <td>unverified</td>
 </tr>
@@ -1706,7 +1706,7 @@
 </table>
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime.mp4" type="video/mp4"></video>
 
-<p><em>Realtime preset: recorded offline at 1080p60, with baked shadows, planar reflections and reduced particle, water and fog budgets. Measured median frame time on Intel Arc MTL is 62.1 ms; this preset does not yet run at 60 fps. The dungeon's shaders are compiled from GLSL for now.</em></p>
+<p><em>Realtime preset: recorded offline at 1080p60, with baked shadows, planar reflections and reduced particle, water and fog budgets. Measured median frame time on Intel Arc MTL is 59.0 ms; this preset does not yet run at 60 fps. The dungeon's shaders are compiled from GLSL for now.</em></p>
 <p>Full-tour release capture, 1200 frames per preset with the first three excluded.
 GPU times are Vulkan timestamp medians, summed within each frame across main and
 reflection draws. Per-pass medians need not sum to the median total. CPU frame
@@ -1724,27 +1724,34 @@ Measurements share the laptop with other work.</p>
 <tbody>
 <tr>
 <td>Realtime</td>
-<td style="text-align: right;">62.15</td>
-<td style="text-align: right;">142.17</td>
-<td style="text-align: right;">14.97</td>
+<td style="text-align: right;">59.01</td>
+<td style="text-align: right;">138.71</td>
+<td style="text-align: right;">13.11</td>
 </tr>
 <tr>
 <td>Showcase</td>
-<td style="text-align: right;">141.21</td>
-<td style="text-align: right;">211.43</td>
-<td style="text-align: right;">82.75</td>
+<td style="text-align: right;">143.50</td>
+<td style="text-align: right;">252.42</td>
+<td style="text-align: right;">83.77</td>
 </tr>
 </tbody>
 </table>
+<p>Realtime graphics work including submission and copies takes 27.75 ms median;
+the unchanged audio mix takes 30.43 ms median. The full frame still
+misses the 25 ms goal. Individual medians do not add to the median total.</p>
 <p>The scene uses one opaque batch, instanced formations and sprites, and a water
 draw; offscreen room batches and cave formations are culled. Realtime additionally
 renders the reflected scene. Showcase uses 96 particles per light, a 256x64 water
 grid, 24 quarter-resolution fog steps, four shadow rays per contributing light,
-one AO ray and one reflection ray on wet surfaces. Realtime uses 32 particles per
-light, a 128x32 water grid, eight fog steps and a 960x540 planar reflection.
+one AO ray and one reflection ray on wet surfaces. Realtime uses 24 particles per
+light, a 96x24 water grid, four fog steps and a 480x270 planar reflection. Ten
+128px shadow cubemaps are baked, with at most two nearby lights
+casting shadows; rock textures use the dominant face projection.
 These are resource budgets, not measured console frame costs.</p>
 <p>The Qt selector and <code>capture dungeon --quality realtime|showcase</code> select the presets;
-<code>--raytracing on|off</code> overrides ray queries. Intel Arc MTL supports the ray-query
+<code>--raytracing on|off</code> overrides ray queries. <code>--water-debug normal|reflection|refraction</code>
+isolates water inputs; <code>DUNGEON_WATER_DUMP=&lt;directory&gt;</code> writes the live heightfield
+and raw reflection/refraction buffers for inspection. Intel Arc MTL supports the ray-query
 showcase; devices without ray-query support use the raster fallback.
 The <a href="https://github.com/jopdorp/oboromi/blob/audio-dungeon/demos/assets/dungeon-materials.md">material manifest</a>
 records the ambientCG assets and CC0 licence. Audio is drained directly to WAV
