@@ -57,8 +57,10 @@ fn draw(showcase: bool) -> svc::Result<()> {
     nv::guest_slice::<u8>(memory + BODIES - BASE + u64::from(count * BODY_BYTES), (TRAIL_COUNT * BODY_BYTES) as usize).fill(0);
     let stars = include_bytes!(concat!(env!("OUT_DIR"), "/solar-stars.bin"));
     nv::guest_slice(memory + BODIES - BASE + u64::from((count + TRAIL_COUNT) * BODY_BYTES), stars.len()).copy_from_slice(stars);
+    nv::guest_slice::<u8>(memory + BODIES - BASE + u64::from((count + TRAIL_COUNT + STAR_COUNT) * BODY_BYTES), (HUD_COUNT * BODY_BYTES) as usize).fill(0);
     nv::guest_slice::<u8>(memory + SCRATCH - BASE + u64::from(count * BODY_BYTES), (TRAIL_COUNT * BODY_BYTES) as usize).fill(0);
     nv::guest_slice(memory + SCRATCH - BASE + u64::from((count + TRAIL_COUNT) * BODY_BYTES), stars.len()).copy_from_slice(stars);
+    nv::guest_slice::<u8>(memory + SCRATCH - BASE + u64::from((count + TRAIL_COUNT + STAR_COUNT) * BODY_BYTES), (HUD_COUNT * BODY_BYTES) as usize).fill(0);
     let mut words = Words { storage: nv::guest_slice(memory + INIT_SEGMENT - BASE, 0x1000), len: 0 };
     init(count, &mut words);
     channel.submit(INIT_SEGMENT, words.len)?;
@@ -78,6 +80,10 @@ fn draw(showcase: bool) -> svc::Result<()> {
         }
         words.storage = nv::guest_slice(memory + DRAW_SEGMENT - BASE, 0x14000);
         words.len = 0;
+        let instances = nv::guest_slice::<f32>(memory + source - BASE, (count + EXTRA_COUNT) as usize * 12);
+        let (bodies, extras) = instances.split_at_mut(count as usize * 12);
+        scene::solar::hud(frame as f32 / 60.0, (time * 2_500.0) as u32, bodies,
+            &mut extras[((TRAIL_COUNT + STAR_COUNT) * 12) as usize..], sqrt);
         let [hi, lo] = scene::split(source);
         scene::inc(scene::threed::SET_VERTEX_STREAM_A_FORMAT + 4, &[hi, lo], &mut words);
         scene::solar::draw(frame as f32 / 60.0, count, frame, sqrt, &mut words);

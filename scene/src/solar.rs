@@ -8,7 +8,8 @@ pub const REALTIME_COUNT: u32 = 512;
 pub const SHOWCASE_COUNT: u32 = 2048;
 pub const TRAIL_COUNT: u32 = 6 * 32;
 pub const STAR_COUNT: u32 = 512;
-pub const EXTRA_COUNT: u32 = TRAIL_COUNT + STAR_COUNT;
+pub const HUD_COUNT: u32 = 320;
+pub const EXTRA_COUNT: u32 = TRAIL_COUNT + STAR_COUNT + HUD_COUNT;
 pub const BODY_BYTES: u32 = 48;
 pub const DUST_MASS: f32 = 0.000_018 / SHOWCASE_COUNT as f32;
 pub const CELLS: u32 = 64 * 64;
@@ -106,7 +107,7 @@ pub fn step(count: u32, dt: f32, time: f32, trail_slot: u32, collide: bool, src:
     }
 }
 
-fn camera(seconds: f32, sqrt: impl Fn(f32) -> f32) -> ([f32; 16], [f32; 3], [f32; 3]) {
+fn camera(seconds: f32, sqrt: impl Fn(f32) -> f32) -> ([f32; 16], [f32; 3], [f32; 3], [f32; 3], [f32; 3]) {
     let t = (seconds / 20.0).clamp(0.0, 1.0);
     let tilt = t * t * (3.0 - 2.0 * t);
     let (sin, cos) = crate::pbr::sin_cos(0.16 * seconds);
@@ -122,14 +123,61 @@ fn camera(seconds: f32, sqrt: impl Fn(f32) -> f32) -> ([f32; 16], [f32; 3], [f32
     let depth = far / (near - far);
     let rows = [r.map(|c| c * focal * HEIGHT as f32 / WIDTH as f32), u.map(|c| -c * focal),
         [back[0] * depth, back[1] * depth, back[2] * depth, back[3] * depth + near * depth], back.map(|c| -c)];
-    (core::array::from_fn(|i| rows[i % 4][i / 4]), right, up)
+    (core::array::from_fn(|i| rows[i % 4][i / 4]), right, up, eye, forward)
+}
+
+fn number(mut value: u32, digits: u32, origin: [f32; 2], scale: f32, mut emit: impl FnMut([f32; 2])) {
+    const MASKS: [u8; 10] = [0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x6f];
+    const SEGMENTS: [[[f32; 2]; 2]; 7] = [
+        [[0.25, 0.0], [0.75, 0.0]], [[1.0, 0.25], [1.0, 0.75]], [[1.0, 1.25], [1.0, 1.75]],
+        [[0.25, 2.0], [0.75, 2.0]], [[0.0, 1.25], [0.0, 1.75]], [[0.0, 0.25], [0.0, 0.75]],
+        [[0.25, 1.0], [0.75, 1.0]],
+    ];
+    for slot in (0..digits).rev() {
+        let mask = MASKS[(value % 10) as usize];
+        value /= 10;
+        for points in SEGMENTS.iter().enumerate().filter(|(segment, _)| mask >> segment & 1 != 0).map(|(_, points)| points) {
+            for point in points { emit([origin[0] + (point[0] + slot as f32 * 1.45) * scale, origin[1] + point[1] * scale]); }
+        }
+    }
+}
+
+pub fn hud(seconds: f32, years: u32, bodies: &[f32], out: &mut [f32], sqrt: impl Fn(f32) -> f32 + Copy) {
+    let (_, right, up, eye, forward) = camera(seconds, sqrt);
+    out.fill(0.0);
+    let mut used = 0;
+    let mut push = |position: [f32; 3], scale: f32, colour: [f32; 4]| {
+        if used == HUD_COUNT as usize { return; }
+        let body = &mut out[used * 12..][..12];
+        body[..4].copy_from_slice(&[position[0], position[1], position[2], 2.0 * (1.0 - scale)]);
+        body[8..].copy_from_slice(&colour);
+        used += 1;
+    };
+    let world = |point: [f32; 2]| {
+        let depth = 2.0;
+        let x = point[0] * depth / (1.9 * HEIGHT as f32 / WIDTH as f32);
+        let y = -point[1] * depth / 1.9;
+        core::array::from_fn(|axis| eye[axis] + forward[axis] * depth + right[axis] * x + up[axis] * y)
+    };
+    number(years % 10_000, 4, [-0.9, -0.86], 0.045, |point| push(world(point), 2.4, [1.0, 0.58, 0.16, 0.8]));
+    let alive = bodies.chunks_exact(12).filter(|body| body[7] != 0.0).count() as u32;
+    number(alive, 4, [0.62, -0.86], 0.045, |point| push(world(point), 2.4, [0.35, 0.7, 1.0, 0.8]));
+    for body in bodies.chunks_exact(12).skip(1).filter(|body| body[7] >= 0.1 * 3.003e-6).take(4) {
+        let offset: [f32; 3] = core::array::from_fn(|axis| body[axis] - eye[axis]);
+        let depth: f32 = offset.into_iter().zip(forward).map(|(a, b)| a * b).sum();
+        let origin: [f32; 3] = core::array::from_fn(|axis| body[axis] + right[axis] * depth * 0.025 + up[axis] * depth * 0.025);
+        number((body[7] / 3.003e-7) as u32, 2, [0.0, 0.0], depth * 0.008, |point| {
+            let position = core::array::from_fn(|axis| origin[axis] + right[axis] * point[0] + up[axis] * point[1]);
+            push(position, depth, [0.55, 0.76, 1.0, 0.75]);
+        });
+    }
 }
 
 pub fn draw(seconds: f32, count: u32, payload: u32, sqrt: impl Fn(f32) -> f32, words: &mut impl Extend<u32>) {
     const STRIP: u32 = 5 << 28 | 4 << 16;
     const PACKET: u32 = 8191;
     const RELEASE_ONE_WORD: u32 = 0x1000_f010;
-    let (view_proj, right, up) = camera(seconds, sqrt);
+    let (view_proj, right, up, _, _) = camera(seconds, sqrt);
     let mut uniforms = [0.0; 24];
     uniforms[..16].copy_from_slice(&view_proj);
     uniforms[16..19].copy_from_slice(&right);

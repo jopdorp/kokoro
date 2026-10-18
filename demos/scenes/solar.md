@@ -7,4 +7,4 @@ inclination and migrates bodies inward.
 
 The realtime variant advances 512 bodies once per frame. The offline showcase advances 2,048 bodies three times per
 frame. Both run through the translator from a guest QMD, then use one additive instanced draw for the disk, growing
-planet seeds, their trails and the star field.
+planet seeds, their trails, the star field, simulated years and live body and planet-mass readouts.
