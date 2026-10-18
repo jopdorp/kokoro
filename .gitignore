@@ -7,7 +7,9 @@ rad/
 research/
 build/
 /site
+__pycache__/
 /demos/assets/boombox/
 /demos/assets/flighthelmet/
 
 /demos/assets/dungeon/
+/demos/assets/dungeon-audio/

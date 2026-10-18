@@ -26,6 +26,7 @@ const PIXEL_PIPELINE: usize = 5;
 const SHADER_TYPE_VERTEX: u32 = 1;
 const SHADER_TYPE_PIXEL: u32 = 5;
 const A8B8G8R8: u8 = 0xd5;
+const R16G16B16A16_FLOAT: u8 = 0xca;
 // CLEAR_SURFACE bits (clc797.h): Z_ENABLE, and R, G, B and A of the target MRT_SELECT names.
 const CLEAR_Z: u32 = 0x01;
 const CLEAR_RGBA: u32 = 0x3c;
@@ -84,6 +85,7 @@ enum PipelineKey {
         /// SET_BLEND, its equations and SET_CT_WRITE, unless VK_EXT_extended_dynamic_state3 makes them dynamic.
         blend: Option<(Option<Blend>, u8)>,
         depth: Option<vk::Format>,
+        colour: vk::Format,
     },
     Dispatch(u64),
 }
@@ -316,12 +318,14 @@ fn topology(topology: PrimitiveTopology) -> Result<vk::PrimitiveTopology, String
     })
 }
 
-fn colour_extent(ct: ColourTarget) -> Result<vk::Extent2D, String> {
-    if ct.format != A8B8G8R8 || ct.layout != MemoryLayout::Pitch {
-        return Err(format!("colour target format {:#x} with {:?} layout is not implemented", ct.format, ct.layout));
-    }
+fn colour_layout(ct: ColourTarget) -> Result<(vk::Format, vk::Extent2D), String> {
+    let (format, bytes) = match (ct.format, ct.layout) {
+        (A8B8G8R8, MemoryLayout::Pitch) => (vk::Format::R8G8B8A8_UNORM, 4),
+        (R16G16B16A16_FLOAT, MemoryLayout::Pitch) => (vk::Format::R16G16B16A16_SFLOAT, 8),
+        _ => return Err(format!("colour target format {:#x} with {:?} layout is not implemented", ct.format, ct.layout)),
+    };
     // A pitch-linear colour target's WIDTH holds its pitch in bytes (Ryujinx RtColorState.WidthOrStride).
-    Ok(vk::Extent2D { width: ct.width / 4, height: ct.height })
+    Ok((format, vk::Extent2D { width: ct.width / bytes, height: ct.height }))
 }
 
 fn raster_state(draw: &DrawSnapshot, extent: vk::Extent2D, topology: vk::PrimitiveTopology, blend: vk::PipelineColorBlendAttachmentState) -> RasterState {
@@ -570,9 +574,16 @@ impl<'a> Gpu<'a> {
 
     /// Writes a clear no draw consumed into the target's guest memory, where the target's next draw loads it from.
     fn fill(&mut self, target: ColourTarget, colour: [f32; 4]) -> Result<(), String> {
-        let extent = colour_extent(target)?;
-        let texel = colour.map(|c| (c.clamp(0.0, 1.0) * 255.0).round() as u8);
-        let bytes = texel.repeat((extent.width * extent.height) as usize);
+        let (format, extent) = colour_layout(target)?;
+        let bytes = if target.format == A8B8G8R8 {
+            colour.map(|c| (c.clamp(0.0, 1.0) * 255.0).round() as u8).repeat((extent.width * extent.height) as usize)
+        } else {
+            let image = RenderTarget::with_format(self.state, extent.width, extent.height, None, None, format).map_err(named)?;
+            image.clear(colour).map_err(named)?;
+            let mut bytes = vec![0; target.width as usize * target.height as usize];
+            image.read(&mut bytes).map_err(named)?;
+            bytes
+        };
         self.store(target.address, &bytes, Writer::Gpu).map_err(named)
     }
 
@@ -584,7 +595,7 @@ impl<'a> Gpu<'a> {
         let len = u64::from(width * height * 4);
         let ranges: Vec<_> = self.space.resolve(va, len).map_err(named)?.collect();
         let current = generation(&self.memory, &ranges);
-        let drawn = self.targets.iter().find(|(key, target)| key.ranges == ranges && key.extent == (width, height) && target.generation == current);
+        let drawn = self.targets.iter().find(|(key, target)| key.format == A8B8G8R8 && key.ranges == ranges && key.extent == (width, height) && target.generation == current);
         match drawn {
             Some((_, target)) => crate::display::present_image(target.render_target.color_image(), width, height),
             None => {
@@ -901,7 +912,7 @@ impl<'a> Gpu<'a> {
         }
 
         let ct = draw.colour_target;
-        let extent = colour_extent(ct)?;
+        let (colour, extent) = colour_layout(ct)?;
         let topology = topology(draw.topology)?;
         let pipeline_depth = draw.depth_target.map(|target| self.depth_format(target)).transpose()?;
         let key = PipelineKey::Draw {
@@ -911,6 +922,7 @@ impl<'a> Gpu<'a> {
             topology,
             blend: self.state.extended_dynamic_state3.is_none().then_some((draw.blend, draw.colour_write_mask)),
             depth: pipeline_depth,
+            colour,
         };
 
         let vertex_ranges = streams
@@ -963,7 +975,7 @@ impl<'a> Gpu<'a> {
             move || {
                 let layout = VertexLayout { bindings: &bindings, attributes: &attributes, topology };
                 let target = TargetState { blend, depth: pipeline_depth };
-                GraphicsPipeline::new(state, &vs, None, &fs, [&vs_bindings, &fs_bindings], &layout, &target).map(Pipeline::Draw)
+                GraphicsPipeline::with_format(state, &vs, None, &fs, [&vs_bindings, &fs_bindings], &layout, &target, colour).map(Pipeline::Draw)
             }
         });
         let Lookup::Ready(Pipeline::Draw(pipeline)) = lookup.map_err(named)? else { return Ok(()) };
@@ -981,7 +993,7 @@ impl<'a> Gpu<'a> {
         }
         pipeline.descriptors[1].bind_images(&textures.iter().map(|(binding, key)| (*binding, &self.textures[key].1)).collect::<Vec<_>>());
 
-        let len = u64::from(extent.width * extent.height * 4);
+        let len = u64::from(ct.width) * u64::from(ct.height);
         let ranges: Vec<_> = self.space.resolve(ct.address, len).map_err(named)?.collect();
         let clear = self.pending_clear.take_if(|(target, _)| *target == ct).map(|(_, colour)| colour);
         let clear_depth = self.pending_depth_clear.take_if(|(target, _)| Some(*target) == draw.depth_target).map(|(_, depth)| depth);
@@ -998,14 +1010,14 @@ impl<'a> Gpu<'a> {
                     Some(zero_copy) => zero_copy.buffer(unsafe { self.ram.slice_mut(0, self.ram.size()) }, &ranges).map_err(named)?,
                     None => None,
                 };
-                let render_target = RenderTarget::new(self.state, extent.width, extent.height, pipeline_depth, staging).map_err(named)?;
+                let render_target = RenderTarget::with_format(self.state, extent.width, extent.height, pipeline_depth, staging, colour).map_err(named)?;
                 entry.insert(Target { render_target, generation: u64::MAX, pending: None, depth_cleared: false })
             }
         };
         let load = clear.is_none() && target.generation != current;
         let imported = target.render_target.staging.imported.is_some();
         if load && !imported {
-            self.pixels.resize((extent.width * extent.height * 4) as usize, 0);
+            self.pixels.resize(len as usize, 0);
             gather(&self.space, unsafe { self.ram.slice(0, self.ram.size()) }, ct.address, &mut self.pixels).map_err(named)?;
             target.render_target.write(&self.pixels).map_err(named)?;
             self.memory.uploaded += self.pixels.len() as u64;
@@ -1030,7 +1042,7 @@ impl<'a> Gpu<'a> {
         };
         self.state.draw(pipeline, &target.render_target, &draw_state).map_err(named)?;
         let rows = draw_state.rows(extent.height);
-        let drawn = u64::from(rows.start * extent.width * 4)..u64::from(rows.end * extent.width * 4);
+        let drawn = u64::from(rows.start) * u64::from(ct.width)..u64::from(rows.end) * u64::from(ct.width);
         if !drawn.is_empty() {
             target.pending = Some(target.pending.take().map_or(drawn.clone(), |pending| pending.start.min(drawn.start)..pending.end.max(drawn.end)));
         }

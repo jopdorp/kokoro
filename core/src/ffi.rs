@@ -145,6 +145,12 @@ pub extern "C" fn oboromi_render_sprites_frame(_seconds: f32) -> bool {
     )
 }
 
+#[unsafe(no_mangle)]
+pub extern "C" fn oboromi_render_tensor_upscale_frame(_seconds: f32) -> bool {
+    crate::gpu::SPEED_HACKS.lock().unwrap().fast_tensor = true;
+    matches!(catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::TensorUpscale)), Ok(Ok(())))
+}
+
 /// Runs the music guest to its next present; call from a worker thread.
 #[unsafe(no_mangle)]
 pub extern "C" fn oboromi_render_music_demo(_seconds: f32) -> bool {
