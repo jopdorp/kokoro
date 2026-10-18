@@ -5,7 +5,7 @@
 mod threads;
 pub use threads::{Scheduler, Timer};
 
-use crate::cpu::UnicornCPU;
+use crate::cpu::Cpu;
 use crate::cpu::cpu_manager::MEMORY_SIZE;
 use crate::nn::hipc::{self, ParsedRequest, Service};
 use crate::nn::{applet, hid, sm::Sm, time};
@@ -177,12 +177,12 @@ fn check_pages(addr: u64, size: u64) -> Result<(), Error> {
     addr.checked_add(size).map(drop).ok_or(Error::InvalidCurrentMemory)
 }
 
-fn copy(cpu: &UnicornCPU, src: u64, dst: u64, size: u64) -> Result<(), Error> {
+fn copy(cpu: &dyn Cpu, src: u64, dst: u64, size: u64) -> Result<(), Error> {
     let mut bytes = vec![0; size as usize];
     cpu.read_mem(src, &mut bytes).and_then(|()| cpu.write_mem(dst, &bytes)).map_err(|_| Error::InvalidCurrentMemory)
 }
 
-fn output_debug_string(cpu: &UnicornCPU, addr: u64, len: u64) -> Result<String, Error> {
+fn output_debug_string(cpu: &dyn Cpu, addr: u64, len: u64) -> Result<String, Error> {
     if addr.checked_add(len).is_none_or(|end| end > MEMORY_SIZE) {
         return Err(Error::InvalidPointer);
     }
@@ -230,7 +230,7 @@ impl Process {
 
     /// Without an MMU the alias is a move: Horizon locks the source while it is mapped, so the
     /// guest cannot see the difference.
-    fn map_memory(&mut self, cpu: &UnicornCPU, dst: u64, src: u64, size: u64) -> Result<(), Error> {
+    fn map_memory(&mut self, cpu: &dyn Cpu, dst: u64, src: u64, size: u64) -> Result<(), Error> {
         check_pages(dst, size)?;
         check_pages(src, size)?;
         if !self.mapped(src, size) {
@@ -248,7 +248,7 @@ impl Process {
         Ok(())
     }
 
-    fn unmap_memory(&mut self, cpu: &UnicornCPU, dst: u64, src: u64, size: u64) -> Result<(), Error> {
+    fn unmap_memory(&mut self, cpu: &dyn Cpu, dst: u64, src: u64, size: u64) -> Result<(), Error> {
         let index = self.aliases.iter().position(|&a| a == (dst, src, size)).ok_or(Error::InvalidCurrentMemory)?;
         copy(cpu, dst, src, size)?;
         self.aliases.remove(index);
@@ -320,7 +320,7 @@ impl Process {
 
 impl Kernel {
     /// Points the thread at an image of `image_size` bytes loaded at `entry`.
-    pub fn start(&mut self, cpu: &UnicornCPU, entry: u64, image_size: u64) -> u32 {
+    pub fn start(&mut self, cpu: &dyn Cpu, entry: u64, image_size: u64) -> u32 {
         self.process.image_size = image_size.next_multiple_of(PAGE);
         cpu.set_pc(entry);
         cpu.set_sp(MAIN_STACK.base + MAIN_STACK.size);
@@ -329,14 +329,14 @@ impl Kernel {
     }
 
     /// Runs ready threads and deadlines until process exit or an unhandled stop.
-    pub fn run(&mut self, cpu: &UnicornCPU) -> bool { self.run_until(cpu, || false) }
+    pub fn run(&mut self, cpu: &dyn Cpu) -> bool { self.run_until(cpu, || false) }
 
     /// Runs until the process exits or `stop` is true; returns true only on process exit.
-    pub fn run_until(&mut self, cpu: &UnicornCPU, stop: impl FnMut() -> bool) -> bool { self.run_threads(cpu, stop) }
+    pub fn run_until(&mut self, cpu: &dyn Cpu, stop: impl FnMut() -> bool) -> bool { self.run_threads(cpu, stop) }
 
     /// Returns x0-x7 after the call, or None once the process has exited.
     /// SVC ids and register use: yuzu src/core/hle/kernel/svc.h SvcId and svc.cpp SvcWrap_*64.
-    pub fn svc(&mut self, cpu: &UnicornCPU, nr: u32, mut x: [u64; 8]) -> Option<[u64; 8]> {
+    pub fn svc(&mut self, cpu: &dyn Cpu, nr: u32, mut x: [u64; 8]) -> Option<[u64; 8]> {
         if nr == 0x10 { x[0] = self.current_core(); return Some(x); }
         if nr == 0x1e { x[0] = cpu.ticks(); return Some(x); }
         let process = &mut self.process;
@@ -367,7 +367,7 @@ impl Kernel {
         Some(x)
     }
 
-    fn device_deadline(&mut self, cpu: &UnicornCPU) -> Option<u64> {
+    fn device_deadline(&mut self, cpu: &dyn Cpu) -> Option<u64> {
         let mut deadline = None;
         self.devices.retain(|device| {
             let Some(device) = device.upgrade() else { return false };
@@ -379,7 +379,7 @@ impl Kernel {
         deadline
     }
 
-    fn connect_to_named_port(&mut self, cpu: &UnicornCPU, addr: u64) -> Result<u32, Error> {
+    fn connect_to_named_port(&mut self, cpu: &dyn Cpu, addr: u64) -> Result<u32, Error> {
         let mut name = [0; 12];
         cpu.read_mem(addr, &mut name).map_err(|_| Error::InvalidPointer)?;
         let len = name.iter().position(|&b| b == 0).ok_or(Error::OutOfRange)?;
@@ -388,7 +388,7 @@ impl Kernel {
         Ok(self.process.handles.add(Object::Session(Rc::new(RefCell::new(Session::new(service))))))
     }
 
-    fn send_sync_request(&mut self, cpu: &UnicornCPU, handle: u32) -> Result<(), Error> {
+    fn send_sync_request(&mut self, cpu: &dyn Cpu, handle: u32) -> Result<(), Error> {
         let Some(Object::Session(service)) = self.process.handles.get(handle) else {
             return Err(Error::InvalidHandle);
         };
@@ -397,7 +397,7 @@ impl Kernel {
         self.exchange(cpu, &service).inspect_err(|_| drop(self.process.handles.remove(handle)))
     }
 
-    fn exchange(&mut self, cpu: &UnicornCPU, session: &RefCell<Session>) -> Result<(), Error> {
+    fn exchange(&mut self, cpu: &dyn Cpu, session: &RefCell<Session>) -> Result<(), Error> {
         let mut message = [0; hipc::MESSAGE_SIZE];
         let tls = if cpu.tls() == 0 { TLS } else { cpu.tls() };
         cpu.read_mem(tls, &mut message).map_err(|_| Error::InvalidPointer)?;

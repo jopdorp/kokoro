@@ -1,6 +1,6 @@
 //! audren:u and IAudioRenderer (switchbrew Audio_services, libnx audren.c).
 use crate::audio::{self, Error, GuestMemory, renderer::{AudioRendererParameter, Renderer, work_buffer_size}};
-use crate::{cpu::UnicornCPU, kernel::Object, nn::hipc::{Request, Response, Service}};
+use crate::{cpu::Cpu, kernel::Object, nn::hipc::{Request, Response, Service}};
 use std::{cell::{Cell, RefCell}, rc::Rc};
 
 pub struct State;
@@ -27,7 +27,7 @@ impl Service for Manager {
         result.unwrap_or_else(|e: Error| Response::error(e.result()))
     }
 }
-struct Memory<'a>(&'a UnicornCPU);
+struct Memory<'a>(&'a dyn Cpu);
 impl GuestMemory for Memory<'_> {
     fn read(&self, va: u64, out: &mut [u8]) { if self.0.read_mem(va, out).is_err() { out.fill(0); } }
     fn write(&mut self, va: u64, data: &[u8]) { let _ = self.0.write_mem(va, data); }
@@ -35,7 +35,7 @@ impl GuestMemory for Memory<'_> {
 struct AudioRenderer { renderer: Renderer, parameter: AudioRendererParameter, next: u64, event: Rc<Cell<bool>> }
 impl Service for AudioRenderer {
     fn deadline(&self) -> Option<u64> { Some(self.next) }
-    fn advance(&mut self, cpu: &UnicornCPU) {
+    fn advance(&mut self, cpu: &dyn Cpu) {
         while cpu.ticks() >= self.next {
             audio::play(&[self.renderer.step(&mut Memory(cpu))]);
             self.event.set(true);
