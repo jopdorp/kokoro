@@ -88,6 +88,14 @@ bool renderParticlesFrame(float seconds) {
     return oboromi_render_particles_frame(seconds);
 }
 
+bool renderSolarFrame(float) {
+    return oboromi_render_solar_frame(false);
+}
+
+bool renderSolarShowcaseFrame(float) {
+    return oboromi_render_solar_frame(true);
+}
+
 }
 
 bool RustBridge::renderDungeonFrame(float seconds) {

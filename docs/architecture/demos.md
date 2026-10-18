@@ -53,6 +53,12 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 
 *The guest runs the compute update, then submits one instanced draw through `nvdrv`.*
 
+### Solar system birth
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-solar-showcase.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-solar-showcase.mp4" type="video/mp4"></video>
+
+*This guest program starts 2,048 bodies in a young disk. Kepler drift plus mutual kicks move them around the star, and overlapping bodies accrete. The showcase took 1,088.569 ms per frame at the median and 1,450.911 ms at p95 on the Intel Arc laptop.*
+
 ### Julia
 
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-julia.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-julia.mp4" type="video/mp4"></video>
@@ -63,7 +69,7 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-mandelbrot.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-mandelbrot.mp4" type="video/mp4"></video>
 
-*NVIDIA's CUDA sample kernel runs unchanged through the translator. The guest owns the frame memory, launches the kernel through `nvdrv` each frame with the new zoom, and presents it.*
+*A double-precision dive into the seahorse valley. The guest owns the frame memory, launches NVIDIA's CUDA sample kernel through `nvdrv`, and presents it.*
 
 ### Ray-traced scene
 
