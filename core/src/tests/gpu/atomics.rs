@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::tests::gpu::harness::{GLOBAL_BASE, UREG, run_lanes};
+    use crate::tests::gpu::harness::{GLOBAL_BASE, UREG, run_lanes, spirv_val, translate_module};
     use crate::tests::gpu_test::inst::{ATOM, ATOM_DEC, ATOM_INC, ATOM_MAX, ATOM_MIN, ATOMG, ATOMG_CAS, ATOM_ADD_F16X2, ATOM_ADD_F32, ATOM_MAX_F16X2, ATOM_MIN_F16X2, RED, RED_UR_64, S32, SZ_32, W2J_ATOMG_U64_ADD, alu, alu3, stg};
 
     fn run(program: &[u128], r5: impl Fn(u32) -> u32, r6: impl Fn(u32) -> u32, global: &[u32]) -> Option<(Vec<Vec<u32>>, Vec<u32>)> {
@@ -67,6 +67,11 @@ mod tests {
         ];
         let Some((_, global)) = run(&program, |_| 0xc500_4500, |_| 0x3c00_3c00, &[0xc900_4900, 0xc900_4900, 0]) else { return };
         assert_eq!(global, [0xc900_4500, 0xc500_4900, 0x5000_5000]);
+    }
+
+    #[test]
+    fn half2_add_with_predicate_destination_passes_spirv_validation() {
+        spirv_val(&translate_module(&[0x000ea4000810e9c40000001302ff798a], true, None, false));
     }
 
     #[test]

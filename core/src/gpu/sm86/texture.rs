@@ -260,11 +260,18 @@ impl<'a> Decoder<'a> {
     }
     pub fn suld(&mut self, inst: u128) {
         assert!(inst >> 81 & 7 == PT as u128, "SULD sparse residency predicate");
-        let (image, coord, raw) = self.surface_2d(inst, [0xb99, 0xb97], "SULD");
-        let texel = self.ir.emit_image_read(self.type_f32[4], image, coord, &[]);
+        let (image, coord, raw, wide) = self.surface_access(inst, [0xb99, 0xb97], "SULD");
+        let texel = self.ir.emit_image_read(if wide { self.type_u32[4] } else { self.type_f32[4] }, image, coord, &[]);
         let rd = (inst >> 16 & 0xff) as u32;
         if raw {
-            assert!(inst >> 73 & 7 == 4, "SULD.D size {} is not 32", inst >> 73 & 7);
+            if wide {
+                for c in 0..4 {
+                    let value = self.ir.emit_composite_extract(self.type_u32[1], texel, &[c]);
+                    self.store_register(nth_reg(rd, RZ, c), value);
+                }
+                return;
+            }
+            assert!(inst >> 73 & 7 == 4, "SULD.D size {} is not 32 or 128", inst >> 73 & 7);
             // The host binds only RGBA8 surfaces, so a raw 32-bit word is the packed texel.
             let bits = self.glsl(spirv::glsl::PACK_UNORM_4X8, self.type_u32[1], &[texel]);
             self.store_register(rd, bits);
@@ -283,15 +290,16 @@ impl<'a> Decoder<'a> {
         }
     }
 
-    // The bound 2D surface, the texel coordinate in Ra, Ra+1, and whether `inst` is the .D rather than the .P opcode.
-    fn surface_2d(&mut self, inst: u128, [d_form, p_form]: [u32; 2], name: &str) -> (u32, u32, bool) {
+    fn surface_access(&mut self, inst: u128, [d_form, p_form]: [u32; 2], name: &str) -> (u32, u32, bool, bool) {
         let raw = match opcode(inst) {
             op if op == d_form => true,
             op if op == p_form => false,
             _ => panic!("{name} only in the bound cbuf form: {inst:#034x}"),
         };
-        let (var, ty, coord) = self.surface(inst, vk::Format::R8G8B8A8_UNORM, raw && inst >> 72 & 1 != 0);
-        (self.ir.emit_load(ty, var), coord, raw)
+        let wide = raw && inst >> 73 & 7 == 6;
+        let format = if wide { vk::Format::R32G32B32A32_UINT } else { vk::Format::R8G8B8A8_UNORM };
+        let (var, ty, coord) = self.surface(inst, format, raw && inst >> 72 & 1 != 0);
+        (self.ir.emit_load(ty, var), coord, raw, wide)
     }
 
     // The bound 2D surface variable holding `format` texels, its image type, and the texel coordinate in Ra, Ra+1,
@@ -300,24 +308,37 @@ impl<'a> Decoder<'a> {
         const STORAGE: u32 = 2;
         const RGBA8: u32 = 4;
         const R32UI: u32 = 33;
-        assert!(inst >> 61 & 7 == 3, "surface dimension {} is not 2D: {inst:#034x}", inst >> 61 & 7);
+        const RGBA32UI: u32 = 30;
+        let dimension = (inst >> 61 & 7) as usize;
+        assert!(matches!(dimension, 0 | 3), "surface dimension {dimension} is not 1D or 2D: {inst:#034x}");
+        let spirv_dimension = usize::from(dimension == 3);
+        if spirv_dimension == 0 {
+            self.ir.emit_capability(spirv::capability::IMAGE_1D);
+        }
         let (slot, sampled, image_format) = match format {
             vk::Format::R32_UINT => (1, self.type_u32[1], R32UI),
+            vk::Format::R32G32B32A32_UINT => (2, self.type_u32[1], RGBA32UI),
             _ => (0, self.type_f32[1], RGBA8),
         };
-        if self.type_surface_2d[slot] == 0 {
-            self.type_surface_2d[slot] = self.ir.emit_type_image(sampled, DIM_2D, 0, 0, 0, STORAGE, image_format);
+        if self.type_surface[slot][spirv_dimension] == 0 {
+            self.type_surface[slot][spirv_dimension] = self.ir.emit_type_image(sampled, spirv_dimension as u32, 0, 0, 0, STORAGE, image_format);
         }
-        let ty = self.type_surface_2d[slot];
+        let ty = self.type_surface[slot][spirv_dimension];
         let (cbuf_bank, byte_offset) = bound_handle(inst);
-        let var = self.image_variable(ResourceKind::Surface2D { cbuf_bank, byte_offset, format }, ty);
+        let var = self.image_variable(ResourceKind::Surface { cbuf_bank, byte_offset, dimension: spirv_dimension as u32, format }, ty);
         let ra = (inst >> 24 & 0xff) as u32;
-        let mut coords = [ra, ra + 1].map(|r| self.load_register(r));
+        let mut x = self.load_register(ra);
         if byte_addressed {
-            let two = self.cached_const_u32(2);
-            coords[0] = self.ir.emit_shift_right_logical(self.type_u32[1], coords[0], two);
+            let shift = self.cached_const_u32(if format == vk::Format::R32G32B32A32_UINT { 4 } else { 2 });
+            x = self.ir.emit_shift_right_logical(self.type_u32[1], x, shift);
         }
-        (var, ty, self.ir.emit_composite_construct(self.type_u32[2], &coords))
+        let coord = if dimension == 0 {
+            x
+        } else {
+            let y = self.load_register(ra + 1);
+            self.ir.emit_composite_construct(self.type_u32[2], &[x, y])
+        };
+        (var, ty, coord)
     }
     // COMP_STATUS (bit 87 = 0, the only SUQUERY query in the table) asks whether the texel's memory is compressed; Vulkan
     // never exposes compressed memory, so every texel reads as uncompressed: Rd zero, Pu clear.
@@ -352,9 +373,12 @@ impl<'a> Decoder<'a> {
         }
     }
     pub fn sust(&mut self, inst: u128) {
-        let (image, coord, raw) = self.surface_2d(inst, [0xb9d, 0xb9b], "SUST");
+        let (image, coord, raw, wide) = self.surface_access(inst, [0xb9d, 0xb9b], "SUST");
         let rb = (inst >> 32 & 0xff) as u32;
-        let texel = if raw {
+        let texel = if wide {
+            let components = [0, 1, 2, 3].map(|c| self.load_register(nth_reg(rb, RZ, c)));
+            self.ir.emit_composite_construct(self.type_u32[4], &components)
+        } else if raw {
             let mut bits = self.load_register(rb);
             let width = match inst >> 73 & 7 {
                 0 | 1 => 8,
@@ -384,15 +408,17 @@ impl<'a> Decoder<'a> {
         self.ir.emit_image_write(image, coord, texel, &[]);
     }
     pub fn tex(&mut self, inst: u128) {
-        assert!(opcode(inst) == 0xb60 && inst >> 59 & 1 == 0, "TEX only in the bound cbuf form: {inst:#034x}");
+        assert!(opcode(inst) == 0xb60 && inst >> 59 & 1 == 0, "unsupported TEX form: {inst:#034x}");
         for (bit, modifier) in [(76, "AOFFI"), (77, "NDV"), (79, "F16.RN"), (80, "F16.RZ")] {
             assert!(inst >> bit & 1 == 0, "TEX.{modifier}");
         }
         let dimension = (inst >> 61 & 7) as usize;
-        assert!(dimension == 1, "TEX.{}", ["1D", "2D", "3D", "CUBE", "ARRAY_1D", "ARRAY_2D", "INVALID6", "ARRAY_CUBE"][dimension]);
+        assert!(dimension < 3, "TEX.{}", ["1D", "2D", "3D", "CUBE", "ARRAY_1D", "ARRAY_2D", "INVALID6", "ARRAY_CUBE"][dimension]);
         assert!(inst >> 81 & 7 == PT as u128, "TEX sparse residency predicate");
         let [ra, rb] = [24, 32].map(|bit| (inst >> bit & 0xff) as u32);
-        let rb_value = self.load_register(rb);
+        let scr = (inst >> 60 & 1) as u32;
+        let operand = rb + scr;
+        let rb_value = self.load_register(operand);
         let rb_f32 = self.bitcast_f32(rb_value);
         let clamp_value = self.load_register(ra + 2);
         let clamp = self.bitcast_f32(clamp_value);
@@ -409,9 +435,16 @@ impl<'a> Decoder<'a> {
             _ => panic!("TEX lod mode {mode}"),
         };
         // .SCR splits the operands between Ra and Rb, so without a lod operand y is in Rb (RTX 3090 fixtures).
-        let y = if inst >> 60 & 1 != 0 && mode == 1 { rb } else { ra + 1 };
-        let coord = self.float_vec2([ra, y]);
-        let sampled = self.texture_2d(inst);
+        let coord = match dimension {
+            0 => self.texture_float(ra),
+            1 => {
+                let y = if scr != 0 && mode == 1 { rb } else { ra + 1 };
+                self.float_vec2([ra, y])
+            }
+            2 => self.float_vec3([ra, ra + 1, ra + 2]),
+            _ => unreachable!(),
+        };
+        let sampled = self.texture(inst, dimension);
         if matches!(mode, 2 | 4 | 5) {
             self.derivatives = true;
         }
@@ -420,7 +453,7 @@ impl<'a> Decoder<'a> {
         }
         let implicit_operands: Vec<_> = std::iter::once(image_ops).chain(operands.iter().copied()).collect();
         let texel = if inst >> 78 & 1 != 0 {
-            let dref_reg = rb + matches!(mode, 2 | 3 | 5) as u32;
+            let dref_reg = operand + matches!(mode, 2 | 3 | 5) as u32;
             let dref = self.load_register(dref_reg);
             let dref = self.bitcast_f32(dref);
             let sample = if matches!(mode, 1 | 3) {
@@ -439,22 +472,34 @@ impl<'a> Decoder<'a> {
         self.store_texel(inst, bits);
     }
     pub fn tld(&mut self, inst: u128) {
-        assert!(opcode(inst) == 0xb66 && inst >> 59 & 3 == 0, "TLD only in the bound cbuf form: {inst:#034x}");
+        assert!(opcode(inst) == 0xb66 && inst >> 59 & 1 == 0, "unsupported TLD form: {inst:#034x}");
         for (bit, modifier) in [(76, "AOFFI"), (77, "CL"), (78, "MS"), (79, "F16.RN"), (80, "F16.RZ")] {
             assert!(inst >> bit & 1 == 0, "TLD.{modifier}");
         }
-        assert!(inst >> 61 & 7 == 1, "TLD dimension {} is not 2D", inst >> 61 & 7);
+        let dimension = (inst >> 61 & 7) as usize;
+        assert!(dimension < 3, "TLD dimension {dimension} is not 1D, 2D, or 3D");
         assert!(inst >> 81 & 7 == PT as u128, "TLD sparse residency predicate");
         let [ra, rb] = [24, 32].map(|bit| (inst >> bit & 0xff) as u32);
+        let operand = rb + (inst >> 60 & 1) as u32;
         let lod = match inst >> 87 & 7 {
             1 => self.const_u32_0,
-            3 => self.load_register(rb),
+            3 => self.load_register(operand),
             mode => panic!("TLD only defines LZ and LL, not lod mode {mode}"),
         };
-        let coords = [ra, ra + 1].map(|r| self.load_register(r));
-        let coord = self.ir.emit_composite_construct(self.type_u32[2], &coords);
-        let sampled = self.texture_2d(inst);
-        let image = self.ir.emit_image(self.type_texture_2d, sampled);
+        let coord = match dimension {
+            0 => self.load_register(ra),
+            1 => {
+                let coords = [ra, ra + 1].map(|r| self.load_register(r));
+                self.ir.emit_composite_construct(self.type_u32[2], &coords)
+            }
+            2 => {
+                let coords = [ra, ra + 1, ra + 2].map(|r| self.load_register(r));
+                self.ir.emit_composite_construct(self.type_u32[3], &coords)
+            }
+            _ => unreachable!(),
+        };
+        let sampled = self.texture(inst, dimension);
+        let image = self.ir.emit_image(self.type_texture[dimension], sampled);
         let texel = self.ir.emit_image_fetch(self.type_f32[4], image, coord, &[LOD_OPERAND, lod]);
         let bits = self.ir.emit_bitcast(self.type_u32[4], texel);
         self.store_texel(inst, bits);
@@ -477,6 +522,11 @@ impl<'a> Decoder<'a> {
         self.ir.emit_composite_construct(self.type_f32[2], &floats)
     }
 
+    fn float_vec3(&mut self, regs: [u32; 3]) -> u32 {
+        let floats = regs.map(|r| self.texture_float(r));
+        self.ir.emit_composite_construct(self.type_f32[3], &floats)
+    }
+
     fn texture_float(&mut self, reg: u32) -> u32 {
         let bits = self.load_register(reg);
         let value = self.bitcast_f32(bits);
@@ -485,15 +535,23 @@ impl<'a> Decoder<'a> {
         self.bitcast_f32(bits)
     }
 
-    fn texture_2d(&mut self, inst: u128) -> u32 {
-        if self.type_sampled_texture_2d == 0 {
+    fn texture(&mut self, inst: u128, dimension: usize) -> u32 {
+        if self.type_sampled_texture[dimension] == 0 {
             self.ir.emit_capability(spirv::capability::IMAGE_QUERY);
-            self.type_texture_2d = self.ir.emit_type_image(self.type_f32[1], DIM_2D, 2, 0, 0, 1, 0);
-            self.type_sampled_texture_2d = self.ir.emit_type_sampled_image(self.type_texture_2d);
+            if dimension == 0 {
+                self.ir.emit_capability(spirv::capability::SAMPLED_1D);
+            }
+            self.type_texture[dimension] = self.ir.emit_type_image(self.type_f32[1], dimension as u32, 2, 0, 0, 1, 0);
+            self.type_sampled_texture[dimension] = self.ir.emit_type_sampled_image(self.type_texture[dimension]);
         }
-        let (cbuf_bank, byte_offset) = bound_handle(inst);
-        let var = self.image_variable(ResourceKind::Texture2D { cbuf_bank, byte_offset }, self.type_sampled_texture_2d);
-        self.ir.emit_load(self.type_sampled_texture_2d, var)
+        let key = if inst >> 60 & 1 != 0 {
+            1 << 63 | ((inst >> 32 & 0xff) as u64)
+        } else {
+            let (bank, offset) = bound_handle(inst);
+            u64::from(bank) << 32 | u64::from(offset)
+        };
+        let var = self.image_variable(ResourceKind::Texture { key, dimension: dimension as u32, shadow: false }, self.type_sampled_texture[dimension]);
+        self.ir.emit_load(self.type_sampled_texture[dimension], var)
     }
 
     fn gather_texture(&mut self, inst: u128, dimension: u32, shadow: bool) -> u32 {
@@ -538,7 +596,7 @@ impl<'a> Decoder<'a> {
         if let Some(var) = self.resource(kind) {
             return var;
         }
-        let images = self.resources.iter().filter(|r| matches!(r.kind, ResourceKind::Texture2D { .. } | ResourceKind::Texture { .. } | ResourceKind::Surface2D { .. }));
+        let images = self.resources.iter().filter(|r| matches!(r.kind, ResourceKind::Texture { .. } | ResourceKind::Surface { .. }));
         let binding = TEXTURE_BINDING + images.count() as u32;
         let ptr = self.ir.emit_type_pointer(UNIFORM_CONSTANT, ty);
         let var = self.ir.emit_variable(ptr, UNIFORM_CONSTANT);
@@ -566,7 +624,7 @@ impl<'a> Decoder<'a> {
         let coord = self.ir.emit_composite_construct(self.type_f32[coords.len()], &coords);
         let shadow = inst >> 78 & 1 != 0;
         let base_bound_2d = opcode(inst) == 0xb63 && inst >> 59 & 3 == 0 && dimension == 1 && !shadow;
-        let sampled = if base_bound_2d { self.texture_2d(inst) } else { self.gather_texture(inst, dimension, shadow) };
+        let sampled = if base_bound_2d { self.texture(inst, DIM_2D as usize) } else { self.gather_texture(inst, dimension, shadow) };
         let mut rb = (inst >> 32 & 0xff) as u32;
         if inst >> 59 & 1 != 0 || opcode(inst) == 0x364 {
             rb = nth_reg(rb, RZ, 1);
@@ -637,7 +695,7 @@ impl<'a> Decoder<'a> {
         assert!(inst >> 74 & 3 == 0, "TMML writes only the two lod components");
         let ra = (inst >> 24 & 0xff) as u32;
         let coord = self.float_vec2([ra, ra + 1]);
-        let sampled = self.texture_2d(inst);
+        let sampled = self.texture(inst, DIM_2D as usize);
         self.derivatives = true;
         let lod = self.ir.emit_image_query_lod(self.type_f32[2], sampled, coord);
         // TMML returns signed 8.8 fixed point in the low half, the computed lod before the accessed mip level, the reverse of
@@ -666,7 +724,7 @@ impl<'a> Decoder<'a> {
         let coord = self.float_vec2([ra, ra + 1]);
         // Rb holds du/dx, du/dy, dv/dx, dv/dy.
         let [dx, dy] = [[0, 2], [1, 3]].map(|pair| self.float_vec2(pair.map(|i| nth_reg(rb, RZ, i))));
-        let sampled = self.texture_2d(inst);
+        let sampled = self.texture(inst, DIM_2D as usize);
         let texel = self.ir.emit_image_sample_explicit_lod(self.type_f32[4], sampled, coord, GRAD_OPERAND, &[dx, dy]);
         let bits = self.ir.emit_bitcast(self.type_u32[4], texel);
         self.store_texel(inst, bits);
@@ -676,8 +734,8 @@ impl<'a> Decoder<'a> {
         let query = (inst >> 62 & 3) as usize;
         assert!(query == 0, "TXQ {}", ["TEX_HEADER_DIMENSION", "TEX_HEADER_TEXTURE_TYPE", "TEX_HEADER_SAMPLER_POS", "INVALID3"][query]);
         let lod = self.load_register((inst >> 24 & 0xff) as u32);
-        let sampled = self.texture_2d(inst);
-        let image = self.ir.emit_image(self.type_texture_2d, sampled);
+        let sampled = self.texture(inst, DIM_2D as usize);
+        let image = self.ir.emit_image(self.type_texture[DIM_2D as usize], sampled);
         let size = self.ir.emit_image_query_size_lod(self.type_u32[2], image, lod);
         let [width, height] = [0, 1].map(|c| self.ir.emit_composite_extract(self.type_u32[1], size, &[c]));
         let levels = self.ir.emit_image_query_levels(self.type_u32[1], image);

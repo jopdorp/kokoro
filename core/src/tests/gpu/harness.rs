@@ -237,8 +237,8 @@ pub fn run_on(
         HostImage::new(state, &header, texels, &textures.pool.sampler(textures.handle).unwrap()).unwrap()
     };
     let image_types = resources.iter().filter_map(|r| match r.kind {
-        ResourceKind::Texture2D { .. } | ResourceKind::Texture { .. } => Some((DescriptorType::COMBINED_IMAGE_SAMPLER, None)),
-        ResourceKind::Surface2D { format, .. } => Some((DescriptorType::STORAGE_IMAGE, Some(format))),
+        ResourceKind::Texture { .. } => Some((DescriptorType::COMBINED_IMAGE_SAMPLER, None)),
+        ResourceKind::Surface { format, .. } => Some((DescriptorType::STORAGE_IMAGE, Some(format))),
         _ => None,
     });
     let images: Vec<(u32, DescriptorType, HostImage)> = (TEXTURE_BINDING..).zip(image_types).map(|(b, (ty, format))| (b, ty, image(format))).collect();
@@ -332,7 +332,7 @@ pub fn run_grid(instructions: &[u128], block: [u32; 3], grid: [u32; 3], cbuf0: &
 /// global memory from `GLOBAL_BASE` up, returning the buffers after the launch, or `None` when there is no Vulkan device.
 pub fn run_kernel(cubin: &[u8], name: &str, grid: [u32; 3], block: [u32; 3], shared_bytes: u32, args: &[Arg]) -> Option<Vec<Vec<u8>>> {
     let kernel = Kernel::load(cubin, name).unwrap();
-    let (banks, regions) = kernel.launch(grid, block, args, GLOBAL_BASE);
+    let (banks, regions) = kernel.launch(grid, block, false, args, GLOBAL_BASE).unwrap();
     let state = vk_state()?;
     let shared_bytes = kernel.shared_bytes.checked_add(shared_bytes).expect("shared memory size overflow");
     Some(Grid::new(&state, &kernel.words, block, shared_bytes, &banks, &regions).run(grid))

@@ -71,6 +71,8 @@ pub mod capability {
     pub const INT8: u32 = 39;
     pub const SAMPLE_RATE_SHADING: u32 = 35;
     pub const MIN_LOD: u32 = 42;
+    pub const SAMPLED_1D: u32 = 43;
+    pub const IMAGE_1D: u32 = 44;
     pub const IMAGE_QUERY: u32 = 50;
     pub const GROUP_NON_UNIFORM: u32 = 61;
     pub const GROUP_NON_UNIFORM_ARITHMETIC: u32 = 63;

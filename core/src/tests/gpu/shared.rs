@@ -38,15 +38,25 @@ mod tests {
     }
 
     #[test]
-    fn scaled_wide_shared_accesses_use_x4_and_x8_addresses() {
+    fn scaled_wide_shared_accesses_use_x4_x8_and_x16_addresses() {
         let program = [
             inst::sts(0, 2) | 1 << 73 | 2 << 78,
             inst::lds(4, 0) | 1 << 73 | 2 << 78,
             inst::sts(1, 6) | 1 << 78,
             inst::lds(7, 1) | 1 << 78,
+            inst::sts(0, 2) | 1 << 73 | 3 << 78,
+            inst::lds(8, 0) | 2 << 73 | 3 << 78,
+            inst::lds(12, 1) | 2 << 73 | 2 << 78,
+            inst::sts(1, 6) & !inst::SZ_32 | 3 << 78,
+            inst::lds(16, 17),
         ];
-        let Some((regs, _)) = run_lanes(&program, &[vec![3, 2, 10, 11, 0, 0, 12]], &[], &[]) else { return };
-        assert_eq!(regs[0][4..8], [10, 11, 12, 12]);
+        let mut seed = vec![3, 6, 10, 11, 0, 0, 0x1234_56ab];
+        seed.resize(18, 0);
+        seed[17] = 96;
+        let Some((regs, _)) = run_lanes(&program, &[seed], &[], &[]) else { return };
+        assert_eq!(regs[0][4..8], [10, 11, 0x1234_56ab, 0x1234_56ab]);
+        assert_eq!([regs[0][8], regs[0][9], regs[0][12], regs[0][13]], [10, 11, 10, 11]);
+        assert_eq!(regs[0][16] & 0xff, 0xab);
     }
 
     #[test]
@@ -70,19 +80,19 @@ mod tests {
 
     // 32 lanes drop 32 of 40 expected arrivals and then arrive once each: 16 finish phase 0, 8 phase 1 and 8 phase 2.
     #[test]
-    fn atoms_arrive_counts_mbarrier_phases_after_popc_inc_drops() {
+    fn atoms_popc_inc_x4_counts_mbarrier_phases_after_drops() {
         const ATOMS_ARRIVE_64: u128 = 0x003e22000c80043f00000000ff027f8c;
         const ATOMS_POPC_INC_32: u128 = 0x000fe2000d00003f00000000ffff7f8c;
-        let seeds = lanes(|_| vec![0, 0, 0, 0, 0x4000_0000 - 40, 0x8000_0000 - 16, 4]);
+        let seeds = lanes(|_| vec![0, 2, 0, 0, 0x4000_0000 - 40, 0x8000_0000 - 16, 12, 8]);
         let program = [
-            inst::sts(255, 4),
+            inst::sts(1, 4) | 1 << 78,
             inst::sts(6, 5),
             inst::bar_sync(),
-            ATOMS_POPC_INC_32,
+            ATOMS_POPC_INC_32 & !(0xff << 24) | 1 << 24 | 1 << 78,
             inst::bar_sync(),
-            ATOMS_ARRIVE_64,
+            ATOMS_ARRIVE_64 & !(0xff << 24) | 7 << 24,
             inst::bar_sync(),
-            inst::lds(8, 255),
+            inst::lds(8, 7),
             inst::lds(9, 6),
         ];
         let Some((regs, _)) = run_lanes(&program, &seeds, &[], &[]) else {

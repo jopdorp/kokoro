@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::gpu::sm86::plan;
-    use crate::tests::gpu::harness::{PRED, UPRED, UREG, both_ways, run_regs};
+    use crate::tests::gpu::harness::{PRED, UPRED, UREG, both_ways, run_regs, translate_module};
     use crate::tests::gpu_test::inst::{
         IMM_B, UIADD3, alu3, bmov_atexit, bra, bra_conv, bra_pp, bra_div, bra_upred, brx, bssy, bsync, call_rel, exit, guard, iadd_imm, jmx, kill, mov_imm, preds, ret_rel,
         uldc64, W2I_ARRIVES, W2I_BREAK, W2I_CCTLT, W2I_CSMTEST, W2I_DEPBAR, W2I_ERRBAR, W2I_IDE, W2I_JMP,
@@ -21,6 +21,12 @@ mod tests {
             };
             assert_eq!(regs[..2], expected, "P0 = {p0}");
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "terminates the dispatch")]
+    fn bpt_trap_fails_translation_loudly() {
+        translate_module(&[0x007fea0000300000000000040000795c], true, None, false);
     }
 
     #[test]
@@ -183,19 +189,22 @@ mod tests {
     }
 
     #[test]
-    fn call_returns_to_the_address_in_r20() {
+    fn predicated_call_returns_or_falls_through() {
         let program = [
             mov_imm(20, 0x20),
-            call_rel(0x20),
+            guard(call_rel(0x20), 0, false),
             iadd_imm(2, 0, 1),
             exit(),
             iadd_imm(0, 5, 0x10),
             ret_rel(20, -0x60),
         ];
-        let Some((regs, _)) = run_regs(&program, &[10, 11, 12, 13, 14, 7], &[], &[]) else {
-            return;
-        };
-        assert_eq!(regs[..3], [0x17, 11, 0x18]);
+        for (p0, expected) in [(0, [10, 11, 11]), (1, [0x17, 11, 0x18])] {
+            let mut seed = vec![10, 11, 12, 13, 14, 7];
+            seed.resize(PRED, 0);
+            seed.push(p0);
+            let Some((regs, _)) = run_regs(&program, &seed, &[], &[]) else { return };
+            assert_eq!(regs[..3], expected, "P0 = {p0}");
+        }
     }
 
     #[test]
