@@ -198,11 +198,20 @@ impl<'a> Decoder<'a> {
     // predicate, 3..4 the BAR.RED operation, 5.. the thread count, 0 for every running lane of the CTA.
     pub fn bar(&mut self, inst: u128) {
         let ty = self.type_u32[1];
+        if inst >> 77 & 7 == 3 {
+            self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM_ARITHMETIC);
+            let scope = self.cached_const_u32(spirv::scope::SUBGROUP);
+            let predicate = self.pred_bit(false, (inst >> 87 & 7) as u32, inst >> 90 & 1 != 0);
+            let result = self.ir.emit_group_non_uniform_iadd(ty, scope, 1, predicate);
+            let ptr = self.barrier_token(BAR_RESULT);
+            self.ir.emit_store(ptr, result);
+            return;
+        }
         let (op, parks) = match inst >> 77 & 7 {
             0 | 4 => (0, true),
             1 => (0, false),
             2 => (inst >> 74 & 3, true),
-            3 => todo!("BAR.SCAN (class bar__SCAN_RR_RR: Rb, Rc, Pp with IDEST_SIZE = 0) writes no register, PTX has no bar.scan and ptxas never emits it, so the scan it leaves for B2R.RESULT is undocumented"),
+            3 => unreachable!(),
             mode => panic!("BAR mode {mode} is invalid"),
         };
         assert!(op != 3, "BAR.RED operation 3 is invalid");
@@ -289,6 +298,16 @@ impl<'a> Decoder<'a> {
     // The host driver owns dependency scoreboarding.
     pub fn depbar(&mut self, _inst: u128) {}
     pub fn exit(&mut self, _inst: u128) {
+        if self.stage == Stage::Fragment {
+            // One render target until the PS header's OMAP is read: its colour is R0-R3 at EXIT.
+            let target = self.interface_vec4(ResourceKind::FragmentOutput { location: 0 }, spirv::storage_class::OUTPUT);
+            let colour: Vec<u32> = (0..4).map(|reg| {
+                let bits = self.load_register(reg);
+                self.bitcast_f32(bits)
+            }).collect();
+            let colour = self.ir.emit_composite_construct(self.type_f32[4], &colour);
+            self.ir.emit_store(target, colour);
+        }
         let ptr = self.barrier_token(ATEXIT_PC);
         let atexit = self.ir.emit_load(self.type_u32[1], ptr);
         self.ir.emit_store(ptr, self.const_u32_0);
@@ -332,6 +351,7 @@ impl<'a> Decoder<'a> {
         self.jump_to_register(inst, false);
     }
     pub fn kill(&mut self, inst: u128) {
+        assert!(self.stage != Stage::Fragment, "KILL as a fragment discard is not implemented");
         // KILL is pixel-only on hardware, so a compute invocation that reaches one just ends like at EXIT.
         self.exit(inst);
     }

@@ -20,36 +20,67 @@ impl<'a> Decoder<'a> {
         let dst_val = self.ir.emit_iadd(self.type_u32[1], base, offset);
         self.store_register(rd, dst_val);
     }
+    // Attribute addresses as the SPH IMAP/OMAP bits order them (clc797sph.h): position 0x70, generic n 0x80 + 16n, instance and vertex id 0x2f8 and 0x2fc; front facing 0x3fc is NAK's.
     pub fn ald(&mut self, inst: u128) {
-        let _pg = (((inst >> 12) & 0x7) << 0);
-        let _pg_not = (((inst >> 15) & 0x1) << 0);
-        let _rd = (((inst >> 16) & 0xff) << 0);
-        let _ra = (((inst >> 24) & 0xff) << 0);
-        let _rb = (((inst >> 32) & 0xff) << 0);
-        let _bop = (((inst >> 74) & 0x3) << 0);
-        let _dstfmt = (((inst >> 76) & 0x3) << 0);
-        let _op = (((inst >> 79) & 0x1) << 0);
-        let _pm_pred = (((inst >> 102) & 0x3) << 0);
-        let _dst_wr_sb = (((inst >> 110) & 0x7) << 0);
-        let _src_rel_sb = (((inst >> 113) & 0x7) << 0);
-        let _req_bit_set = (((inst >> 116) & 0x3f) << 0);
-        let _opex = (((inst >> 122) & 0x7) << 5) | (((inst >> 105) & 0x1f) << 0);
-        todo!();
+        use spirv::BuiltIn;
+        let rd = (((inst >> 16) & 0xff) << 0) as u32;
+        let ra = (((inst >> 24) & 0xff) << 0) as u32;
+        let rb = (((inst >> 32) & 0xff) << 0) as u32;
+        let ra_offset = (((inst >> 40) & 0x3ff) << 0) as u32;
+        let words = (((inst >> 74) & 0x3) << 0) as u32 + 1;
+        let physical = inst >> 76 & 3 == 2;
+        assert!(opcode(inst) == 0x321 && (!physical || ra_offset == 0 && words == 1), "unsupported ALD form");
+        let output = inst >> 79 & 1 != 0;
+        for i in 0..words {
+            let attr = ra_offset + 4 * i;
+            let val = if physical {
+                let address = self.load_register(ra);
+                let vertex = (self.stage == Stage::Geometry && !output).then(|| self.load_register(rb));
+                let ptr = self.attribute_component(output, address, vertex);
+                let val = self.ir.emit_load(self.type_f32[1], ptr);
+                self.bitcast_u32(val)
+            } else {
+                match attr {
+                0x80..0x280 => {
+                    let address = self.cached_const_u32(attr);
+                    let vertex = (self.stage == Stage::Geometry && !output && rb != RZ).then(|| self.load_register(rb));
+                    let ptr = self.attribute_component(output, address, vertex);
+                    let val = self.ir.emit_load(self.type_f32[1], ptr);
+                    self.bitcast_u32(val)
+                }
+                0x2f8 if self.stage == Stage::Vertex => self.builtin(BuiltIn::InstanceIndex),
+                0x2fc if self.stage == Stage::Vertex => self.builtin(BuiltIn::VertexIndex),
+                _ => panic!("ALD a[{attr:#x}] is not implemented"),
+                }
+            };
+            self.store_register(nth_reg(rd, RZ, i), val);
+        }
     }
     pub fn ast(&mut self, inst: u128) {
-        let _pg = (((inst >> 12) & 0x7) << 0);
-        let _pg_not = (((inst >> 15) & 0x1) << 0);
-        let _ra = (((inst >> 24) & 0xff) << 0);
-        let _rb = (((inst >> 32) & 0xff) << 0);
-        let _rc = (((inst >> 64) & 0xff) << 0);
-        let _bop = (((inst >> 74) & 0x3) << 0);
-        let _dstfmt = (((inst >> 76) & 0x3) << 0);
-        let _pm_pred = (((inst >> 102) & 0x3) << 0);
-        let _dst_wr_sb = (((inst >> 110) & 0x7) << 0);
-        let _src_rel_sb = (((inst >> 113) & 0x7) << 0);
-        let _req_bit_set = (((inst >> 116) & 0x3f) << 0);
-        let _opex = (((inst >> 122) & 0x7) << 5) | (((inst >> 105) & 0x1f) << 0);
-        todo!();
+        use spirv::storage_class::OUTPUT;
+        let rb = (((inst >> 32) & 0xff) << 0) as u32;
+        let ra = (((inst >> 24) & 0xff) << 0) as u32;
+        let ra_offset = (((inst >> 40) & 0x3ff) << 0) as u32;
+        let words = (((inst >> 74) & 0x3) << 0) as u32 + 1;
+        let physical = inst >> 76 & 3 == 2;
+        assert!(opcode(inst) == 0x322 && (!physical || ra_offset == 0 && words == 1), "unsupported AST form");
+        for i in 0..words {
+            let attr = ra_offset + 4 * i;
+            let ptr = if physical {
+                let address = self.load_register(ra);
+                self.attribute_component(true, address, None)
+            } else { match attr {
+                0x70..0x80 => self.interface_component(ResourceKind::BuiltIn(spirv::BuiltIn::Position as u32), OUTPUT, attr),
+                0x80..0x280 => {
+                    let address = self.cached_const_u32(attr);
+                    self.attribute_component(true, address, None)
+                }
+                _ => panic!("AST a[{attr:#x}] is not implemented"),
+            }};
+            let val = self.load_register(nth_reg(rb, RZ, i));
+            let val = self.bitcast_f32(val);
+            self.ir.emit_store(ptr, val);
+        }
     }
     pub fn cctl(&mut self, _inst: u128) {
         // Vulkan buffers are coherent without guest cache control.
@@ -67,54 +98,62 @@ impl<'a> Decoder<'a> {
         self.store_pair(rd, value);
     }
     pub fn ipa(&mut self, inst: u128) {
-        let _pg = (((inst >> 12) & 0x7) << 0);
-        let _pg_not = (((inst >> 15) & 0x1) << 0);
-        let _rd = (((inst >> 16) & 0xff) << 0);
-        let _rb = (((inst >> 32) & 0xff) << 0);
-        let _rc = (((inst >> 64) & 0xff) << 0);
-        let _dstfmt = (((inst >> 76) & 0x3) << 0);
-        let _stride = (((inst >> 78) & 0x3) << 0);
-        let _pu = (((inst >> 81) & 0x7) << 0);
-        let _pm_pred = (((inst >> 102) & 0x3) << 0);
-        let _dst_wr_sb = (((inst >> 110) & 0x7) << 0);
-        let _src_rel_sb = (((inst >> 113) & 0x7) << 0);
-        let _req_bit_set = (((inst >> 116) & 0x3f) << 0);
-        let _opex = (((inst >> 122) & 0x7) << 5) | (((inst >> 105) & 0x1f) << 0);
-        todo!();
+        use spirv::{BuiltIn, storage_class::INPUT};
+        let rd = (((inst >> 16) & 0xff) << 0) as u32;
+        let attr = (((inst >> 64) & 0xff) << 2) as u32;
+        let constant = (((inst >> 78) & 0x3) << 0) == 1;
+        assert!(opcode(inst) == 0x326 && inst >> 76 & 3 == 0 && inst >> 78 & 3 < 2 && inst >> 81 & 7 == PT as u128, "only IPA.PASS and IPA.CONSTANT at the pixel centre are implemented");
+        assert!(self.stage == Stage::Fragment, "IPA in a {:?} module is not implemented", self.stage);
+        let val = match attr {
+            0x70..0x80 => {
+                let coord = self.builtin(BuiltIn::FragCoord);
+                let val = self.ir.emit_composite_extract(self.type_f32[1], coord, &[attr / 4 % 4]);
+                self.bitcast_u32(val)
+            }
+            // The PS header's IMAP, not IPA, picks perspective or screen linear, so perspective until the header is read.
+            0x80..0x280 => {
+                let ptr = self.interface_component(ResourceKind::Varying { location: (attr - 0x80) / 16, flat: constant }, INPUT, attr);
+                let val = self.ir.emit_load(self.type_f32[1], ptr);
+                self.bitcast_u32(val)
+            }
+            0x3fc => {
+                let front = self.builtin(BuiltIn::FrontFacing);
+                let all = self.cached_const_u32(u32::MAX);
+                self.ir.emit_select(self.type_u32[1], front, all, self.const_u32_0)
+            }
+            _ => panic!("IPA a[{attr:#x}] is not implemented"),
+        };
+        self.store_register(rd, val);
     }
     pub fn isberd(&mut self, inst: u128) {
-        let _pg = (((inst >> 12) & 0x7) << 0);
-        let _pg_not = (((inst >> 15) & 0x1) << 0);
-        let _rd = (((inst >> 16) & 0xff) << 0);
-        let _ra = (((inst >> 24) & 0xff) << 0);
-        let _ra_offset = (((inst >> 40) & 0xffff) << 0);
-        let _bop = (((inst >> 74) & 0x3) << 0);
-        let _dstfmt = (((inst >> 76) & 0x3) << 0);
-        let _merge = (((inst >> 78) & 0x1) << 0);
-        let _op = (((inst >> 79) & 0x1) << 0);
-        let _pm_pred = (((inst >> 102) & 0x3) << 0);
-        let _dst_wr_sb = (((inst >> 110) & 0x7) << 0);
-        let _src_rel_sb = (((inst >> 113) & 0x7) << 0);
-        let _req_bit_set = (((inst >> 116) & 0x3f) << 0);
-        let _opex = (((inst >> 122) & 0x7) << 5) | (((inst >> 105) & 0x1f) << 0);
-        todo!();
+        let [rd, ra] = [16, 24].map(|bit| (inst >> bit & 0xff) as u32);
+        let offset = self.cached_const_u32((inst >> 40 & 0xffff) as u32);
+        let base = if ra == RZ { self.const_u32_0 } else { self.load_register(ra) };
+        let mut address = self.ir.emit_iadd(self.type_u32[1], base, offset);
+        let size = (inst >> 74 & 3) as u32;
+        assert!(size < 3, "ISBERD size {size}");
+        if inst >> 78 & 1 != 0 {
+            let lane = self.builtin(spirv::BuiltIn::SubgroupLocalInvocationId);
+            let shift = self.cached_const_u32(size);
+            let skew = self.ir.emit_shift_left_logical(self.type_u32[1], lane, shift);
+            address = self.ir.emit_iadd(self.type_u32[1], address, skew);
+        }
+        if inst >> 79 & 1 != 0 {
+            return self.load_memory(ResourceKind::Global, address, [0, 2, 4][size as usize], rd);
+        }
+        let value = match inst >> 76 & 3 {
+            0 => address,
+            1..=3 => {
+                let ptr = self.attribute_component(false, address, None);
+                let value = self.ir.emit_load(self.type_f32[1], ptr);
+                self.bitcast_u32(value)
+            }
+            _ => unreachable!(),
+        };
+        self.store_register(rd, value);
     }
-    pub fn isbewr(&mut self, inst: u128) {
-        let _pg = (((inst >> 12) & 0x7) << 0);
-        let _pg_not = (((inst >> 15) & 0x1) << 0);
-        let _ra = (((inst >> 24) & 0xff) << 0);
-        let _rb = (((inst >> 32) & 0xff) << 0);
-        let _ra_offset = (((inst >> 40) & 0xffff) << 0);
-        let _bop = (((inst >> 74) & 0x3) << 0);
-        let _dstfmt = (((inst >> 76) & 0x3) << 0);
-        let _merge = (((inst >> 78) & 0x1) << 0);
-        let _op = (((inst >> 79) & 0x1) << 0);
-        let _pm_pred = (((inst >> 102) & 0x3) << 0);
-        let _dst_wr_sb = (((inst >> 110) & 0x7) << 0);
-        let _src_rel_sb = (((inst >> 113) & 0x7) << 0);
-        let _req_bit_set = (((inst >> 116) & 0x3f) << 0);
-        let _opex = (((inst >> 122) & 0x7) << 5) | (((inst >> 105) & 0x1f) << 0);
-        todo!();
+    pub fn isbewr(&mut self, _inst: u128) {
+        todo!("ISBEWR writes the internal stage buffer of geometry and tessellation stages, which are not implemented");
     }
     pub fn ld(&mut self, inst: u128) {
         let rd = (((inst >> 16) & 0xff) << 0) as u32;
@@ -170,18 +209,20 @@ impl<'a> Decoder<'a> {
         self.load_memory(ResourceKind::Local, address, sz, rd);
     }
     pub fn ldtram(&mut self, inst: u128) {
-        let _pg = (((inst >> 12) & 0x7) << 0);
-        let _pg_not = (((inst >> 15) & 0x1) << 0);
-        let _rd = (((inst >> 16) & 0xff) << 0);
-        let _cbu_state = (((inst >> 24) & 0x3f) << 0);
-        let _rc = (((inst >> 64) & 0xff) << 0);
-        let _e = (((inst >> 72) & 0x1) << 0);
-        let _pm_pred = (((inst >> 102) & 0x3) << 0);
-        let _dst_wr_sb = (((inst >> 110) & 0x7) << 0);
-        let _src_rel_sb = (((inst >> 113) & 0x7) << 0);
-        let _req_bit_set = (((inst >> 116) & 0x3f) << 0);
-        let _opex = (((inst >> 122) & 0x7) << 5) | (((inst >> 105) & 0x1f) << 0);
-        todo!();
+        assert!(self.stage == Stage::Fragment, "LDTRAM in a {:?} module", self.stage);
+        let rd = (inst >> 16 & 0xff) as u32;
+        let ur = (inst >> 24 & 0x3f) as u32;
+        let base = self.load_ureg(ur);
+        let offset = self.cached_const_u32((inst >> 64 & 0xff) as u32 * 4);
+        let address = self.ir.emit_iadd(self.type_u32[1], base, offset);
+        let vertices: &[u32] = if inst >> 72 & 1 == 0 { &[0, 1] } else { &[2] };
+        for (i, &vertex) in vertices.iter().enumerate() {
+            let vertex = self.cached_const_u32(vertex);
+            let ptr = self.attribute_component(false, address, Some(vertex));
+            let value = self.ir.emit_load(self.type_f32[1], ptr);
+            let value = self.bitcast_u32(value);
+            self.store_register(nth_reg(rd, RZ, i as u32), value);
+        }
     }
     pub fn membar(&mut self, inst: u128) {
         let dstfmt = (((inst >> 76) & 0x7) << 0) as u32;
@@ -195,31 +236,85 @@ impl<'a> Decoder<'a> {
         self.ir.emit_memory_barrier(scope, semantics);
     }
     pub fn out(&mut self, inst: u128) {
-        let _pg = (((inst >> 12) & 0x7) << 0);
-        let _pg_not = (((inst >> 15) & 0x1) << 0);
-        let _rd = (((inst >> 16) & 0xff) << 0);
-        let _ra = (((inst >> 24) & 0xff) << 0);
-        let _rb = (((inst >> 32) & 0xff) << 0);
-        let _stride = (((inst >> 78) & 0x3) << 0);
-        let _pm_pred = (((inst >> 102) & 0x3) << 0);
-        let _dst_wr_sb = (((inst >> 110) & 0x7) << 0);
-        let _src_rel_sb = (((inst >> 113) & 0x7) << 0);
-        let _req_bit_set = (((inst >> 116) & 0x3f) << 0);
-        let _opex = (((inst >> 122) & 0x7) << 5) | (((inst >> 105) & 0x1f) << 0);
-        todo!();
+        assert!(self.stage == Stage::Geometry, "OUT in a {:?} module", self.stage);
+        let kind = (inst >> 78 & 3) as u32;
+        if kind == 0 {
+            return;
+        }
+        let rd = (inst >> 16 & 0xff) as u32;
+        let ra = (inst >> 24 & 0xff) as u32;
+        let stream = if kind == 2 {
+            self.load_register(ra)
+        } else {
+            match opcode(inst) {
+                0x924 => self.cached_const_u32((inst >> 32) as u32),
+                0x1324 => self.load_ureg((inst >> 32 & 0x3f) as u32),
+                0x324 => self.load_register((inst >> 32 & 0xff) as u32),
+                op => panic!("OUT opcode {op:#x}"),
+            }
+        };
+        let mask = self.cached_const_u32(3);
+        let stream = self.ir.emit_bitwise_and(self.type_u32[1], stream, mask);
+        self.ir.emit_capability(spirv::capability::GEOMETRY_STREAMS);
+        for index in 0..4 {
+            let literal = self.cached_const_u32(index);
+            let selected = self.ir.emit_iequal(self.type_bool[1], stream, literal);
+            let [emit, merge] = [(); 2].map(|_| self.ir.alloc_id());
+            self.ir.emit_selection_merge(merge, 0);
+            self.ir.emit_branch_conditional(selected, emit, merge);
+            self.ir.emit_label_id(emit);
+            if kind & 1 != 0 {
+                self.ir.emit_stream_vertex(literal);
+            }
+            if kind & 2 != 0 {
+                self.ir.emit_end_stream_primitive(literal);
+            }
+            self.ir.emit_branch(merge);
+            self.ir.emit_label_id(merge);
+        }
+        self.store_register(rd, stream);
     }
     pub fn pixld(&mut self, inst: u128) {
-        let _pg = (((inst >> 12) & 0x7) << 0);
-        let _pg_not = (((inst >> 15) & 0x1) << 0);
-        let _rd = (((inst >> 16) & 0xff) << 0);
-        let _mode = (((inst >> 78) & 0x7) << 0);
-        let _pu = (((inst >> 81) & 0x7) << 0);
-        let _pm_pred = (((inst >> 102) & 0x3) << 0);
-        let _dst_wr_sb = (((inst >> 110) & 0x7) << 0);
-        let _src_rel_sb = (((inst >> 113) & 0x7) << 0);
-        let _req_bit_set = (((inst >> 116) & 0x3f) << 0);
-        let _opex = (((inst >> 122) & 0x7) << 5) | (((inst >> 105) & 0x1f) << 0);
-        todo!();
+        use spirv::BuiltIn;
+        assert!(self.stage == Stage::Fragment, "PIXLD in a {:?} module", self.stage);
+        let mode = (inst >> 78 & 7) as u32;
+        let (value, predicate) = match mode {
+            0 => (self.const_u32_1, None),
+            1 => (self.sample_mask(), None),
+            2 => {
+                let position = self.builtin(BuiltIn::SamplePosition);
+                let [half, sixteen] = [0.5f32, 16.0].map(|v| self.ir.emit_constant_typed(self.type_f32[1], v));
+                let mask = self.cached_const_u32(0xf);
+                let mut packed = self.const_u32_0;
+                for component in 0..2 {
+                    let value = self.ir.emit_composite_extract(self.type_f32[1], position, &[component]);
+                    let value = self.ir.emit_fsub(self.type_f32[1], value, half);
+                    let value = self.ir.emit_fmul(self.type_f32[1], value, sixteen);
+                    let value = self.ir.emit_convert_f_to_s(self.type_s32[1], value);
+                    let value = self.ir.emit_bitcast(self.type_u32[1], value);
+                    let value = self.ir.emit_bitwise_and(self.type_u32[1], value, mask);
+                    let shift = self.cached_const_u32(4 * component);
+                    let value = self.ir.emit_shift_left_logical(self.type_u32[1], value, shift);
+                    packed = self.ir.emit_bitwise_or(self.type_u32[1], packed, value);
+                }
+                (packed, None)
+            }
+            3 => (self.builtin(BuiltIn::SampleId), None),
+            4 => {
+                let covered = self.builtin(BuiltIn::FullyCovered);
+                (self.bool_bit(covered), Some(covered))
+            }
+            _ => panic!("PIXLD mode {mode}"),
+        };
+        self.store_register((inst >> 16 & 0xff) as u32, value);
+        let bit = match predicate {
+            Some(predicate) => self.bool_bit(predicate),
+            None => {
+                let nonzero = self.ir.emit_inot_equal(self.type_bool[1], value, self.const_u32_0);
+                self.bool_bit(nonzero)
+            }
+        };
+        self.store_pred_bit(false, (inst >> 81 & 7) as u32, bit);
     }
     pub fn setlmembase(&mut self, _inst: u128) {}
     pub fn st(&mut self, inst: u128) {

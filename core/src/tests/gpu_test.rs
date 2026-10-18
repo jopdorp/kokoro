@@ -46,6 +46,14 @@ pub mod inst {
     const FMNMX_RR: u128 = 0x209;
     const MUFU_R: u128 = 0x308;
     pub const FSETP_GT: u128 = 0x20b | 4 << 76 | 7 << 84 | PP_PT;
+    const ALD: u128 = 0x321 | 0xff << 24 | 0xff << 32;
+    const AST: u128 = 0x322 | 0xff << 24 | RC_RZ | NO_WRITE_SCOREBOARD;
+    const IPA: u128 = 0x326 | 0xff << 32 | 7 << 81;
+    const ISBERD: u128 = 0x923;
+    const LDTRAM: u128 = 0x3ad | 1 << 91;
+    const PIXLD: u128 = 0x925;
+    const OUT_I: u128 = 0x924;
+    pub const IPA_CONSTANT: u128 = 1 << 78;
     pub const FP_ABS_B: u128 = 1 << 62;
     pub const FP_NEG_B: u128 = 1 << 63;
     pub const FP_NEG_A: u128 = 1 << 72;
@@ -168,6 +176,17 @@ pub mod inst {
     pub const SUATOM_CAS: u128 = 0x595;
     pub const TLD4_R_2D: u128 = 0xb63 | TEX_2D;
     pub const TLD4_G_2D: u128 = TLD4_R_2D | 1 << 87;
+    pub const TLD4_AOFFI: u128 = 1 << 76;
+    pub const TLD4_PTP: u128 = 2 << 76;
+    pub const TLD4_DC: u128 = 1 << 78;
+    pub const TLD4_F16_RN: u128 = 1 << 79;
+    pub const TLD4_F16_RZ: u128 = 2 << 79;
+    pub const TLD4_BINDLESS: u128 = 1 << 59;
+    pub const TLD4_SCR: u128 = 1 << 60;
+    pub const TLD4_NO_CONST: u128 = 0x364 | TLD4_BINDLESS;
+    pub const TLD4_TID: u128 = 0xb65 | TLD4_BINDLESS;
+    pub const TLD4_UR: u128 = 0xf63 | 1 << 91;
+    const FOOTPRINT: u128 = 0xb72;
     pub const TXD_2D: u128 = 0xb6c | TEX_2D;
     pub const TMML_LOD_2D: u128 = 0xb69 | TEX_2D;
     const LDS: u128 = 0x984;
@@ -178,6 +197,7 @@ pub mod inst {
     const BAR_SYNC: u128 = 0xb1d;
     pub const BAR_RED_POPC: u128 = 2 << 77;
     pub const BAR_RED_AND: u128 = BAR_RED_POPC | 1 << 74;
+    const BAR_SCAN: u128 = 0x31d | 3 << 77;
     const B2R_RESULT: u128 = 0x31c | 1 << 78;
     const WARPSYNC_IMM: u128 = 0x948;
     const BRA: u128 = 0x947;
@@ -335,6 +355,10 @@ pub mod inst {
             | (mask as u128) << 72
     }
 
+    pub fn footprint(rd: u32, rd2: u32, ra: u32, pu: u32) -> u128 {
+        FOOTPRINT | PT_GUARD | TEX_2D | (rd as u128) << 16 | (ra as u128) << 24 | 0xff << 32 | (rd2 as u128) << 64 | (pu as u128) << 81
+    }
+
     pub fn with_rb(word: u128, rb: u32) -> u128 {
         word & !(0xff << 32) | (rb as u128) << 32
     }
@@ -402,6 +426,10 @@ pub mod inst {
 
     pub fn bar(mode: u128, count: u32) -> u128 {
         bar_sync() | mode | (count as u128) << 42
+    }
+
+    pub fn bar_scan(rb: u32, pp: u32) -> u128 {
+        BAR_SCAN | PT_GUARD | NO_WRITE_SCOREBOARD | (rb as u128) << 32 | (pp as u128) << 87
     }
 
     pub fn b2r_result(rd: u32, pu: u32) -> u128 {
@@ -535,6 +563,42 @@ pub mod inst {
 
     pub fn mufu(rd: u32, op: u32, rb: u32) -> u128 {
         alu(MUFU_R, rd, 0, rb) | (op as u128) << 74
+    }
+
+    pub fn ald(rd: u32, attr: u32, words: u32) -> u128 {
+        ALD | PT_GUARD | (rd as u128) << 16 | (attr as u128) << 40 | (words as u128 - 1) << 74
+    }
+
+    pub fn ald_phys(rd: u32, ra: u32, rb: u32) -> u128 {
+        ALD & !(0xff << 24 | 0xff << 32) | PT_GUARD | 2 << 76 | (rd as u128) << 16 | (ra as u128) << 24 | (rb as u128) << 32
+    }
+
+    pub fn ast(attr: u32, rb: u32, words: u32) -> u128 {
+        AST | PT_GUARD | (rb as u128) << 32 | (attr as u128) << 40 | (words as u128 - 1) << 74
+    }
+
+    pub fn ast_phys(ra: u32, rb: u32) -> u128 {
+        AST & !(0xff << 24) | PT_GUARD | 2 << 76 | (ra as u128) << 24 | (rb as u128) << 32
+    }
+
+    pub fn ipa(rd: u32, attr: u32, mode: u128) -> u128 {
+        IPA | PT_GUARD | mode | (rd as u128) << 16 | (attr as u128 >> 2) << 64
+    }
+
+    pub fn isberd(rd: u32, ra: u32, offset: u32, base: u32, size: u32, skew: bool, output: bool) -> u128 {
+        ISBERD | PT_GUARD | (rd as u128) << 16 | (ra as u128) << 24 | (offset as u128) << 40 | (size as u128) << 74 | (base as u128) << 76 | (skew as u128) << 78 | (output as u128) << 79
+    }
+
+    pub fn ldtram(rd: u32, attr: u32, vertex_c: bool) -> u128 {
+        LDTRAM | PT_GUARD | (rd as u128) << 16 | 63 << 24 | ((attr / 4) as u128) << 64 | (vertex_c as u128) << 72
+    }
+
+    pub fn pixld(rd: u32, pu: u32, mode: u32) -> u128 {
+        PIXLD | PT_GUARD | (rd as u128) << 16 | (mode as u128) << 78 | (pu as u128) << 81
+    }
+
+    pub fn out_imm(rd: u32, ra: u32, stream: u32, kind: u32) -> u128 {
+        OUT_I | PT_GUARD | (rd as u128) << 16 | (ra as u128) << 24 | (stream as u128) << 32 | (kind as u128) << 78
     }
 
     pub mod cvt {
@@ -999,6 +1063,7 @@ fn fixtures_match_nvdisasm() {
         (inst::bar(inst::BAR_RED_AND, 0), "BAR.RED.AND 0x0, P0 ;"),
         (inst::bar(inst::BAR_RED_POPC, 0), "BAR.RED.POPC 0x0, P0 ;"),
         (inst::b2r_result(5, 2), "B2R.RESULT R5, P2 ;"),
+        (inst::bar_scan(4, 0), "BAR.SCAN R4, R4, P0 ;"),
         (inst::warpsync(0xffff), "WARPSYNC 0xffff;"),
         (inst::s2r(1, 33), "S2R R1, SR_TID.X ;"),
         (inst::cs2r(4, 80, false), "CS2R.32 R4, SR_CLOCKLO;"),
@@ -1103,6 +1168,28 @@ fn fixtures_match_nvdisasm() {
         (inst::alu3(inst::HMMA | inst::MMA_SP | inst::MMA_16816 | inst::MMA_F32, 4, 8, 12, 16) | 20 << 40 | 3 << 48, "HMMA.SP.16816.F32 R4, R8, R12, R16, R20, 0x3 ;"),
         (inst::alu3(inst::HMMA | inst::MMA_SP_16832 | inst::MMA_F32, 4, 8, 12, 16) | 20 << 40 | 1 << 48, "HMMA.SP.16832.F32 R4, R8, R12, R16, R20, 0x1 ;"),
         (inst::alu3(inst::HMMA | inst::MMA_SP_16832 | inst::MMA_F32 | inst::MMA_BF16, 4, 8, 12, 16) | 20 << 40, "HMMA.SP.16832.F32.BF16 R4, R8, R12, R16, R20, 0x0 ;"),
+        (inst::ald(4, 0x90, 4), "ALD.128 R4, a[0x90] ;"),
+        (inst::ald(8, 0x2fc, 1), "ALD R8, a[0x2fc] ;"),
+        (inst::ast(0x70, 0, 4), "AST.128 a[0x70], R0 ;"),
+        (inst::ald_phys(4, 2, 3), "ALD.PHYS R4, a[R2], R3 ;"),
+        (inst::ast_phys(2, 4), "AST.PHYS a[R2], R4 ;"),
+        (inst::ipa(1, 0x84, 0), "IPA.PASS R1, a[0x84] ;"),
+        (inst::ipa(3, 0x3fc, inst::IPA_CONSTANT), "IPA.CONSTANT R3, a[0x3fc] ;"),
+        (inst::isberd(4, 2, 0x10, 0, 2, true, false), "ISBERD.SKEW.32 R4, [R2+0x10] ;"),
+        (inst::ldtram(4, 0x80, false), "LDTRAM.AB R4, a[0x80] ;"),
+        (inst::ldtram(6, 0x90, true), "LDTRAM.C R6, a[0x90] ;"),
+        (inst::pixld(4, 0, 0), "PIXLD R4, P0 ;"),
+        (inst::pixld(5, 1, 2), "PIXLD.CENTROID_OFFSET R5, P1 ;"),
+        (inst::pixld(6, 2, 4), "PIXLD.INNER_COVERAGE R6, P2 ;"),
+        (inst::out_imm(4, 2, 3, 1), "OUT.EMIT R4, R2, 0x3 ;"),
+        (inst::out_imm(6, 4, 2, 3), "OUT.EMIT_THEN_CUT R6, R4, 0x2 ;"),
+        (inst::footprint(4, 8, 12, 0), "FOOTPRINT.TEX P0, R8, R4, R12, 0x0, 0x0, 2D ;"),
+        (inst::with_rb(inst::texture(inst::TLD4_R_2D | inst::TLD4_AOFFI, 4, 8, 12, 3, 0, 0xf), 16), "TLD4.R.AOFFI R8, R4, R12, R16, 0x3, 0x0, 2D ;"),
+        (inst::with_rb(inst::texture(inst::TLD4_R_2D | inst::TLD4_PTP, 4, 8, 12, 3, 0, 0xf), 16), "TLD4.R.PTP R8, R4, R12, R16, 0x3, 0x0, 2D ;"),
+        (inst::with_rb(inst::texture(inst::TLD4_R_2D | inst::TLD4_DC, 4, 8, 12, 3, 0, 0xf), 16), "TLD4.R.DC R8, R4, R12, R16, 0x3, 0x0, 2D ;"),
+        (inst::texture(inst::TLD4_R_2D | inst::TLD4_F16_RN, 4, 8, 12, 3, 0, 0xf), "TLD4.R.F16.RN R8, R4, R12, 0x3, 0x0, 2D ;"),
+        (inst::with_rb(inst::texture(inst::TLD4_R_2D | inst::TLD4_BINDLESS, 4, 8, 12, 3, 0, 0xf), 16), "TLD4.R.B R8, R4, R12, R16, 0x3, 0x0, 2D ;"),
+        (inst::texture(inst::TLD4_UR | 1 << 61, 4, 8, 12, 0, 0, 0xf), "TLD4.R R8, R4, R12, UR0, 0x0, 2D ;"),
     ];
     use crate::tests::gpu::fp::fp16::tests as fp16;
     for (word, expected) in fixtures.iter().copied().chain(fp16::arith()).chain(fp16::compare()).chain(fp16::convert()) {

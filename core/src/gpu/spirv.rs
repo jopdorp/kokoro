@@ -61,18 +61,26 @@ fn encode_string(buf: &mut Vec<u32>, s: &str) {
 
 pub mod capability {
     pub const SHADER: u32 = 1;
+    pub const GEOMETRY: u32 = 2;
+    pub const GEOMETRY_STREAMS: u32 = 54;
     pub const FLOAT16: u32 = 9;
     pub const FLOAT64: u32 = 10;
     pub const INT64: u32 = 11;
     pub const INT16: u32 = 22;
+    pub const IMAGE_GATHER_EXTENDED: u32 = 25;
     pub const INT8: u32 = 39;
+    pub const SAMPLE_RATE_SHADING: u32 = 35;
     pub const MIN_LOD: u32 = 42;
     pub const IMAGE_QUERY: u32 = 50;
+    pub const GROUP_NON_UNIFORM: u32 = 61;
+    pub const GROUP_NON_UNIFORM_ARITHMETIC: u32 = 63;
     pub const GROUP_NON_UNIFORM_SHUFFLE: u32 = 65;
     pub const STORAGE_BUFFER_16BIT: u32 = 4433;
     pub const STORAGE_BUFFER_8BIT: u32 = 4448;
     pub const PHYSICAL_STORAGE_BUFFER_ADDRESSES: u32 = 5348;
     pub const COMPUTE_DERIVATIVE_GROUP_LINEAR: u32 = 5350;
+    pub const FRAGMENT_BARYCENTRIC: u32 = 5284;
+    pub const FRAGMENT_FULLY_COVERED: u32 = 5265;
     pub const VARIABLE_POINTERS: u32 = 4442;
     pub const DENORM_PRESERVE: u32 = 4464;
     pub const SIGNED_ZERO_INF_NAN_PRESERVE: u32 = 4466;
@@ -113,6 +121,7 @@ pub mod memory_semantics {
 
 pub mod execution_model {
     pub const VERTEX: u32 = 0;
+    pub const GEOMETRY: u32 = 3;
     pub const FRAGMENT: u32 = 4;
     pub const GLCOMPUTE: u32 = 5;
 }
@@ -120,6 +129,9 @@ pub mod execution_model {
 pub mod execution_mode {
     pub const LOCAL_SIZE: u32 = 17;
     pub const ORIGIN_UPPER_LEFT: u32 = 7;
+    pub const INPUT_POINTS: u32 = 19;
+    pub const OUTPUT_VERTICES: u32 = 26;
+    pub const OUTPUT_POINTS: u32 = 27;
     pub const DENORM_PRESERVE: u32 = 4459;
     pub const SIGNED_ZERO_INF_NAN_PRESERVE: u32 = 4461;
     pub const DERIVATIVE_GROUP_LINEAR: u32 = 5290;
@@ -142,6 +154,7 @@ pub mod decoration {
     pub const DESCRIPTOR_SET: u32 = 34;
     pub const OFFSET: u32 = 35;
     pub const NO_CONTRACTION: u32 = 42;
+    pub const PER_VERTEX: u32 = 5285;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -152,6 +165,9 @@ pub enum BuiltIn {
     InstanceIndex = 43,
     FragCoord = 15,
     FrontFacing = 17,
+    SampleId = 18,
+    SamplePosition = 19,
+    SampleMask = 20,
     FragDepth = 22,
     NumWorkgroups = 24,
     WorkgroupSize = 25,
@@ -161,6 +177,7 @@ pub enum BuiltIn {
     LocalInvocationIndex = 29,
     SubgroupSize = 36,
     SubgroupLocalInvocationId = 41,
+    FullyCovered = 5264,
 }
 
 #[derive(Debug, Clone)]
@@ -813,8 +830,20 @@ impl Emitter {
         r
     }
 
-    pub fn emit_image_gather(&mut self, ty: u32, sampled_image: u32, coord: u32, component: u32) -> u32 {
-        self.typed_tri(96, ty, sampled_image, coord, component)
+    pub fn emit_image_gather(&mut self, ty: u32, sampled_image: u32, coord: u32, component: u32, operands: &[u32]) -> u32 {
+        let r = self.alloc_id();
+        let mut data = vec![ty, r, sampled_image, coord, component];
+        data.extend_from_slice(operands);
+        self.inst(96, &data);
+        r
+    }
+
+    pub fn emit_image_dref_gather(&mut self, ty: u32, sampled_image: u32, coord: u32, dref: u32, operands: &[u32]) -> u32 {
+        let r = self.alloc_id();
+        let mut data = vec![ty, r, sampled_image, coord, dref];
+        data.extend_from_slice(operands);
+        self.inst(97, &data);
+        r
     }
 
     pub fn emit_image_texel_pointer(&mut self, ty: u32, image: u32, coord: u32, sample: u32) -> u32 {
@@ -1061,6 +1090,14 @@ impl Emitter {
 
     pub fn emit_kill(&mut self) {
         self.inst(252, &[]);
+    }
+
+    pub fn emit_stream_vertex(&mut self, stream: u32) {
+        self.inst(220, &[stream]);
+    }
+
+    pub fn emit_end_stream_primitive(&mut self, stream: u32) {
+        self.inst(221, &[stream]);
     }
 
     pub fn validate(&self) {

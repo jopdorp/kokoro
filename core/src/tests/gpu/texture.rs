@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::gpu::texture::TexturePool;
-    use crate::tests::gpu::harness::{Textures, run_textured, spirv_val, translate_module};
+    use crate::tests::gpu::harness::{PRED, Textures, run_regs, run_textured, spirv_val, translate_module};
     use crate::tests::gpu_test::inst::{self, texture};
 
     const TEXELS_ADDRESS: u64 = 0x1_0000_0400;
@@ -147,6 +147,62 @@ mod tests {
             let bytes: Vec<u8> = regs[4..8].iter().map(|&r| (f32::from_bits(r) * 255.0).round() as u8).collect();
             assert_eq!(bytes, [red(x, y + 1), red(x + 1, y + 1), red(x + 1, y), red(x, y)], "lane {t}");
         }
+    }
+
+    #[test]
+    fn tld4_aoffi_and_ptp_apply_signed_texel_offsets() {
+        let texels: Vec<u8> = (0..64).map(|i| 4 * i + 3).collect();
+        let corner = |i: u32| ((i + 1) as f32 / 4.0).to_bits();
+        let mut seed = vec![0; 12];
+        (seed[2], seed[3], seed[6], seed[7], seed[8], seed[9], seed[10]) =
+            (corner(0), corner(0), 0x0101_0101, 0, corner(1), corner(0), 1);
+        let aoffi = inst::with_rb(texture(inst::TLD4_R_2D | inst::TLD4_AOFFI, 12, 14, 2, 3, 0x10, 0xf), 10);
+        let ptp = inst::with_rb(texture(inst::TLD4_R_2D | inst::TLD4_PTP, 16, 18, 2, 3, 0x10, 0xf), 6);
+        let shifted = texture(inst::TLD4_R_2D, 20, 22, 8, 3, 0x10, 0xf);
+        let Some(lanes) = run(&[aoffi, ptp, shifted], &[seed], &texels, NEAREST) else { return };
+        assert_eq!(lanes[0][12..20], [lanes[0][20..24].to_vec(), lanes[0][20..24].to_vec()].concat());
+    }
+
+    #[test]
+    fn tld4_f16_rounding_packs_pairs_and_sparse_reports_resident() {
+        let mut texels = vec![0; 64];
+        for texel in texels.chunks_mut(4) {
+            texel[0] = 255;
+        }
+        let center = (0.5f32 / 4.0).to_bits();
+        let word = texture(inst::TLD4_R_2D | inst::TLD4_F16_RN, 4, 6, 2, 3, 0x10, 0xf) & !(7 << 81);
+        let word_rz = texture(inst::TLD4_R_2D | inst::TLD4_F16_RZ, 8, 10, 2, 3, 0x10, 0xf);
+        let Some(lanes) = run(&[word, word_rz], &[vec![0, 0, center, center]], &texels, NEAREST) else { return };
+        assert_eq!([lanes[0][4], lanes[0][6], lanes[0][8], lanes[0][10]], [0x3c00_3c00; 4]);
+        assert_eq!(lanes[0][PRED] & 1, 1);
+    }
+
+    #[test]
+    fn tld4_depth_dimensions_and_handle_forms_pass_spirv_validation() {
+        let base = |op, dimension| texture(op | (dimension as u128) << 61, 4, 8, 12, 3, 0x10, 0xf);
+        let forms = [
+            inst::with_rb(base(0xb63 | inst::TLD4_DC, 1), 16),
+            base(0xb63, 3),
+            base(0xb63, 5),
+            base(0xb63, 7),
+            inst::with_rb(base(0xb63 | inst::TLD4_BINDLESS, 1), 16),
+            base(inst::TLD4_UR, 1),
+            inst::with_rb(base(inst::TLD4_NO_CONST, 1), 16),
+            base(inst::TLD4_TID, 1),
+            base(0xb63 | inst::TLD4_SCR, 1),
+        ];
+        for word in forms {
+            spirv_val(&translate_module(&[word], true, None, false));
+        }
+    }
+
+    #[test]
+    fn footprint_full_result_unverified_on_silicon() {
+        let program = [inst::footprint(4, 8, 12, 0)];
+        let Some((regs, _)) = run_regs(&program, &[], &[], &[]) else { return };
+        assert_eq!(regs[4..6], [u32::MAX; 2]);
+        assert_eq!(regs[8..10], [u32::MAX; 2]);
+        assert_eq!(regs[PRED] & 1, 0);
     }
 
     #[test]
