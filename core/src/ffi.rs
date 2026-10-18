@@ -128,9 +128,9 @@ pub extern "C" fn oboromi_render_helmet_demo(_seconds: f32) -> bool {
 /// draws the post-effect demo at `seconds` and presents it, false if vulkan
 /// is missing or a draw fails. blocks, so call it from a worker thread.
 #[unsafe(no_mangle)]
-pub extern "C" fn oboromi_render_post_frame(seconds: f32) -> bool {
+pub extern "C" fn oboromi_render_post_frame(_seconds: f32) -> bool {
     matches!(
-        catch_unwind(|| crate::gpu::demo_post::render_post_frame(seconds)),
+        catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::Post)),
         Ok(Ok(()))
     )
 }
