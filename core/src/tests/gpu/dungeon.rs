@@ -273,9 +273,11 @@ fn water_ping_pong_matches_native_and_releases_each_visible_step() {
     install(&mut guest, passes[0], &first);
     install(&mut guest, passes[1], &second);
     submit(&mut guest, &passes);
-    let mut actual = vec![0; expected[1].len()];
-    guest.read(previous, &mut actual).unwrap();
-    close(&expected[1], &actual, 2e-4);
+    for (address, expected) in [(previous, &expected[1]), (surface_at, &expected[2])] {
+        let mut actual = vec![0; expected.len()];
+        guest.read(address, &mut actual).unwrap();
+        close(expected, &actual, 2e-4);
+    }
 }
 
 #[test]
