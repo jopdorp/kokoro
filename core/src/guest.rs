@@ -226,6 +226,7 @@ mod tests {
 
     #[test]
     fn guest_helmet_matches_host_frame() {
+        if !crate::gpu::demo::asset_dir("flighthelmet").exists() { return eprintln!("skipped: run demos/assets/fetch.sh for flighthelmet"); }
         let _display = DISPLAY_TEST.lock().unwrap();
         crate::gpu::demo::render_helmet_frame(1.0).unwrap();
         let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
@@ -278,6 +279,7 @@ mod tests {
 
     #[test]
     fn guest_boombox_matches_host_frame() {
+        if !crate::gpu::demo::asset_dir("boombox").exists() { return eprintln!("skipped: run demos/assets/fetch.sh for boombox"); }
         let _display = DISPLAY_TEST.lock().unwrap();
         crate::gpu::demo::render_boombox_frame(1.0).unwrap();
         let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
