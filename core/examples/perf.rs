@@ -50,7 +50,7 @@ fn breakdown(name: &str, [frame, gpu]: [f64; 2], copy: f64, present: f64, cold: 
 fn kernel_grid<'a>(state: &'a VkState, kernel: &Kernel, grid: [u32; 3], block: [u32; 3], args: &[Arg]) -> (Grid<'a>, f64) {
     let (banks, regions) = kernel.launch(grid, block, args, GLOBAL_BASE);
     let t = Instant::now();
-    let built = Grid::new(state, &kernel.words, block, &banks, &regions);
+    let built = Grid::new(state, &kernel.words, block, kernel.shared_bytes, &banks, &regions);
     (built, since(t))
 }
 
@@ -157,7 +157,7 @@ fn main() {
     let ops = f64::from(groups[0] * block[0] / 32) * chain as f64;
     let [exact, fast] = [false, true].map(|fast| {
         oboromi_set_tensor_mode(fast);
-        let mut grid = Grid::new(state, &hmma_program, block, &[], &[(GLOBAL_BASE, &[0; 16])]);
+        let mut grid = Grid::new(state, &hmma_program, block, 0, &[], &[(GLOBAL_BASE, &[0; 16])]);
         bench(if fast { "hmma fast" } else { "hmma exact" }, 2, 20, Some(state), || drop(black_box(grid.run(groups))))[1]
     });
     oboromi_set_tensor_mode(false);

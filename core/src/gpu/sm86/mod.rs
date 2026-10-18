@@ -195,6 +195,7 @@ pub struct Decoder<'a> {
     type_ptr_local: u32,
     locals: Option<Locals>,
     pending_nan: BTreeMap<u32, u32>,
+    shared_words: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -203,11 +204,12 @@ pub struct Hints {
     pub translation: Translation,
     pub tensor: TensorMode,
     pub ray_budget: u32,
+    pub shared_words: u32,
 }
 
 impl Default for Hints {
     fn default() -> Self {
-        Self { timing: false, translation: Translation::default(), tensor: TensorMode::default(), ray_budget: crate::gpu::SPEED_HACKS.lock().unwrap().ray_budget }
+        Self { timing: false, translation: Translation::default(), tensor: TensorMode::default(), ray_budget: crate::gpu::SPEED_HACKS.lock().unwrap().ray_budget, shared_words: 0 }
     }
 }
 
@@ -278,6 +280,10 @@ fn access_words(sz: u32) -> u32 {
 fn assert_round_to_nearest(inst: u128) {
     let mode = (inst >> 78 & 3) as usize;
     assert!(mode == 0, "{} rounding mode is not implemented", ["RN", "RM", "RP", "RZ"][mode]);
+}
+
+fn accept_nearest_for_directed_rounding() {
+    // Vulkan SPIR-V cannot select rounding per arithmetic operation, so directed forms use round-to-nearest.
 }
 
 fn deferred_nan(inst: u128) -> bool {
@@ -418,6 +424,7 @@ impl<'a> Decoder<'a> {
             type_ptr_local: 0,
             locals: None,
             pending_nan: BTreeMap::new(),
+            shared_words: hints.shared_words.max(SHARED_WORDS),
             timing: if !hints.timing { Timing::Off } else if let Some(device) = device.filter(|d| d.shader_device_clock) {
                 Timing::Clock { period: device.timestamp_period, emitted: false }
             } else {

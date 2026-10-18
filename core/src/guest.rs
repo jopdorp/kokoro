@@ -296,7 +296,7 @@ mod tests {
             Arg::Value(&scale), Arg::Value(&[3, 5, 7, 0]), Arg::Value(&frame),
             Arg::Value(&animation), Arg::Value(&grid_width), Arg::Value(&blocks), Arg::Value(&[0]),
         ];
-        let expected = run_kernel(include_bytes!("../tests/fixtures/mandelbrot-sm86.cubin"), name, GRID, BLOCK, &args).unwrap().remove(0);
+        let expected = run_kernel(include_bytes!("../tests/fixtures/mandelbrot-sm86.cubin"), name, GRID, BLOCK, 0, &args).unwrap().remove(0);
         let mut guest = Machine::demo(Demo::Mandelbrot).unwrap();
         for _ in 0..=frame_number { guest.frame().unwrap(); }
         let mut displayed = crate::display::DISPLAY.lock().unwrap();
