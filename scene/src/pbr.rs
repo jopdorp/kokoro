@@ -4,7 +4,7 @@ pub const BASE: u64 = 0x1000_0000;
 pub const PUSHBUFFER: u64 = BASE;
 pub const FRAME_SEGMENT: u64 = BASE + 0x8000;
 pub const VERTEX_PROGRAM: u64 = BASE + 0x1_0000;
-pub const PIXEL_PROGRAM: u64 = BASE + 0x1_8000;
+pub const PIXEL_PROGRAM: u64 = BASE + 0x4_0000;
 pub const VERTEX_TABLE: u64 = BASE + 0x2_0000;
 pub const VERTEX_UNIFORMS: u64 = VERTEX_TABLE + 0x100;
 pub const MATERIALS: u64 = BASE + 0x2_1000;
@@ -13,7 +13,7 @@ pub const MATERIAL_UNIFORMS: u64 = 0x80;
 pub const TIC: u64 = BASE + 0x3_0000;
 pub const TSC: u64 = BASE + 0x3_8000;
 pub const REPORT: u64 = BASE + 0x3_f000;
-pub const VERTICES: u64 = BASE + 0x4_0000;
+pub const VERTICES: u64 = PIXEL_PROGRAM + 0x2_0000;
 // The depth target lives on the host only, so its VA needs no pages.
 pub const DEPTH: u64 = 0x2000_0000;
 pub const ALIGN: u64 = 0x1_0000;
