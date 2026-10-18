@@ -241,6 +241,7 @@ bool oboromi_render_post_frame(float seconds);
 /// draws the sprites demo at `seconds` and presents it, false if vulkan is
 /// missing or the draw fails. blocks, so call it from a worker thread.
 bool oboromi_render_sprites_frame(float seconds);
+bool oboromi_render_tensor_upscale_frame(float seconds);
 bool oboromi_render_dungeon_frame(float seconds);
 bool oboromi_dungeon_ray_queries(void);
 void oboromi_dungeon_settings(bool showcase, bool raytracing);

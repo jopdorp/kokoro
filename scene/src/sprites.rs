@@ -43,12 +43,16 @@ fn load<const N: usize>(buffer: u64, values: &[f32; N], words: &mut impl Extend<
 }
 
 pub fn init_segment(base: u64, [width, height]: [u32; 2], words: &mut impl Extend<u32>) {
+    init_segment_at(base, base + TARGET, [width, height], words);
+}
+
+pub fn init_segment_at(base: u64, target: u64, [width, height]: [u32; 2], words: &mut impl Extend<u32>) {
     const R32_G32_B32_A32_FLOAT: u32 = 0x01 << 21 | 7 << 27;
     const A8B8G8R8: u32 = 0xd5;
     const PITCH: u32 = 0x1000;
     let (x, y) = (width as f32 / 2.0, height as f32 / 2.0);
     inc(SET_OBJECT, &[0xc797], words);
-    inc(SET_COLOR_TARGET_A, &[((base + TARGET) >> 32) as u32, (base + TARGET) as u32, width * 4, height, A8B8G8R8, PITCH], words);
+    inc(SET_COLOR_TARGET_A, &[(target >> 32) as u32, target as u32, width * 4, height, A8B8G8R8, PITCH], words);
     inc(SET_VIEWPORT_SCALE_X, &[x, y, 1.0, x, y, 0.0].map(f32::to_bits), words);
     inc(SET_VIEWPORT_CLIP_HORIZONTAL, &[width << 16, height << 16, 0, 1.0f32.to_bits()], words);
     inc(SET_SCISSOR_ENABLE, &[1, width << 16, height << 16], words);
