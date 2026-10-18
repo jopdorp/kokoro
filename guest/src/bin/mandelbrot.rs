@@ -20,12 +20,12 @@ core::arch::global_asm!(
 const CUBIN: &[u8] = include_bytes!("../../../core/tests/fixtures/mandelbrot-sm86.cubin");
 
 fn draw() -> svc::Result<()> {
-    let heap = svc::set_heap_size(0x100_0000)?;
+    let heap = svc::set_heap_size(0x200_0000)?;
     let memory = heap + 0x10_0000;
     let channel = nv::Channel::new()?;
     let (_, target_handle) = channel.buffer_at(memory, MAPPED, BASE)?;
-    nv::guest_slice(memory + PROGRAM - BASE, 0x1900).copy_from_slice(&CUBIN[0x7e80..0x9780]);
-    nv::guest_slice(memory + CBUF - BASE, 0x19d).copy_from_slice(&CUBIN[0x2500..0x269d]);
+    nv::guest_slice(memory + PROGRAM - BASE, 0x1900).copy_from_slice(&CUBIN[0x6580..0x7e80]);
+    nv::guest_slice(memory + CBUF - BASE, 0x1b5).copy_from_slice(&CUBIN[0x2348..0x24fd]);
     nv::guest_slice::<u32>(memory + CBUF - BASE, 6).copy_from_slice(&[BLOCK[0], BLOCK[1], BLOCK[2], GRID[0], GRID[1], GRID[2]]);
     nv::guest_slice::<u32>(memory + CBUF - BASE + 0x28, 1)[0] = 0x1000;
     let mut words = Words {
@@ -42,25 +42,35 @@ fn draw() -> svc::Result<()> {
     )?;
     let mut frame = 0u32;
     loop {
-        let cbuf = nv::guest_slice::<u32>(memory + CBUF - BASE, 0x1a0 / 4);
-        cbuf[0x160 / 4..0x19c / 4].copy_from_slice(&[
+        let cbuf = nv::guest_slice::<u32>(memory + CBUF - BASE, 0x1c0 / 4);
+        let (x, y, scale, crunch) = view(frame);
+        let [x0, x1] = [x.to_bits() as u32, (x.to_bits() >> 32) as u32];
+        let [y0, y1] = [y.to_bits() as u32, (y.to_bits() >> 32) as u32];
+        let [s0, s1] = [scale.to_bits() as u32, (scale.to_bits() >> 32) as u32];
+        cbuf[0x160 / 4..0x1b8 / 4].copy_from_slice(&[
             TARGET as u32,
             (TARGET >> 32) as u32,
             WIDTH,
             HEIGHT,
-            CRUNCH,
-            (-0.5f32).to_bits(),
+            crunch,
+            0,
+            x0,
+            x1,
+            y0,
+            y1,
             0,
             0,
             0,
-            scale(frame).to_bits(),
-            u32::from_le_bytes([3, 5, 7, 0]),
+            0,
+            s0,
+            s1,
+            u32::from_le_bytes([1, 2, 3, 0]),
             0,
             0,
             GRID_WIDTH,
             GRID[0],
+            0,
         ]);
-        cbuf[0x19c / 4] = 0;
         nv::guest_slice(memory + QMD - BASE, 64).copy_from_slice(&qmd(frame + 1));
         channel.submit(COMMANDS, words.len)?;
         window.present([WIDTH, HEIGHT])?;

@@ -294,14 +294,15 @@ mod tests {
         use scene::mandelbrot::*;
         let _display = DISPLAY_TEST.lock().unwrap();
         let frame_number = 10u32;
-        let name = "_Z11Mandelbrot0IfEvP6uchar4iiiT_S2_S2_S2_S2_S0_iiiib";
+        let name = "_Z11Mandelbrot0IdEvP6uchar4iiiT_S2_S2_S2_S2_S0_iiiib";
         let output = vec![0; (WIDTH * HEIGHT * 4) as usize];
-        let [width, height, crunch, frame, animation, grid_width, blocks] = [WIDTH, HEIGHT, CRUNCH, 0, 0, GRID_WIDTH, GRID[0]].map(u32::to_le_bytes);
-        let [x_off, zero, scale] = [-0.5f32, 0.0, scale(frame_number)].map(f32::to_le_bytes);
+        let (x, y, scale, crunch) = view(frame_number);
+        let [width, height, crunch, frame, animation, grid_width, blocks] = [WIDTH, HEIGHT, crunch, 0, 0, GRID_WIDTH, GRID[0]].map(u32::to_le_bytes);
+        let [x_off, y_off, zero, scale] = [x, y, 0.0, scale].map(f64::to_le_bytes);
         let args = [
             Arg::Buffer(&output), Arg::Value(&width), Arg::Value(&height), Arg::Value(&crunch),
-            Arg::Value(&x_off), Arg::Value(&zero), Arg::Value(&zero), Arg::Value(&zero),
-            Arg::Value(&scale), Arg::Value(&[3, 5, 7, 0]), Arg::Value(&frame),
+            Arg::Value(&x_off), Arg::Value(&y_off), Arg::Value(&zero), Arg::Value(&zero),
+            Arg::Value(&scale), Arg::Value(&[1, 2, 3, 0]), Arg::Value(&frame),
             Arg::Value(&animation), Arg::Value(&grid_width), Arg::Value(&blocks), Arg::Value(&[0]),
         ];
         let expected = run_kernel(include_bytes!("../tests/fixtures/mandelbrot-sm86.cubin"), name, GRID, BLOCK, 0, &args).unwrap().remove(0);
