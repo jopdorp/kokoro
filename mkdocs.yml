@@ -6,6 +6,7 @@ site_dir: site
 
 theme:
   name: material
+  custom_dir: overrides
   language: en
   logo: assets/brand/oboromi-logo.png
   favicon: assets/brand/oboromi-logo.png
@@ -38,6 +39,7 @@ markdown_extensions:
   - admonition
   - attr_list
   - md_in_html
+  - meta
   - tables
   - toc:
       permalink: true
@@ -52,6 +54,9 @@ markdown_extensions:
 
 plugins:
   - search
+
+hooks:
+  - scripts/docs_media.py
 
 nav:
   - Home: index.md
