@@ -71,7 +71,11 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced.mp4" type="video/mp4"></video>
 
-*The scene uses Switch 2 shader machine code through the translator, but its command stream is still built on the host. This clip was rendered offline on an RTX 3090. The Intel laptop runs the scene slowly with a lighter shader.*
+*Light now bounces once, so the red and green walls tint the BoomBox and the tint follows the moving lamp. Soft shadows, chrome, glass and the glossy floor work as before. The shaders are Switch 2 shader machine code through the translator, but the command stream is still built on the host. This clip was rendered offline on an RTX 3090 because the Intel laptop runs this shader slowly.*
+
+![Ray-traced scene without and with bounce light](https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-gi-proof.png)
+
+*The top row is without bounce light and the bottom row is with it. Look at the BoomBox picking up the wall colour near the lamp.*
 
 ### Mandelbrot CUDA
 
