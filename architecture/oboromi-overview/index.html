@@ -419,43 +419,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-was-already-there" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What was already there?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-does-each-part-do-today-and-what-is-next" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What does each part do today, and what is next?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#how-does-a-frame-reach-the-window" class="md-nav__link">
     <span class="md-ellipsis">
       
         How does a frame reach the window?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-does-the-gpu-work-start-at-the-hardware" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why does the GPU work start at the hardware?
       
     </span>
   </a>
@@ -569,7 +536,7 @@
   <span class="md-ellipsis">
     
   
-    Guest path
+    Emulator path
   
 
     
@@ -1301,43 +1268,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-was-already-there" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What was already there?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-does-each-part-do-today-and-what-is-next" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What does each part do today, and what is next?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#how-does-a-frame-reach-the-window" class="md-nav__link">
     <span class="md-ellipsis">
       
         How does a frame reach the window?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-does-the-gpu-work-start-at-the-hardware" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why does the GPU work start at the hardware?
       
     </span>
   </a>
@@ -1362,156 +1296,64 @@
 
 
 <h1 id="emulator-overview">Emulator overview<a class="headerlink" href="#emulator-overview" title="Permanent link">&para;</a></h1>
-<p>oboromi already had the foundations every other part builds on. Those include the project layout, a multicore ARM CPU on one shared memory block, and a registry of the console's services. They also include the GPU instruction table with its decoder generator. For example, the GPU translator decodes every instruction with that generator, and the GPU reads the same memory block the CPU cores share.</p>
-<pre class="mermaid"><code>flowchart TB
-    subgraph Front["Front end"]
-        QT["Qt window&lt;br/&gt;Buttons and the picture"] --&gt; BR["RustBridge.cpp&lt;br/&gt;C++ side of the bridge"]
-    end
-    BR --&gt;|"C function calls"| FFI["core/src/ffi.rs&lt;br/&gt;Rust side of the bridge"]
-    FFI --&gt; TESTS["Tests&lt;br/&gt;CPU and GPU self-checks"]
-    FFI --&gt; GPU["gpu&lt;br/&gt;Frames and demos"]
-    subgraph Core["oboromi-core crate"]
-        SYS["sys::State&lt;br/&gt;One entry per service"]
-        NN["nn&lt;br/&gt;Service registry, ready for commands"]
-        CPU["cpu::CpuManager&lt;br/&gt;Emulated ARM cores"]
-        RAM[("Guest RAM&lt;br/&gt;The console's memory, one block")]
-        FS["fs&lt;br/&gt;File access"]
-        AUD["Audio&lt;br/&gt;Renderer service, planned"]
-    end
-    SYS --&gt; NN
-    CPU --&gt; RAM
-    GPU --&gt; RAM
-    TESTS --&gt; CPU</code></pre>
-<p><em>The parts around the GPU, and how the window reaches them.</em></p>
-<h2 id="what-was-already-there">What was already there?<a class="headerlink" href="#what-was-already-there" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Foundation</th>
-<th>Where</th>
-<th>What it gives the rest of the project</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Project structure</td>
-<td>Cargo workspace, <code>core</code>, <code>gui-qt</code></td>
-<td>One Rust core with a C interface, used by a separate Qt front end</td>
-</tr>
-<tr>
-<td>Multicore CPU</td>
-<td>core/src/cpu</td>
-<td>Eight ARM cores on Unicorn, all mapping one shared RAM block at guest address 0</td>
-</tr>
-<tr>
-<td>Service registry</td>
-<td>core/src/nn, core/src/sys</td>
-<td>160 named services, each with a slot in the system state, ready for its commands</td>
-</tr>
-<tr>
-<td>IPC header types</td>
-<td>core/src/nn/hipc.rs</td>
-<td>The data types of the Switch's service message header</td>
-</tr>
-<tr>
-<td>SM86 instruction table and decoder generator</td>
-<td>scripts/</td>
-<td>The decoder for every GPU instruction is generated from NVIDIA's own table</td>
-</tr>
-<tr>
-<td>SPIR-V emitter</td>
-<td>core/src/gpu/spirv.rs</td>
-<td>The writer every translated shader goes through</td>
-</tr>
-<tr>
-<td>Qt front end</td>
-<td>gui-qt</td>
-<td>The window, its buttons and the bridge into the Rust core</td>
-</tr>
-<tr>
-<td>CI</td>
-<td>.github/workflows</td>
-<td>Builds and tests on Linux, Windows and macOS</td>
-</tr>
-</tbody>
-</table>
-<h2 id="what-does-each-part-do-today-and-what-is-next">What does each part do today, and what is next?<a class="headerlink" href="#what-does-each-part-do-today-and-what-is-next" title="Permanent link">&para;</a></h2>
+<p>oboromi builds on a Rust core, a Qt front end, emulated ARM cores, a system-service registry, an NVIDIA instruction table and a SPIR-V writer. The current path connects those foundations into one machine: the loader starts an AArch64 image, the kernel handles its calls, services drive graphics and audio, and the window presents the result.</p>
 <table>
 <thead>
 <tr>
 <th>Part</th>
 <th>Where</th>
-<th>Today</th>
-<th>Next</th>
-<th>Page</th>
+<th>What works today</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>CPU cores and RAM</td>
-<td>core/src/cpu</td>
-<td>Run, step, read and write registers and memory on every core</td>
-<td>Share the RAM with the GPU, in progress on the <code>guest-path</code> branch</td>
-<td><a href="../cpu/">CPU</a></td>
+<td>CPU</td>
+<td><code>core/src/cpu</code></td>
+<td>Dynarmic and Unicorn execute eight AArch64 cores over one RAM block</td>
 </tr>
 <tr>
-<td>Kernel layer</td>
-<td>core/src/kernel, planned</td>
-<td>Not started in the core; the test guest already issues system calls</td>
-<td>System-call dispatch, handles, memory regions, IPC</td>
-<td><a href="../cpu/">CPU</a></td>
+<td>Kernel</td>
+<td><code>core/src/kernel</code></td>
+<td>Threads, scheduling, handles, memory regions, events and IPC dispatch</td>
 </tr>
 <tr>
 <td>Services</td>
-<td>core/src/nn</td>
-<td>The registry and the message header types</td>
-<td>Sessions, then the GPU driver and display services</td>
-<td><a href="../services/">Services</a></td>
-</tr>
-<tr>
-<td>Audio</td>
-<td>core/src/audio</td>
-<td>Module in place</td>
-<td>The audio renderer service and output through Qt, designed</td>
-<td><a href="../audio/">Audio</a></td>
+<td><code>core/src/nn</code></td>
+<td>Service manager, GPU driver, display, binder, audio, input, time and filesystem paths</td>
 </tr>
 <tr>
 <td>Loader</td>
-<td>planned</td>
-<td>Tests place guest code in memory</td>
-<td>A flat image loader for our own guest first, game formats later</td>
-<td><a href="../guest-path/">Guest path</a></td>
+<td><code>core/src/loader</code></td>
+<td>NRO and flat-image loading</td>
 </tr>
 <tr>
-<td>Filesystem</td>
-<td>core/src/fs</td>
-<td>Maps a file into memory</td>
-<td>Game file formats, planned</td>
-<td></td>
-</tr>
-<tr>
-<td>Display</td>
-<td>core/src/display.rs</td>
-<td>Holds the last frame and tells the window</td>
-<td>The display services feed it, planned</td>
-<td><a href="../guest-path/">Guest path</a></td>
+<td>Audio</td>
+<td><code>core/src/audio</code></td>
+<td>Voices, mixes, effects, output, measured HRIR spatialisation and raw audio output</td>
 </tr>
 <tr>
 <td>GPU</td>
-<td>core/src/gpu</td>
-<td>Translates and runs shaders, draws from command lists</td>
-<td>See the GPU pages</td>
-<td><a href="../gpu-pipeline/">GPU pipeline</a></td>
+<td><code>core/src/gpu</code></td>
+<td>Command processing, SASS translation, compute, graphics, textures, tensors and ray queries</td>
+</tr>
+<tr>
+<td>Front end</td>
+<td><code>gui-qt</code></td>
+<td>Input, demo controls, frames and sound</td>
+</tr>
+<tr>
+<td>Demo images</td>
+<td><code>guest</code>, <code>scene</code></td>
+<td><code>no_std</code> AArch64 images and shared scene encoders</td>
 </tr>
 </tbody>
 </table>
 <h2 id="how-does-a-frame-reach-the-window">How does a frame reach the window?<a class="headerlink" href="#how-does-a-frame-reach-the-window" title="Permanent link">&para;</a></h2>
-<p>The core never calls the window directly. A renderer calls <code>display::present</code>, which copies the pixels, bumps a frame counter and fires a callback the window registered. The window then reads the frame through the C interface and scales it to fit.</p>
-<p>Why: the window redraws only when a frame arrives, and the core stays testable without a window.</p>
-<h2 id="why-does-the-gpu-work-start-at-the-hardware">Why does the GPU work start at the hardware?<a class="headerlink" href="#why-does-the-gpu-work-start-at-the-hardware" title="Permanent link">&para;</a></h2>
-<p>A game reaches the GPU through the kernel and the GPU driver services, and both are still being built. So the GPU work started where the hardware starts, and tests write command lists into guest memory the way the driver would. The <a href="../guest-path/">guest path</a> replaces those tests with a real program that goes through the system calls and services.</p>
-<p>Verified by: the CPU self-tests (<code>core/src/tests/run.rs</code>, <code>multicore_test.rs</code>) and an offscreen screenshot of the window after Render Test Frame.</p>
-<p>Sources: core/src/cpu/cpu_manager.rs, core/src/cpu/unicorn_interface.rs, core/src/nn/mod.rs, core/src/nn/hipc.rs, core/src/sys/mod.rs, core/src/display.rs, core/src/ffi.rs, gui-qt/src/MainWindow.cpp, .github/workflows/ci.yml, README.md.</p>
+<p>An image loaded by the emulator calls the GPU driver services, writes commands into emulated RAM and submits them. The GPU engine translates the Switch 2 shader machine code, runs it through Vulkan and writes the result back. The display service queues that buffer, then <code>display::present</code> notifies the Qt window.</p>
+<p>The same route runs the Dungeon, ray-traced BoomBox, Mandelbrot precision dive, solar-system birth and the smaller demos. Tests may call lower layers directly as oracles, but the demo buttons use the emulator path.</p>
+<p>Commercial games and firmware do not boot yet. Game-format loading and the remaining system surface are still in progress.</p>
+<p>Verified by: the loader, kernel, service, audio and GPU suites, plus the fixed-frame demo tests in <code>core/src/guest.rs</code>.</p>
+<p>Sources: <code>core/src/{guest,kernel}.rs</code>, <code>core/src/cpu</code>, <code>core/src/nn</code>, <code>core/src/audio</code>, <code>core/src/gpu</code>, <code>guest</code>, <code>scene</code>, <code>gui-qt</code>.</p>
 
 
 

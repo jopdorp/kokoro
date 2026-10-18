@@ -478,7 +478,7 @@
   <span class="md-ellipsis">
     
   
-    Guest path
+    Emulator path
   
 
     
@@ -598,10 +598,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#where-does-the-guests-state-live" class="md-nav__link">
+  <a href="#where-does-the-emulated-gpu-state-live" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Where does the guest's state live?
+        Where does the emulated GPU state live?
       
     </span>
   </a>
@@ -685,6 +685,17 @@
     <span class="md-ellipsis">
       
         How much is covered?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-are-exact-nvidia-shaders-built" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How are exact NVIDIA shaders built?
       
     </span>
   </a>
@@ -1373,10 +1384,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#where-does-the-guests-state-live" class="md-nav__link">
+  <a href="#where-does-the-emulated-gpu-state-live" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Where does the guest's state live?
+        Where does the emulated GPU state live?
       
     </span>
   </a>
@@ -1466,6 +1477,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#how-are-exact-nvidia-shaders-built" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How are exact NVIDIA shaders built?
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1522,12 +1544,12 @@
 </tbody>
 </table>
 <p>Why the SM86 table works for the Switch 2: NVIDIA's disassembler ships byte-identical tables for the desktop chip and the Switch 2 chip. See <a href="../../adr/0007-t239-decodes-with-the-sm86-table/">ADR-0007</a>.</p>
-<h2 id="where-does-the-guests-state-live">Where does the guest's state live?<a class="headerlink" href="#where-does-the-guests-state-live" title="Permanent link">&para;</a></h2>
-<p>SPIR-V has no direct way to name a GPU's hardware registers. So each guest register becomes an entry in an array the shader owns. "Private" below means one copy per thread, and "Workgroup" means one copy shared by a group of threads.</p>
+<h2 id="where-does-the-emulated-gpu-state-live">Where does the emulated GPU state live?<a class="headerlink" href="#where-does-the-emulated-gpu-state-live" title="Permanent link">&para;</a></h2>
+<p>SPIR-V has no direct way to name the emulated GPU's hardware registers. Each register therefore becomes an entry in an array the shader owns. "Private" below means one copy per thread, and "Workgroup" means one copy shared by a group of threads.</p>
 <table>
 <thead>
 <tr>
-<th>Guest state</th>
+<th>Emulated state</th>
 <th>Home in SPIR-V</th>
 <th>Note</th>
 </tr>
@@ -1582,8 +1604,8 @@
     loop --&gt;|"Yes"| sw["Jump table on pc&lt;br/&gt;One entry per straight run of code"]
     sw --&gt; blk["Run that piece of code;&lt;br/&gt;A branch just sets the next pc"]
     blk --&gt; loop</code></pre>
-<p><em>Guest jumps become one loop around a jump table.</em></p>
-<p>Vulkan only accepts structured control flow: nested loops and ifs, never a free jump. So a guest branch only stores the next program position, the pc. One loop around a switch then runs the piece of code at that pc.</p>
+<p><em>The fallback turns machine-code jumps into one loop around a jump table.</em></p>
+<p>Vulkan only accepts structured control flow: nested loops and ifs, never a free jump. The Beyond Relooper structurizer now turns reducible machine-code control flow into nested SPIR-V selections and loops. Programs it cannot structure use the pc dispatcher shown above, where a branch stores the next program position and one loop runs the matching block.</p>
 <p>Those pieces are basic blocks, runs of code with no jump in or out except at the ends. A block starts at the program start, at every jump target, after every branch and EXIT, at BSYNC and after BAR. A jump to an address held in a register (BRX, JMX, CALL) could land anywhere, so then every instruction starts a block. EXIT sets the pc past the end.</p>
 <p>An instruction with a predicate, such as <code>@P0 FADD</code>, is wrapped in an if on that predicate. Uniform instructions check their uniform predicate instead.</p>
 <h2 id="what-happens-when-threads-of-a-warp-disagree">What happens when threads of a warp disagree?<a class="headerlink" href="#what-happens-when-threads-of-a-warp-disagree" title="Permanent link">&para;</a></h2>
@@ -1678,7 +1700,7 @@
 <tr>
 <td>33</td>
 <td>Storage buffer, large and read-write</td>
-<td>The window onto guest memory</td>
+<td>The window onto emulated RAM</td>
 </tr>
 <tr>
 <td>34, 35</td>
@@ -1773,58 +1795,56 @@
 <table>
 <thead>
 <tr>
-<th>Measure</th>
-<th>Count</th>
+<th>Corpus</th>
+<th style="text-align: right;">Handled</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Encoding classes decoded</td>
-<td>999</td>
+<td>CUDA sample kernels</td>
+<td style="text-align: right;">768 / 818</td>
 </tr>
 <tr>
-<td>Handler functions</td>
-<td>176</td>
-</tr>
-<tr>
-<td>Handlers left as named todos</td>
-<td>19</td>
-</tr>
-<tr>
-<td>Named sub-form todos inside implemented handlers</td>
-<td>13</td>
+<td>GENGA instruction cases</td>
+<td style="text-align: right;">167 / 167</td>
 </tr>
 </tbody>
 </table>
-<p>Left out on purpose until something needs them, each with a named panic:</p>
+<p>Compute, vertex, fragment, geometry, tessellation and ray-query programs all pass through the same translator. Remaining named failures cover unsupported runtime facilities and operations without a safe portable mapping, including sparse tensors, complete <code>FOOTPRINT</code> results and <code>BAR.SCAN</code> results.</p>
+<h2 id="how-are-exact-nvidia-shaders-built">How are exact NVIDIA shaders built?<a class="headerlink" href="#how-are-exact-nvidia-shaders-built" title="Permanent link">&para;</a></h2>
+<p>The NVIDIA driver is used on the GPU pod when exact SASS is required. The repository also carries a NAK offline compiler built from Mesa. Its binding shim lays out textures and uniform buffers the way the emulator expects and writes the shader header plus machine code.</p>
 <table>
 <thead>
 <tr>
-<th>Group</th>
-<th>Instructions</th>
+<th>NAK result</th>
+<th style="text-align: right;">Difference from driver output</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Graphics-only data transport</td>
-<td>ISBERD, ISBEWR, LDTRAM, OUT, PIXLD</td>
+<td>Triangle</td>
+<td style="text-align: right;">Exact frame</td>
 </tr>
 <tr>
-<td>Ray tracing</td>
-<td>The six TTU instructions</td>
+<td>Dungeon sprite</td>
+<td style="text-align: right;">Exact frame</td>
 </tr>
 <tr>
-<td>Sparse tensor</td>
-<td>GATHER, SCATTER, GENMETADATA, SPMETADATA, BITEXTRACT</td>
+<td>Sprites</td>
+<td style="text-align: right;">Within 1 LSB</td>
 </tr>
 <tr>
-<td>Other</td>
-<td>FOOTPRINT, SUQUERY, UCLEA, float atomics, ATOM ARRIVE, CAST and SAFEADD, BAR.SCAN, texture reads with implicit level of detail</td>
+<td>BoomBox PBR</td>
+<td style="text-align: right;">Within 1 LSB</td>
+</tr>
+<tr>
+<td>Ray-query fragment</td>
+<td style="text-align: right;">Unsupported by the current offline compiler</td>
 </tr>
 </tbody>
 </table>
 <p>Verified by: spirv-val, the Khronos SPIR-V checker, on every emitted module; nvdisasm on every hand-built instruction word; and the silicon scoreboards (see <a href="../verification/">verification</a>).</p>
-<p>Sources: scripts/decoder_generator.rs, core/src/gpu/sm86_decoder_generated.rs, core/src/gpu/sm86/{mod,access,memory,control,warp}.rs, PR #80 body.</p>
+<p>Sources: <code>scripts/decoder_generator.rs</code>, <code>core/src/gpu/sm86_decoder_generated.rs</code>, <code>core/src/gpu/sm86</code>, <code>tools/nak-offline.c</code>, <code>tools/nak-compile.sh</code>.</p>
 
 
 

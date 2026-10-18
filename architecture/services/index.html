@@ -475,32 +475,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#how-does-a-game-reach-a-service" class="md-nav__link">
+  <a href="#which-paths-work" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How does a game reach a service?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#which-services-exist" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Which services exist?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-is-documented-and-what-needs-a-switch-2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What is documented, and what needs a Switch 2?
+        Which paths work?
       
     </span>
   </a>
@@ -558,7 +536,7 @@
   <span class="md-ellipsis">
     
   
-    Guest path
+    Emulator path
   
 
     
@@ -1290,32 +1268,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#how-does-a-game-reach-a-service" class="md-nav__link">
+  <a href="#which-paths-work" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How does a game reach a service?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#which-services-exist" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Which services exist?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-is-documented-and-what-needs-a-switch-2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What is documented, and what needs a Switch 2?
+        Which paths work?
       
     </span>
   </a>
@@ -1340,155 +1296,59 @@
 
 
 <h1 id="services">Services<a class="headerlink" href="#services" title="Permanent link">&para;</a></h1>
-<p>On the Switch, a game does not talk to hardware directly. It sends small messages to services, separate system programs that each own one job, such as the GPU driver or the display. For example, to get GPU memory a game opens a session with the GPU driver service and sends it a "create a buffer" message.</p>
+<p>Games reach hardware-shaped features through system services. The kernel opens a named port, returns a session handle, parses the HIPC and CMIF request, calls the service object and writes the reply into the same IPC buffer.</p>
 <pre class="mermaid"><code>sequenceDiagram
-    participant G as Game code (guest)
-    participant K as Kernel layer
-    participant S as Service (in the emulator)
-    G-&gt;&gt;K: Connect to a named port, such as "nvdrv"
-    K--&gt;&gt;G: A session handle
-    G-&gt;&gt;G: Write the request into its IPC buffer
-    G-&gt;&gt;K: SendSyncRequest with the session handle
-    K-&gt;&gt;S: Command id and arguments
-    S--&gt;&gt;K: Result and reply data
-    K--&gt;&gt;G: Reply written into the same IPC buffer</code></pre>
-<p><em>How one request travels from a game to a service and back.</em></p>
-<h2 id="how-does-a-game-reach-a-service">How does a game reach a service?<a class="headerlink" href="#how-does-a-game-reach-a-service" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong>Session.</strong> The game asks the kernel to connect to a service by name. The kernel returns a handle, a number that names the open session.</li>
-<li><strong>Message.</strong> The game writes a request into its IPC buffer, a small per-thread area of memory. IPC means inter-process communication.</li>
-<li><strong>Send.</strong> The game calls <code>SendSyncRequest</code> with the session handle and waits.</li>
-<li><strong>Reply.</strong> The service writes its answer into the same buffer, and the call returns.</li>
-</ol>
-<p>The message format is documented by switchbrew, the community's Switch wiki:</p>
+    participant P as Program on the emulator
+    participant K as Kernel
+    participant S as Service
+    P-&gt;&gt;K: Connect to a named port
+    K--&gt;&gt;P: Session handle
+    P-&gt;&gt;K: SendSyncRequest
+    K-&gt;&gt;S: Command and buffers
+    S--&gt;&gt;K: Result and reply
+    K--&gt;&gt;P: Reply in the IPC buffer</code></pre>
+<h2 id="which-paths-work">Which paths work?<a class="headerlink" href="#which-paths-work" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Part of a request</th>
-<th>What it holds</th>
+<th>Area</th>
+<th>Implemented path</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>HIPC header</td>
-<td>Message type and how many of each part follow</td>
+<td>Kernel IPC</td>
+<td>Sessions, handles, domains, buffer descriptors and service dispatch</td>
 </tr>
 <tr>
-<td>Special header, optional</td>
-<td>A process-id placeholder and handles to pass along</td>
+<td>GPU driver</td>
+<td><code>nvdrv</code>, nvmap, address spaces, channels, sync points and submission</td>
 </tr>
 <tr>
-<td>Buffer descriptors</td>
-<td>Addresses and sizes of guest memory the service may read or write</td>
+<td>Display</td>
+<td>VI sessions, binder and one real buffer slot</td>
 </tr>
 <tr>
-<td>Raw data, aligned to 16 bytes</td>
-<td>The <code>SFCI</code> magic, then the command id and its arguments</td>
+<td>Audio</td>
+<td><code>audren</code> and <code>audout</code></td>
 </tr>
 <tr>
-<td>Reply raw data</td>
-<td>The <code>SFCO</code> magic, then the result code and the outputs</td>
+<td>Input</td>
+<td>HID state and vibration service surface used by the demos</td>
+</tr>
+<tr>
+<td>Time and applet</td>
+<td>The calls used by the included images</td>
+</tr>
+<tr>
+<td>Filesystem</td>
+<td>Files, directories and storage used by the loader and Dungeon assets</td>
 </tr>
 </tbody>
 </table>
-<p>CMIF is the name for this command layer on top of HIPC. oboromi already defines the HIPC header types in <code>core/src/nn/hipc.rs</code>. The guest's encoder for the whole request lives in <code>guest/src/cmif.rs</code> on the <code>guest/scene-crate</code> branch.</p>
-<h2 id="which-services-exist">Which services exist?<a class="headerlink" href="#which-services-exist" title="Permanent link">&para;</a></h2>
-<p>The service registry names 160 services and gives each one a slot in the system state. Each entry is where that service's commands will go. The first ones being filled in are those a game needs to draw:</p>
-<table>
-<thead>
-<tr>
-<th>Service</th>
-<th>Job</th>
-<th>State</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>nvdrv</code></td>
-<td>The GPU driver: a table of open device files, each answering driver control calls (ioctls)</td>
-<td>In progress: the guest-side calls and their layouts exist, the service is next</td>
-</tr>
-<tr>
-<td><code>nvmap</code>, via nvdrv</td>
-<td>Describes GPU-visible memory allocations backed by guest RAM</td>
-<td>In progress</td>
-</tr>
-<tr>
-<td><code>nvhost-as-gpu</code>, via nvdrv</td>
-<td>The GPU address space: maps allocations to GPU addresses through the page map</td>
-<td>In progress</td>
-</tr>
-<tr>
-<td><code>nvhost-gpu</code>, via nvdrv</td>
-<td>A GPU channel: takes command lists and returns a completion fence</td>
-<td>In progress</td>
-</tr>
-<tr>
-<td><code>nvhost-ctrl</code>, <code>nvhost-ctrl-gpu</code>, via nvdrv</td>
-<td>Sync counters and the GPU's characteristics</td>
-<td>In progress</td>
-</tr>
-<tr>
-<td><code>vi</code></td>
-<td>The display service: opens the display and a layer to show frames on</td>
-<td>Planned</td>
-</tr>
-<tr>
-<td><code>IHOSBinderDriver</code> and <code>IGraphicBufferProducer</code></td>
-<td>Hand finished frames to the display, one buffer slot first</td>
-<td>Planned</td>
-</tr>
-<tr>
-<td><code>audren</code>, <code>audout</code></td>
-<td>Audio, see <a href="../audio/">audio</a></td>
-<td>Planned</td>
-</tr>
-</tbody>
-</table>
-<p>A fence is a sync counter value the game can wait on to know its work finished. Here the GPU work is done before the call returns, so the fence is already reached.</p>
-<h2 id="what-is-documented-and-what-needs-a-switch-2">What is documented, and what needs a Switch 2?<a class="headerlink" href="#what-is-documented-and-what-needs-a-switch-2" title="Permanent link">&para;</a></h2>
-<p>Switchbrew documents much of the Switch 2's service surface. Some parts can only be checked with a recording from a real console. The emulator labels each fact and never fills an unknown with Switch 1 behaviour.</p>
-<table>
-<thead>
-<tr>
-<th>Fact</th>
-<th>Status</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>The Switch 2 GPU driver interface <code>INvDrv2User</code> and its command numbers, including the new <code>SetConfiguration</code></td>
-<td>Documented</td>
-</tr>
-<tr>
-<td>The GPU's characteristics: chip name <code>ga10f</code>, 3D class 0xC797, compute class 0xC7C0, 40 GPU address bits</td>
-<td>Documented</td>
-</tr>
-<tr>
-<td>New sync-counter and address-space ioctls on the Switch 2</td>
-<td>Documented by number; layouts need a capture</td>
-</tr>
-<tr>
-<td>The display services are renamed to <code>vi2:v</code>, <code>vi2:m1</code>, <code>vi2:m2</code>, and <code>dispdrv</code> is gone</td>
-<td>Documented</td>
-</tr>
-<tr>
-<td>The command numbers of the new display services</td>
-<td>Needs a Switch 2 capture</td>
-</tr>
-<tr>
-<td>The GPU address ranges <code>GET_VA_REGIONS</code> returns</td>
-<td>Needs a Switch 2 capture</td>
-</tr>
-<tr>
-<td>The HIPC message format</td>
-<td>Documented as unchanged</td>
-</tr>
-</tbody>
-</table>
-<p>The first milestone uses the Switch 1 layouts the community already documents, with the Switch 2 values where switchbrew gives them. Anything that cannot be verified stays marked unsupported.</p>
-<p>Verified by: <code>ioctl_arguments_match_the_driver_layouts</code> on the <code>guest/scene-crate</code> branch checks the ioctl numbers and argument sizes against the documented driver layouts.</p>
-<p>Sources: core/src/nn/mod.rs, core/src/nn/hipc.rs, guest/src/{cmif,nvdrv,svc}.rs on guest/scene-crate, switchbrew pages on HIPC, NV services and the Switch 2 services.</p>
+<p>The service registry still provides the broader foundation laid by the original project. Commands outside the implemented paths return errors. Switch 2-only command layouts remain unsupported when public documentation does not define them.</p>
+<p>Verified by: the kernel IPC, nvdrv, VI, binder, audio, input, time, applet and filesystem tests, plus the end-to-end demo tests.</p>
+<p>Sources: <code>core/src/kernel</code>, <code>core/src/nn</code>, <code>guest/src/{cmif,nv,display,audren}.rs</code>.</p>
 
 
 

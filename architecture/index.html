@@ -478,7 +478,7 @@
   <span class="md-ellipsis">
     
   
-    Guest path
+    Emulator path
   
 
     
@@ -1260,12 +1260,12 @@
 
 
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p>The emulator is made of a Qt window, an emulated ARM CPU, a registry of the Switch's operating system services, and a GPU emulator. The GPU part is the furthest along, and the CPU, service and audio parts are being built out. For example, the Triangle button writes GPU commands into the emulated console's memory, and the GPU part draws them on the PC's graphics card.</p>
+<p>The emulator is made of a Qt window, emulated ARM cores, a kernel, system services, an audio renderer and a GPU emulator. The included demos are loaded as AArch64 images and use those layers to draw, play sound and present a frame.</p>
 <pre class="mermaid"><code>flowchart TB
     GUI["Qt window&lt;br/&gt;Buttons and the picture"] --&gt;|"C calls"| FFI["ffi.rs&lt;br/&gt;Rust functions the window calls"]
     FFI --&gt; SYS["sys::State&lt;br/&gt;List of OS services"]
     FFI --&gt; CPU["cpu&lt;br/&gt;Emulated ARM cores"]
-    CPU --- RAM[("Guest RAM&lt;br/&gt;The console's memory")]
+    CPU --- RAM[("Emulated RAM&lt;br/&gt;The console's memory")]
     SYS --&gt; NN["nn&lt;br/&gt;Service registry"]
     FFI --&gt; ENG
     subgraph GPU["GPU"]
@@ -1280,7 +1280,6 @@
     classDef gpu stroke:#61b7df,stroke-width:3px
     class FIFO,ENG,SASS,VK,CUDA gpu</code></pre>
 <p><em>The whole emulator. Blue outlines mark the GPU work.</em></p>
-<p>"Guest" in these pages means the emulated Switch 2, and "host" means the PC running oboromi.</p>
 <h2 id="which-page-answers-what">Which page answers what?<a class="headerlink" href="#which-page-answers-what" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1304,15 +1303,15 @@
 </tr>
 <tr>
 <td><a href="audio/">Audio</a></td>
-<td>How the audio renderer works, and the planned audio demos</td>
+<td>How the audio renderer mixes and presents sound</td>
 </tr>
 <tr>
-<td><a href="guest-path/">Guest path</a></td>
-<td>How our own guest program will drive the GPU through real system calls</td>
+<td><a href="guest-path/">Emulator path</a></td>
+<td>How an included program reaches the GPU, audio and display services</td>
 </tr>
 <tr>
 <td><a href="gpu-pipeline/">GPU pipeline</a></td>
-<td>How a game's draw command becomes pixels, and which branch holds what</td>
+<td>How a game's draw command becomes pixels</td>
 </tr>
 <tr>
 <td><a href="sass-translator/">SASS translator</a></td>
@@ -1340,11 +1339,11 @@
 </tr>
 <tr>
 <td><a href="demos/">Demos</a></td>
-<td>What the window draws today, and the scenes planned next</td>
+<td>What runs on the emulator today</td>
 </tr>
 <tr>
 <td><a href="roadmap/">Roadmap</a></td>
-<td>What is done, what is in progress, and the honest limits</td>
+<td>Current coverage and limits</td>
 </tr>
 <tr>
 <td><a href="../glossary/">Glossary</a></td>
@@ -1355,7 +1354,7 @@
 <h2 id="where-are-the-design-choices-explained">Where are the design choices explained?<a class="headerlink" href="#where-are-the-design-choices-explained" title="Permanent link">&para;</a></h2>
 <p>Each big choice has a decision record (ADR): the problem, the choice, and what it costs. Every record opens with a short "In plain words" section. They are listed under <a href="../adr/">decision records</a>.</p>
 <h2 id="where-should-i-start">Where should I start?<a class="headerlink" href="#where-should-i-start" title="Permanent link">&para;</a></h2>
-<p>New to the code: read the overview, then the GPU pipeline, then the page for the part you are touching. Reviewing a GPU pull request: read the GPU pipeline for the branch map, then verification for what has to pass.</p>
+<p>New to the code: read the overview, then the emulator path and GPU pipeline. Read verification before changing the translator.</p>
 <p>Verified by: every page names its own checks in a "Verified by" line.</p>
 <p>Sources: core/src/lib.rs, core/src/gpu/mod.rs, gui-qt/src/MainWindow.cpp, README.md.</p>
 

@@ -478,7 +478,7 @@
   <span class="md-ellipsis">
     
   
-    Guest path
+    Emulator path
   
 
     
@@ -1392,6 +1392,7 @@
     T3 --&gt; T4["4. compiled programs&lt;br/&gt;Real CUDA programs give the right output end to end"]</code></pre>
 <p><em>The checks, from cheapest to most convincing.</em></p>
 <p>A handler, the code that translates one instruction family, is not done until it passes every check that applies. It must pass on Intel and on lavapipe, Mesa's CPU-based Vulkan driver.</p>
+<p>Oracle and digest tests select exact mode explicitly. The normal emulator defaults to speed hacks; <code>OBOROMI_EXACT=1</code> or <code>SpeedHacks::none()</code> disables them.</p>
 <table>
 <thead>
 <tr>
@@ -1424,7 +1425,7 @@
 </tbody>
 </table>
 <h2 id="how-are-silicon-captures-made">How are silicon captures made?<a class="headerlink" href="#how-are-silicon-captures-made" title="Permanent link">&para;</a></h2>
-<p>A capture patches one instruction word into a small compiled CUDA program, the seed kernel. It runs that program on a rented card through the CUDA driver and reads the registers and memory back. The word is built from the instruction table and checked with nvdisasm before the run.</p>
+<p>A capture patches one instruction word into a small compiled CUDA program, the seed kernel. It runs that program on an NVIDIA Ampere card through the CUDA driver and reads the registers and memory back. The capture machine uses the NVIDIA driver for exact SASS. The word is built from the instruction table and checked with nvdisasm before the run.</p>
 <p>The result is stored as a fixture: the word, the inputs, the outputs, and whether the result was really observed. Observed results are never typed in by hand.</p>
 <table>
 <thead>

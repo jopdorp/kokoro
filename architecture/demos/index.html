@@ -58,7 +58,7 @@
   
   
     <meta property="og:title" content="oboromi demos">
-    <meta property="og:description" content="Watch guest programs and graphics demos running through oboromi.">
+    <meta property="og:description" content="Watch graphics and sound demos running on oboromi.">
     <meta property="og:image" content="https://jopdorp.github.io/oboromi/media/demo-dungeon-poster.png">
     <meta property="og:video" content="https://jopdorp.github.io/oboromi/media/demo-dungeon.mp4?v=4bb4ddb2">
     <meta property="og:video:type" content="video/mp4">
@@ -488,7 +488,7 @@
   <span class="md-ellipsis">
     
   
-    Guest path
+    Emulator path
   
 
     
@@ -768,12 +768,12 @@
   <a href="#guest-programs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Guest programs
+        Running on the emulator
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Guest programs">
+    <nav class="md-nav" aria-label="Running on the emulator">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -880,6 +880,17 @@
     <span class="md-ellipsis">
       
         Mandelbrot CUDA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ray-traced-scene" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ray-traced scene
       
     </span>
   </a>
@@ -1441,12 +1452,12 @@
   <a href="#guest-programs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Guest programs
+        Running on the emulator
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Guest programs">
+    <nav class="md-nav" aria-label="Running on the emulator">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1560,6 +1571,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ray-traced-scene" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ray-traced scene
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#music" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1626,13 +1648,13 @@
 
 
 <h1 id="demos">Demos<a class="headerlink" href="#demos" title="Permanent link">&para;</a></h1>
-<p>This page shows oboromi's graphics and sound demos. Every demo except Dungeon runs as a guest program. Every clip is captured from the emulator on an Intel laptop unless its caption says otherwise.</p>
-<h2 id="guest-programs">Guest programs<a class="headerlink" href="#guest-programs" title="Permanent link">&para;</a></h2>
-<p>Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the emulated ARM CPU. It calls the kernel and services, draws through the <code>nvdrv</code> GPU driver service on the emulated GPU with Switch 2 shader machine code, and presents through the display service. A controller reaches it through the <code>hid</code> input service, while sound goes through the audio renderer.</p>
+<p>This page shows oboromi's graphics and sound demos. Every clip is captured from the emulator on an Intel laptop unless its caption says otherwise.</p>
+<h2 id="guest-programs">Running on the emulator<a class="headerlink" href="#guest-programs" title="Permanent link">&para;</a></h2>
+<p>Each Nintendo Relocatable Object (NRO) is loaded by the emulated CPU, uses Switch 2 shader machine code through the GPU driver path, and sends sound through the audio renderer.</p>
 <h3 id="triangle">Triangle<a class="headerlink" href="#triangle" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-triangle.png?v=97f0617f" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-triangle.mp4?v=f6a5962b" type="video/mp4"></video>
 
-<p><em>The guest asks the kernel and services for memory and a display, writes a command list, sends it through <code>nvdrv</code>, and presents the triangle.</em></p>
+<p><em>A single triangle is drawn from a compact command list and presented to the display.</em></p>
 <h3 id="sprites">Sprites<a class="headerlink" href="#sprites" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-sprites.png?v=6eab530e" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-sprites.mp4?v=a0a2a5d6" type="video/mp4"></video>
 
@@ -1640,52 +1662,55 @@
 <h3 id="bounce">Bounce<a class="headerlink" href="#bounce" title="Permanent link">&para;</a></h3>
 <video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-bounce.png?v=32a2ac76" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-bounce.mp4?v=135e4db8" type="video/mp4"></video>
 
-<p><em>The guest runs the physics and submits the particle shader through <code>nvdrv</code>. Collision sounds go through the audio renderer.</em></p>
+<p><em>Particles bounce under a simple physics simulation. Each collision makes a sound.</em></p>
 <h3 id="boombox">BoomBox<a class="headerlink" href="#boombox" title="Permanent link">&para;</a></h3>
 <video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-boombox.png?v=2556f60c" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-boombox.mp4?v=0c0860ef" type="video/mp4"><source src="https://jopdorp.github.io/oboromi/media/demo-raytraced.mp4?v=f1fe5292" type="video/mp4"></video>
 
-<p><em>The ray-traced guest turns the BoomBox and moving lamp inside the 3.0 × 3.9 × 4.8 metre room. Ray queries add soft shadows, reflections and colour bounce. The CC0 track “Lofi Hip Hop Loop” by omfgdude goes through the audio renderer: pitch adds Doppler, volumes set cardioid directivity and panning, a biquad dulls the grille off-axis, and the room dimensions and surfaces set the reflections and reverb.</em></p>
+<p><em>The ray-traced scene turns the BoomBox and moving lamp inside the 3.0 × 3.9 × 4.8 metre room, with soft shadows, reflections and colour bounce. The CC0 track “Lofi Hip Hop Loop” by omfgdude demonstrates Doppler, cardioid directivity, panning, grille filtering, reflections and reverb.</em></p>
 <p><img alt="Ray-traced scene with the old and new lighting" src="https://jopdorp.github.io/oboromi/media/demo-raytraced-gi-proof.png?v=eb67c861" /></p>
 <p><em>The top row is v4 and the bottom row is v5. Look at the lamp's pool, the moving shadows and the wall colour on the BoomBox.</em></p>
 <h3 id="flighthelmet">FlightHelmet<a class="headerlink" href="#flighthelmet" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-helmet.png?v=154e124f" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-helmet.mp4?v=ec0819a5" type="video/mp4"></video>
 
-<p><em>The guest draws all six materials through <code>nvdrv</code>, one draw for each material.</em></p>
+<p><em>The helmet is rendered with six materials, one draw for each material.</em></p>
 <h3 id="post">Post<a class="headerlink" href="#post" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-post.png?v=2135cc5e" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-post.mp4?v=95576a30" type="video/mp4"></video>
 
-<p><em>The guest draws the pinwheel into one image, then samples it in a second pass for the screen effects.</em></p>
+<p><em>The pinwheel is drawn into one image, then sampled in a second pass for the screen effects.</em></p>
 <h3 id="particles">Particles<a class="headerlink" href="#particles" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-particles.png?v=7a38706a" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-particles.mp4?v=e18967d6" type="video/mp4"></video>
 
-<p><em>The guest runs the compute update, then submits one instanced draw through <code>nvdrv</code>.</em></p>
+<p><em>A compute update moves the particles before one instanced draw.</em></p>
 <h3 id="solar-system-birth">Solar system birth<a class="headerlink" href="#solar-system-birth" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/demo-solar-showcase.png?v=31d23ba7" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-solar-showcase.mp4?v=f1f9fbd9" type="video/mp4"></video>
 
-<p><em>This guest program starts 2,048 bodies in a young disk. Kepler drift plus mutual kicks move them around the star, and overlapping bodies accrete. The showcase took 1,088.569 ms per frame at the median and 1,450.911 ms at p95 on the Intel Arc laptop.</em></p>
+<p><em>The simulation starts 2,048 bodies in a young disk; Kepler drift and mutual kicks move them around the star while overlapping bodies accrete. It took 1,088.569 ms per frame at the median and 1,450.911 ms at p95 on the Intel Arc laptop.</em></p>
 <h3 id="julia">Julia<a class="headerlink" href="#julia" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-julia.png?v=540977b6" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-julia.mp4?v=2769a78a" type="video/mp4"></video>
 
-<p><em>The guest sends the Julia set shader through <code>nvdrv</code> and passes time through a small block of shader input data.</em></p>
+<p><em>A small block of shader input data changes the Julia set over time.</em></p>
 <h3 id="mandelbrot-cuda">Mandelbrot CUDA<a class="headerlink" href="#mandelbrot-cuda" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-mandelbrot.png?v=19ba7859" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-mandelbrot.mp4?v=e257306f" type="video/mp4"></video>
 
-<p><em>A double-precision dive into the seahorse valley. The guest owns the frame memory, launches NVIDIA's CUDA sample kernel through <code>nvdrv</code>, and presents it.</em></p>
+<p><em>A double-precision dive into the seahorse valley, rendered with NVIDIA's CUDA sample kernel.</em></p>
+<h3 id="ray-traced-scene">Ray-traced scene<a class="headerlink" href="#ray-traced-scene" title="Permanent link">&para;</a></h3>
+<p><img alt="Ray-traced scene with the old and new lighting" src="https://jopdorp.github.io/oboromi/media/demo-raytraced-gi-proof.png?v=eb67c861" /></p>
+<p><em>The top row is v4 and the bottom row is v5. Look at the lamp's pool, the moving shadows and the wall colour on the BoomBox.</em></p>
 <h3 id="music">Music<a class="headerlink" href="#music" title="Permanent link">&para;</a></h3>
 <video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-music.png?v=77965032" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-music.mp4?v=f2d2a3c9" type="video/mp4"></video>
 
-<p><em>The guest makes the instruments and sends the mix through the audio renderer.</em></p>
+<p><em>Synthesized instruments build the mix heard in the clip.</em></p>
 <h2 id="dungeon">Dungeon<a class="headerlink" href="#dungeon" title="Permanent link">&para;</a></h2>
-<p>Dungeon is a native Vulkan tech demo. It does not use the emulated CPU or GPU, but it drives the audio renderer and sets the bar for the guest version.</p>
+<p>The dungeon now runs on the emulator; the clips below are still the native render and are being replaced by the emulator render.</p>
 <video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/demo-dungeon-raytraced.png?v=a7f43169" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-raytraced.mp4?v=4bb4ddb2" type="video/mp4"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon.mp4?v=4bb4ddb2" type="video/mp4"></video>
 
-<p><em>Dungeon ray traced: ray queries make every flame shadow dance, reflect torches on wet calcite and add traced limestone bounce. This clip was rendered offline on the Intel laptop.</em></p>
+<p><em>Dungeon ray traced, default: speed hacks are on; this native clip was rendered offline on the Intel laptop. Ray queries make every flame shadow dance, reflect torches on wet calcite and add traced limestone bounce.</em></p>
 <video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.png?v=44d0df83" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.mp4?v=1cd477b2" type="video/mp4"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-realtime.mp4?v=1cd477b2" type="video/mp4"></video>
 
-<p><em>Dungeon raster: baked shadows and planar reflections make the same tour lighter to render. This clip was rendered offline on the Intel laptop.</em></p>
+<p><em>Dungeon raster, default: speed hacks are on; this native clip was rendered offline on the Intel laptop. Baked shadows and planar reflections make the same tour lighter to render.</em></p>
 <video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/dungeon-v8-rt-compare.png?v=a296f9b4" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-compare.mp4?v=11310a94" type="video/mp4"></video>
 
-<p><em>Dungeon raster is left and Dungeon ray traced is right over the same fifteen reveal seconds. Every flame moves its traced shadow; wet calcite catches the torches. Mean absolute RGB difference is 8.09% over all 900 frames.</em></p>
+<p><em>Dungeon raster is left and Dungeon ray traced is right over the same fifteen reveal seconds. Every flame moves its traced shadow and wet calcite catches the torches; mean absolute RGB difference is 8.09% over all 900 frames.</em></p>
 <p><img alt="Raster and ray-query dungeon frame" src="https://jopdorp.github.io/oboromi/media/dungeon-v8-rt-compare.png?v=a296f9b4" /></p>
 <p><em>The same frame at the reveal: raster left, ray queries right. Cool opening light keeps calcite pale while fire bounce falls off into dark manganese and soot.</em></p>
 <h2 id="measured">Measured<a class="headerlink" href="#measured" title="Permanent link">&para;</a></h2>
@@ -1694,39 +1719,36 @@
 <thead>
 <tr>
 <th>Demo</th>
+<th>Variant</th>
 <th>Time</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Test frame, 1080p</td>
+<td>exact</td>
 <td>4.2 ms</td>
 </tr>
 <tr>
 <td>Julia set</td>
+<td>exact</td>
 <td>4.7 ms</td>
 </tr>
 <tr>
 <td>Triangle, 1080p</td>
+<td>exact</td>
 <td>6.6 ms</td>
 </tr>
 <tr>
 <td>CUDA Mandelbrot, 800x600</td>
+<td>exact</td>
 <td>10.2 ms</td>
-</tr>
-<tr>
-<td>Dungeon raster</td>
-<td>41.7 ms</td>
-</tr>
-<tr>
-<td>Dungeon ray traced</td>
-<td>232.5 ms</td>
 </tr>
 </tbody>
 </table>
 <p>These are laptop measurements, not native Switch 2 measurements.</p>
 <h2 id="share">Share<a class="headerlink" href="#share" title="Permanent link">&para;</a></h2>
-<p>Paste the dungeon <a href="https://jopdorp.github.io/oboromi/media/demo-dungeon.mp4?v=4bb4ddb2">clip</a>, <a href="https://jopdorp.github.io/oboromi/media/demo-dungeon-poster.png">poster</a>, or <a href="https://jopdorp.github.io/oboromi/media/teaser-dungeon.gif?v=44ba6544">GIF teaser</a> straight into Discord.
+<p>Paste the dungeon <a href="https://jopdorp.github.io/oboromi/media/demo-dungeon.mp4?v=4bb4ddb2">clip</a>, <a href="https://jopdorp.github.io/oboromi/media/demo-dungeon-raytraced.png?v=a7f43169">poster</a>, or <a href="https://jopdorp.github.io/oboromi/media/teaser-dungeon.gif?v=44ba6544">GIF teaser</a> straight into Discord.
 The BoomBox <a href="https://jopdorp.github.io/oboromi/media/fullcircle-boombox.mp4?v=0c0860ef">clip</a> and the sprites <a href="https://jopdorp.github.io/oboromi/media/fullcircle-sprites.mp4?v=a0a2a5d6">clip</a> and <a href="https://jopdorp.github.io/oboromi/media/teaser-sprites.gif?v=7f562251">GIF teaser</a> work there too.</p>
 
 

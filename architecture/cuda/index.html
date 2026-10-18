@@ -478,7 +478,7 @@
   <span class="md-ellipsis">
     
   
-    Guest path
+    Emulator path
   
 
     
@@ -1347,7 +1347,7 @@
     CUBIN --&gt; LOAD["Kernel::load&lt;br/&gt;Finds code, constants, shared size"]
     LOAD --&gt; LAUNCH["Kernel::launch&lt;br/&gt;Fills constant buffer 0 like the driver"]
     LAUNCH --&gt; TR["Translator + Vulkan&lt;br/&gt;Any graphics card"]
-    SASS["Guest shader code"] --&gt; WR["Seed cubin writer&lt;br/&gt;Wraps the code as a CUDA program"]
+    SASS["Switch 2 shader code"] --&gt; WR["Seed cubin writer&lt;br/&gt;Wraps the code as a CUDA program"]
     WR --&gt; NAT["libcuda.so.1&lt;br/&gt;NVIDIA card only"]
     TR --&gt; CMP{"Same bytes?"}
     NAT --&gt; CMP</code></pre>
@@ -1419,7 +1419,7 @@
 </table>
 <p>Why this layout: it was recorded from the real driver on a real card. So a cubin compiled today runs without patching.</p>
 <h2 id="how-does-the-native-path-work">How does the native path work?<a class="headerlink" href="#how-does-the-native-path-work" title="Permanent link">&para;</a></h2>
-<p><code>cuda.rs</code>, behind the <code>cuda</code> cargo feature, wraps a guest program in a cubin made from a small seed kernel. It swaps in the code, parameter area, shared size, instruction offsets and metadata, and keeps the seed's ELF header and segments.</p>
+<p><code>cuda.rs</code>, behind the <code>cuda</code> cargo feature, wraps a shader in a cubin made from a small seed kernel. It swaps in the code, parameter area, shared size, instruction offsets and metadata, and keeps the seed's ELF header and segments.</p>
 <p>It opens <code>libcuda.so.1</code> at run time, with no new crate. Then it initialises CUDA, makes a context, loads the module, launches it and waits. <code>CudaDevice::run_native</code> copies buffers in and out.</p>
 <p>When it applies: a host with an NVIDIA card and driver that load sm_86 cubins, running compute programs. The translator stays the reference and the portable path, and the native tests check both give the same bytes. Graphics shaders never run natively.</p>
 <h2 id="which-kernels-run">Which kernels run?<a class="headerlink" href="#which-kernels-run" title="Permanent link">&para;</a></h2>
@@ -1446,6 +1446,26 @@
 <td>Mandelbrot0, float</td>
 <td>NVIDIA cuda-samples, BSD-3</td>
 <td>Correct image, see below</td>
+</tr>
+<tr>
+<td>Mandelbrot0, double</td>
+<td>NVIDIA cuda-samples, BSD-3</td>
+<td>Runs the deep-zoom demo</td>
+</tr>
+</tbody>
+</table>
+<p>The wider corpus is used as a translation gate:</p>
+<table>
+<thead>
+<tr>
+<th>Corpus</th>
+<th style="text-align: right;">Handled</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CUDA sample kernels</td>
+<td style="text-align: right;">768 / 818</td>
 </tr>
 </tbody>
 </table>
@@ -1487,7 +1507,6 @@
 </tbody>
 </table>
 <p>Nobody knows how the Mandelbrot reference image was made. So that last row is a sanity check, not a pass mark.</p>
-<p>Planned next, in order: nbody and particles, simpleTexture, Sobel, box and bilateral filters, fluids and smoke, marching cubes.</p>
 <p>Verified by: <code>cubin_kernels_match_silicon</code> on Intel and lavapipe, and <code>native_mul_add_matches_translator</code> and <code>native_gradient_matches_translator</code> on the RTX A6000 (they skip without libcuda).</p>
 <p>Sources: core/src/gpu/cubin.rs and core/src/gpu/cuda.rs on gpu-instructions, core/src/tests/gpu/cuda.rs, core/tests/fixtures/kernels.cu and cuda-seed.cu.</p>
 

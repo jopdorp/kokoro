@@ -447,10 +447,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-runs-the-arm-code" class="md-nav__link">
+  <a href="#measured-cpu-cost" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What runs the ARM code?
+        Measured CPU cost
       
     </span>
   </a>
@@ -458,10 +458,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-do-the-cpu-and-the-gpu-share-memory" class="md-nav__link">
+  <a href="#how-do-the-cpu-and-gpu-share-memory" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How do the CPU and the GPU share memory?
+        How do the CPU and GPU share memory?
       
     </span>
   </a>
@@ -469,32 +469,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-will-the-kernel-layer-add" class="md-nav__link">
+  <a href="#what-does-the-kernel-add" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What will the kernel layer add?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-is-known-about-the-switch-2s-cpu" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What is known about the Switch 2's CPU?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-will-this-be-validated" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How will this be validated?
+        What does the kernel add?
       
     </span>
   </a>
@@ -580,7 +558,7 @@
   <span class="md-ellipsis">
     
   
-    Guest path
+    Emulator path
   
 
     
@@ -1312,10 +1290,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-runs-the-arm-code" class="md-nav__link">
+  <a href="#measured-cpu-cost" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What runs the ARM code?
+        Measured CPU cost
       
     </span>
   </a>
@@ -1323,10 +1301,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-do-the-cpu-and-the-gpu-share-memory" class="md-nav__link">
+  <a href="#how-do-the-cpu-and-gpu-share-memory" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How do the CPU and the GPU share memory?
+        How do the CPU and GPU share memory?
       
     </span>
   </a>
@@ -1334,32 +1312,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-will-the-kernel-layer-add" class="md-nav__link">
+  <a href="#what-does-the-kernel-add" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What will the kernel layer add?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-is-known-about-the-switch-2s-cpu" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What is known about the Switch 2's CPU?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-will-this-be-validated" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How will this be validated?
+        What does the kernel add?
       
     </span>
   </a>
@@ -1384,221 +1340,84 @@
 
 
 <h1 id="cpu-and-shared-memory">CPU and shared memory<a class="headerlink" href="#cpu-and-shared-memory" title="Permanent link">&para;</a></h1>
-<p>The CPU side runs the game's ARM code on eight emulated cores that all see one block of memory. The GPU now reads and writes that same block, so a value a core stores is what the next draw reads. For example, a core writes three vertices into memory, the GPU draws the triangle, and the core then reads back the report the GPU wrote.</p>
-<pre class="mermaid"><code>flowchart TB
-    subgraph Cores["Eight emulated cores, one Unicorn instance each"]
-        C0["Core 0&lt;br/&gt;Runs ARM code"]
-        CN["Cores 1 to 7&lt;br/&gt;Same"]
-    end
-    C0 --&gt;|"Reads and writes"| RAM[("Guest RAM&lt;br/&gt;One block, shared")]
-    CN --&gt;|"Reads and writes"| RAM
-    C0 -.-&gt;|"Write hook on GPU pages"| DIRTY["Written-page bits&lt;br/&gt;Which pages the CPU changed"]
-    DIRTY --&gt; GPU["GPU engine&lt;br/&gt;Refreshes its copies of those pages"]
-    GPU --&gt;|"Reads and writes"| RAM
-    TURN["The turn lock&lt;br/&gt;CPU or GPU, never both"] -.- RAM
-    C0 -.-&gt;|"System call"| KERN["Kernel layer, planned&lt;br/&gt;Handles, memory regions, IPC"]</code></pre>
-<p><em>How the cores, the GPU and the planned kernel layer share one memory block.</em></p>
-<h2 id="what-runs-the-arm-code">What runs the ARM code?<a class="headerlink" href="#what-runs-the-arm-code" title="Permanent link">&para;</a></h2>
-<p>Unicorn is a CPU emulator library built on the CPU core of QEMU, the open-source machine emulator. The CPU manager builds on it: each core is its own Unicorn instance, and every core maps the same RAM block at guest address 0. A guest address is therefore also the offset into that block.</p>
+<p>The CPU side runs AArch64 code on eight emulated cores over one RAM block. Dynarmic is the default backend. Unicorn remains available for exact runs and for comparison.</p>
 <table>
 <thead>
 <tr>
-<th>CPU fact</th>
+<th>Setting</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Default</td>
+<td>Dynarmic JIT</td>
+</tr>
+<tr>
+<td><code>OBOROMI_CPU=unicorn</code></td>
+<td>Unicorn</td>
+</tr>
+<tr>
+<td><code>OBOROMI_EXACT=1</code></td>
+<td>Unicorn and no speed hacks</td>
+</tr>
+<tr>
+<td>Programmatic exact mode</td>
+<td><code>SpeedHacks::none()</code> with <code>CpuBackend::Unicorn</code></td>
+</tr>
+</tbody>
+</table>
+<p>Dynarmic covers system-call exits, slice deadlines, shared exclusives, self-modifying-code invalidation and watched GPU writes. Unicorn runs with instruction or timeout budgets instead of a callback on every basic block. Watched writes are flushed once per slice.</p>
+<h2 id="measured-cpu-cost">Measured CPU cost<a class="headerlink" href="#measured-cpu-cost" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Work</th>
+<th style="text-align: right;">Unicorn</th>
+<th style="text-align: right;">Dynarmic</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One exact audio period</td>
+<td style="text-align: right;">12.41 ms</td>
+<td style="text-align: right;">1.553 ms</td>
+</tr>
+</tbody>
+</table>
+<p>The audio period is 5 ms. The measurement includes the same exact renderer work on each backend.</p>
+<h2 id="how-do-the-cpu-and-gpu-share-memory">How do the CPU and GPU share memory?<a class="headerlink" href="#how-do-the-cpu-and-gpu-share-memory" title="Permanent link">&para;</a></h2>
+<p>The cores and GPU use the same <code>GuestRam</code> mapping. A turn lock prevents simultaneous access. Writes to GPU-backed ranges mark pages dirty; the engine refreshes only those pages before it runs. GPU results are downloaded before the CPU resumes.</p>
+<table>
+<thead>
+<tr>
+<th>Memory fact</th>
 <th>Value</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Cores</td>
-<td>8</td>
-</tr>
-<tr>
-<td>Guest RAM</td>
-<td>12 GiB, one block at guest address 0</td>
+<td>RAM</td>
+<td>12 GiB</td>
 </tr>
 <tr>
 <td>Address policy</td>
-<td>Guest virtual address equals physical address, no MMU yet</td>
+<td>Virtual address equals physical address; no MMU yet</td>
 </tr>
 <tr>
-<td>Stack per core</td>
-<td>Starts at the top of RAM, 1 MiB lower per core</td>
+<td>Coherence authority</td>
+<td><code>GuestRam</code> and <code>MemoryTracker</code></td>
 </tr>
-<tr>
-<td>Instruction set</td>
-<td>AArch64, the 64-bit ARM set</td>
-</tr>
-</tbody>
-</table>
-<h2 id="how-do-the-cpu-and-the-gpu-share-memory">How do the CPU and the GPU share memory?<a class="headerlink" href="#how-do-the-cpu-and-the-gpu-share-memory" title="Permanent link">&para;</a></h2>
-<p>This work is on the <code>guest-path</code> branch. The RAM block is one anonymous memory mapping, <code>GuestRam</code>, that the cores and the GPU both use. Two rules keep them in agreement:</p>
-<ul>
-<li><strong>One at a time.</strong> A lock called the turn is held while a core runs and while the GPU runs. So the CPU and the GPU never touch the memory at the same moment.</li>
-<li><strong>The GPU knows what the CPU changed.</strong> When the GPU maps a range, every core adds a Unicorn write hook on it. A write hook is a callback that runs on each store to that range, and it sets a bit for the page. Before the GPU runs, it takes those bits and refreshes its copies of exactly those pages.</li>
-</ul>
-<p>The GPU's own results go straight into the block before the CPU gets its turn back. So a core always reads what the GPU last wrote.</p>
-<table>
-<thead>
-<tr>
-<th>Coherence fact</th>
-<th>Value</th>
-</tr>
-</thead>
-<tbody>
 <tr>
 <td>Tracking unit</td>
-<td>One page of the GPU page map</td>
-</tr>
-<tr>
-<td>Hooks per core</td>
-<td>One per GPU-mapped range</td>
-</tr>
-<tr>
-<td>Host writes, such as the test harness</td>
-<td>Marked as CPU writes explicitly</td>
+<td>One GPU page</td>
 </tr>
 </tbody>
 </table>
-<h2 id="what-will-the-kernel-layer-add">What will the kernel layer add?<a class="headerlink" href="#what-will-the-kernel-layer-add" title="Permanent link">&para;</a></h2>
-<p>A game asks the operating system for things with a system call, an <code>SVC</code> instruction. The kernel layer, planned in <code>core/src/kernel</code>, catches these calls and answers them.</p>
-<table>
-<thead>
-<tr>
-<th>Piece</th>
-<th>What it does</th>
-<th>State</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>System-call interception</td>
-<td>A Unicorn interrupt hook stops the core at <code>SVC</code>, reads the arguments from registers x0 to x7, and resumes with the result</td>
-<td>Planned</td>
-</tr>
-<tr>
-<td>Handle table</td>
-<td>Numbers the guest uses to name sessions, ports, events and transfer memory</td>
-<td>Planned</td>
-</tr>
-<tr>
-<td>Memory regions</td>
-<td>Fixed code, stack, heap and transfer-memory ranges, with their bookkeeping</td>
-<td>Planned</td>
-</tr>
-<tr>
-<td>IPC</td>
-<td>Messages from the guest to a service, see <a href="../services/">services</a></td>
-<td>Planned</td>
-</tr>
-<tr>
-<td>Scope</td>
-<td>One process and one thread first; threads and scheduling come later</td>
-<td>Decided</td>
-</tr>
-</tbody>
-</table>
-<p>Calls that are not implemented return an error, never a silent success.</p>
-<h2 id="what-is-known-about-the-switch-2s-cpu">What is known about the Switch 2's CPU?<a class="headerlink" href="#what-is-known-about-the-switch-2s-cpu" title="Permanent link">&para;</a></h2>
-<p>The Switch 2's chip, the T239, has eight Arm Cortex-A78C cores. The table marks where each fact comes from: <strong>SB</strong> means documented by switchbrew, the community's Switch wiki, and <strong>INF</strong> means inferred from Arm's documentation of the core.</p>
-<table>
-<thead>
-<tr>
-<th>Fact</th>
-<th>Source</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Eight 64-bit Cortex-A78C cores</td>
-<td>SB</td>
-</tr>
-<tr>
-<td>64 KiB instruction and data L1 cache, 256 KiB L2 per core, 4 MiB shared L3</td>
-<td>SB</td>
-</tr>
-<tr>
-<td>Armv8.2-A instruction set with Neon and floating point</td>
-<td>SB</td>
-</tr>
-<tr>
-<td>LSE atomics, such as <code>CAS</code> and <code>LDADD</code></td>
-<td>INF</td>
-</tr>
-<tr>
-<td>Half-precision float arithmetic</td>
-<td>INF</td>
-</tr>
-<tr>
-<td>Dot-product instructions <code>SDOT</code> and <code>UDOT</code></td>
-<td>INF</td>
-</tr>
-<tr>
-<td>Crypto instructions exposed to games</td>
-<td>Unknown, needs a Switch 2 capture</td>
-</tr>
-<tr>
-<td>SVE vector instructions</td>
-<td>Not expected, INF</td>
-</tr>
-<tr>
-<td>Pointer authentication at user level</td>
-<td>Unknown, needs a Switch 2 capture</td>
-</tr>
-</tbody>
-</table>
-<table>
-<thead>
-<tr>
-<th>Switch 2 kernel addition</th>
-<th>Source</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>New calls 0x80 to 0x82 for GPU memory attributes and sharing</td>
-<td>SB</td>
-</tr>
-<tr>
-<td>Two new memory attribute bits, GPU-sharable and GPU-shared</td>
-<td>SB</td>
-</tr>
-<tr>
-<td>An error from a sync request closes the session</td>
-<td>SB</td>
-</tr>
-</tbody>
-</table>
-<h2 id="how-will-this-be-validated">How will this be validated?<a class="headerlink" href="#how-will-this-be-validated" title="Permanent link">&para;</a></h2>
-<p>Each fact gets one of four kinds of evidence, from cheapest to strongest:</p>
-<table>
-<thead>
-<tr>
-<th>Evidence</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Doc</td>
-<td>A test asserts the documented value</td>
-</tr>
-<tr>
-<td>Arm differential</td>
-<td>The same code runs under Unicorn and on a real Armv8.2 machine, such as a Raspberry Pi 5 or an AWS Graviton, and the results must match</td>
-</tr>
-<tr>
-<td>Homebrew</td>
-<td>A test program runs on a real console</td>
-</tr>
-<tr>
-<td>Switch 2 capture</td>
-<td>A recording from a real Switch 2</td>
-</tr>
-</tbody>
-</table>
-<p>Passing on a Raspberry Pi 5 shows Armv8.2 behaviour, not Switch 2 behaviour. A mismatch with a documented value blocks the Switch 2 profile, and anything needing a capture stays marked as unverified.</p>
-<p>Verified by: on the <code>guest-path</code> branch, <code>a_core_stores_the_vertices_the_gpu_draws_and_loads_the_report_the_gpu_wrote</code> and <code>a_second_frame_draws_the_vertices_a_core_stored_after_the_first</code>; on every branch, the CPU self-tests in <code>core/src/tests/run.rs</code> and <code>multicore_test.rs</code>.</p>
-<p>Sources: core/src/cpu/{cpu_manager,unicorn_interface}.rs, core/src/cpu/guest_ram.rs on guest-path, core/src/tests/gpu/engine.rs on guest-path, switchbrew pages on the T239, SVC and memory layout, Arm's Cortex-A78C documentation.</p>
+<h2 id="what-does-the-kernel-add">What does the kernel add?<a class="headerlink" href="#what-does-the-kernel-add" title="Permanent link">&para;</a></h2>
+<p>The kernel catches <code>SVC</code>, dispatches it outside the CPU lock and resumes with a result. It owns the handle table, memory regions, IPC sessions, events, threads, timers and scheduler. Unsupported calls return an error rather than silent success.</p>
+<p>Verified by: CPU self-tests, kernel and thread tests, the shared-memory engine tests, and the broad demo gate on both CPU backends.</p>
+<p>Sources: <code>core/src/cpu/{cpu_manager,dynarmic_interface,unicorn_interface,guest_ram}.rs</code>, <code>core/dynarmic/bridge.cpp</code>, <code>core/src/kernel</code>.</p>
 
 
 

@@ -476,7 +476,7 @@
   <span class="md-ellipsis">
     
   
-    Guest path
+    Emulator path
   
 
     
@@ -1426,6 +1426,7 @@
 
 
 <h1 id="matrix-sums-copy-the-chip-exactly-written-as-small-loops">Matrix sums copy the chip exactly, written as small loops<a class="headerlink" href="#matrix-sums-copy-the-chip-exactly-written-as-small-loops" title="Permanent link">&para;</a></h1>
+<p>Exact mode uses this decision. The default selects the cooperative tensor speed hack.</p>
 <h2 id="in-plain-words">In plain words<a class="headerlink" href="#in-plain-words" title="Permanent link">&para;</a></h2>
 <p>Tensor cores multiply small matrices in one instruction. The real chip adds up the products its own way: in groups, with the lowest bits cut off instead of rounded. Normal float maths gives slightly different last bits, so we copied the chip's method exactly. Written out naively, that makes shaders so big that drivers take seconds to compile them. So we wrote it as small loops and told the driver not to unroll them.</p>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>

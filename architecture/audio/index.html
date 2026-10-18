@@ -503,54 +503,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#how-does-a-game-use-the-audio-renderer" class="md-nav__link">
+  <a href="#what-is-implemented" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How does a game use the audio renderer?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-are-voices-mixes-effects-and-sinks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What are voices, mixes, effects and sinks?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#which-revisions-are-there" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Which revisions are there?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-is-it-built-and-checked" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How is it built and checked?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#which-demos-are-planned" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Which demos are planned?
+        What is implemented?
       
     </span>
   </a>
@@ -580,7 +536,7 @@
   <span class="md-ellipsis">
     
   
-    Guest path
+    Emulator path
   
 
     
@@ -1312,54 +1268,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#how-does-a-game-use-the-audio-renderer" class="md-nav__link">
+  <a href="#what-is-implemented" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How does a game use the audio renderer?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-are-voices-mixes-effects-and-sinks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What are voices, mixes, effects and sinks?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#which-revisions-are-there" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Which revisions are there?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-is-it-built-and-checked" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How is it built and checked?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#which-demos-are-planned" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Which demos are planned?
+        What is implemented?
       
     </span>
   </a>
@@ -1384,24 +1296,7 @@
 
 
 <h1 id="audio">Audio<a class="headerlink" href="#audio" title="Permanent link">&para;</a></h1>
-<p>A Switch game makes sound by describing it to the audio renderer service, not by writing samples to a speaker. It lists its sounds, their volumes, their effects and where the result goes. The service then mixes them in small steps. For example, a game plays footsteps by adding a voice that points at a footstep sample, with a volume and a reverb send.</p>
-<pre class="mermaid"><code>flowchart LR
-    V["Voices&lt;br/&gt;One playing sound each"] --&gt; F["Per-voice processing&lt;br/&gt;Decode, change pitch, ramp volume, filter"]
-    F --&gt; M["Mixes&lt;br/&gt;A tree of submixes"]
-    M --&gt; E["Effects&lt;br/&gt;Delay, reverb, limiter, compressor"]
-    E --&gt; FM["Final mix"]
-    FM --&gt; SK["Sink&lt;br/&gt;Where the sound leaves"]
-    SK --&gt; RB["Sample ring buffer&lt;br/&gt;In the Rust core"]
-    RB --&gt; QT["Qt audio output&lt;br/&gt;The PC's speakers"]</code></pre>
-<p><em>How the renderer turns a game's voices into sound on the PC.</em></p>
-<h2 id="how-does-a-game-use-the-audio-renderer">How does a game use the audio renderer?<a class="headerlink" href="#how-does-a-game-use-the-audio-renderer" title="Permanent link">&para;</a></h2>
-<p>The renderer service is <code>audren</code>. The service registry already has its entry, and this design fills it in.</p>
-<ol>
-<li>The game fills in its settings: sample rate, frame size, how many voices, mixes, effects and sinks it wants, and a revision number.</li>
-<li>It asks the service how large a work buffer that needs, then hands over that memory.</li>
-<li>It opens the renderer and starts it.</li>
-<li>Every step, it sends an update with the state of all its voices, mixes, effects and sinks. The service answers with their new state.</li>
-</ol>
+<p>The audio renderer accepts voices, mixes, effects and sinks through the <code>audren</code> service. It produces one fixed period at a time and feeds a ring buffer used by Qt audio output. <code>audout</code> also plays queued PCM buffers.</p>
 <table>
 <thead>
 <tr>
@@ -1415,206 +1310,80 @@
 <td>48 kHz</td>
 </tr>
 <tr>
-<td>Frames per step</td>
+<td>Frames per period</td>
 <td>240</td>
 </tr>
 <tr>
-<td>Step length</td>
+<td>Period</td>
 <td>5 ms</td>
 </tr>
 <tr>
-<td>Work buffer</td>
-<td>Guest memory the game hands over, mapped, not copied</td>
-</tr>
-<tr>
-<td>Output samples</td>
-<td>Signed 16-bit, interleaved per frame</td>
+<td>Output</td>
+<td>Interleaved signed 16-bit stereo</td>
 </tr>
 </tbody>
 </table>
-<p>Rendering runs on its own clock, one step every 5 ms, and never follows the screen's frame rate.</p>
-<h2 id="what-are-voices-mixes-effects-and-sinks">What are voices, mixes, effects and sinks?<a class="headerlink" href="#what-are-voices-mixes-effects-and-sinks" title="Permanent link">&para;</a></h2>
+<h2 id="what-is-implemented">What is implemented?<a class="headerlink" href="#what-is-implemented" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>Part</th>
-<th>What it is</th>
-<th>Example</th>
+<th>Support</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Voice</td>
-<td>One playing sound: sample data plus pitch, volume and filters</td>
-<td>A footstep</td>
+<td>Voices</td>
+<td>PCM, ADPCM, resampling, pitch, volume ramps and biquads</td>
 </tr>
 <tr>
-<td>Wave buffer</td>
-<td>A piece of sample data a voice plays, in PCM16, float or ADPCM, a compressed format</td>
-<td>The footstep's samples</td>
+<td>Routing</td>
+<td>Mixes, splitters and circular sinks</td>
 </tr>
 <tr>
-<td>Biquad filter</td>
-<td>A small filter that cuts or boosts some frequencies</td>
-<td>A low-pass to muffle a sound behind a wall</td>
+<td>Effects</td>
+<td>Delay, reverb, limiter, compressor, auxiliary send and de-pop</td>
 </tr>
 <tr>
-<td>Mix</td>
-<td>A bus that voices or other mixes add into</td>
-<td>"All sound effects"</td>
+<td>Output</td>
+<td>Device sink, raw output and Qt ring buffer</td>
 </tr>
 <tr>
-<td>Splitter</td>
-<td>Sends one voice to several mixes with different volumes</td>
-<td>Dry sound plus a reverb send</td>
-</tr>
-<tr>
-<td>Effect</td>
-<td>Processing on a mix</td>
-<td>Reverb, delay, limiter, compressor</td>
-</tr>
-<tr>
-<td>Sink</td>
-<td>Where the final sound goes</td>
-<td>The device sink, the speakers</td>
-</tr>
-<tr>
-<td>De-pop</td>
-<td>Smooths a sudden volume change so it does not click</td>
-<td>A voice that stops mid-sample</td>
+<td>Spatial extension</td>
+<td>Distance, obstruction, reflections and measured binaural filtering</td>
 </tr>
 </tbody>
 </table>
-<p>In the design, the device sink hands interleaved signed samples to the host, in the format the table below gives. The Rust core will keep them in a ring buffer that the C interface exposes, like the frame slot for the display. The Qt window will play them through Qt's own audio output, so the Rust core needs no audio library. If the buffer runs dry, the output plays silence and never blocks the window.</p>
-<p><code>audout</code> is the simpler raw-output service: a game queues buffers of finished samples, and the service plays them in order.</p>
-<h2 id="which-revisions-are-there">Which revisions are there?<a class="headerlink" href="#which-revisions-are-there" title="Permanent link">&para;</a></h2>
-<p>Each game says which renderer revision it was built for, and newer revisions add features.</p>
+<p>The Dungeon spatialiser uses the SADIE II D1 measured HRIR set. It interpolates the measured grid and applies a fixed-tap filter without allocating in the audio path. The ray-traced BoomBox uses one source with cardioid directivity. The renderer path itself stays an emulator extension where it goes beyond the documented console service.</p>
 <table>
 <thead>
 <tr>
-<th>Revision</th>
-<th>Adds</th>
+<th>Check</th>
+<th style="text-align: right;">Result</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>1</td>
-<td>The first renderer</td>
+<td>HRIR grid spacing</td>
+<td style="text-align: right;">15 degrees</td>
 </tr>
 <tr>
-<td>2</td>
-<td>Splitters, a fix to ADPCM looping</td>
+<td>Filter length</td>
+<td style="text-align: right;">160 taps</td>
 </tr>
 <tr>
-<td>3</td>
-<td>Longer reverb pre-delay</td>
+<td>Right-side interaural delay</td>
+<td style="text-align: right;">39 samples</td>
 </tr>
 <tr>
-<td>4</td>
-<td>USB output, a higher processing limit</td>
-</tr>
-<tr>
-<td>5</td>
-<td>Voice decode and flush, performance metrics version 2</td>
-</tr>
-<tr>
-<td>6</td>
-<td>A biquad state fix</td>
-</tr>
-<tr>
-<td>7</td>
-<td>Mix updates only when they change</td>
-</tr>
-<tr>
-<td>8</td>
-<td>Wave buffer loop control, resampler quality settings, float samples</td>
-</tr>
-<tr>
-<td>9</td>
-<td>Effect info version 2, the limiter</td>
-</tr>
-<tr>
-<td>10</td>
-<td>Bluetooth output, capture, a second biquad per voice</td>
-</tr>
-<tr>
-<td>11</td>
-<td>New delay and reverb parameters, compressor, voice drop</td>
-</tr>
-<tr>
-<td>12</td>
-<td>Filter and mix fused into one step, filters on splitters</td>
-</tr>
-<tr>
-<td>13</td>
-<td>Compressor statistics, explicit splitter volume reset</td>
+<td>Right-side level difference</td>
+<td style="text-align: right;">15.73 dB</td>
 </tr>
 </tbody>
 </table>
-<p>On the Switch 2, the renderer accepts a revision marker only the Switch 2 uses. Its work buffer also grew in the 19.x and 20.x system updates. The table above follows the Switch 1 references, so the newest Switch 2 revision is not assumed to be 13 until firmware evidence shows it.</p>
-<h2 id="how-is-it-built-and-checked">How is it built and checked?<a class="headerlink" href="#how-is-it-built-and-checked" title="Permanent link">&para;</a></h2>
-<p>The implementation follows switchbrew's documentation, with the Ryujinx and yuzu emulators as behaviour references only: their code is not copied. Tests use our own fixtures: ADPCM decoding, resampler responses, reverb tails, volume ramps and the final sample format, checked at every step.</p>
-<table>
-<thead>
-<tr>
-<th>Step</th>
-<th>State</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Research and design</td>
-<td>Done</td>
-</tr>
-<tr>
-<td>Update parsing, PCM16 voices and the device sink</td>
-<td>Planned, next on the <code>audio</code> branch</td>
-</tr>
-<tr>
-<td>Mixes and volume ramps</td>
-<td>Planned</td>
-</tr>
-<tr>
-<td>ADPCM, resampling, biquads and de-pop</td>
-<td>Planned</td>
-</tr>
-<tr>
-<td>Effects, splitters, revision gates</td>
-<td>Planned</td>
-</tr>
-<tr>
-<td><code>audout</code> and the demos</td>
-<td>Planned</td>
-</tr>
-</tbody>
-</table>
-<h2 id="which-demos-are-planned">Which demos are planned?<a class="headerlink" href="#which-demos-are-planned" title="Permanent link">&para;</a></h2>
-<p>Like the GPU demos, the host plays the game's part until the <a href="../guest-path/">guest path</a> can run a real program.</p>
-<table>
-<thead>
-<tr>
-<th>Demo</th>
-<th>What it shows</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Music</td>
-<td>Music voices in PCM and ADPCM, pitch changes, delay and reverb</td>
-</tr>
-<tr>
-<td>Collisions</td>
-<td>A GPU compute physics step reports collisions, and each one plays a short sound, louder for harder hits</td>
-</tr>
-<tr>
-<td>The BoomBox room</td>
-<td>A first-person room with the BoomBox model as a sound source. Distance sets volume and panning. GPU ray queries check whether walls block the sound and pick a muffling filter. Room zones pick the reverb.</td>
-</tr>
-</tbody>
-</table>
-<p>In the room demo, occlusion and position are game work: the game computes them and sets ordinary voice volumes and filters. The renderer itself has no 3D audio, just as on the real console.</p>
-<p>Verified by: nothing yet, as no audio code has landed; this page records the design.</p>
-<p>Sources: switchbrew's Audio services page, Ryujinx's Ryujinx.Audio renderer and yuzu's audio_core as behaviour references.</p>
+<p>The Dungeon runs on the emulator and submits its audio through <code>audren</code>. Its captured PCM is byte-equal to the reference path.</p>
+<p>Verified by: the audio service, DSP, renderer and fixed-event PCM tests in <code>core/src/tests/audio</code>, plus the Dungeon sound tests.</p>
+<p>Sources: <code>core/src/audio</code>, <code>core/src/nn/{audren,audout}.rs</code>, <code>core/src/audio/spatial.rs</code>, <code>scene/src/dungeon/sound</code>, <code>demos/assets/README</code>.</p>
 
 
 
