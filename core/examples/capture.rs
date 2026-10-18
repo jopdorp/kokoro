@@ -140,6 +140,7 @@ fn main() {
         "guest-music" => Some(oboromi_core::guest::Demo::Music),
         "guest-boombox" => Some(oboromi_core::guest::Demo::BoomBox),
         "guest-bounce" => Some(oboromi_core::guest::Demo::Bounce),
+        "guest-dungeon" if fps == 15.0 && !demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) && !demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed) => Some(oboromi_core::guest::Demo::DungeonCapture),
         "guest-dungeon" => Some(match (demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed), demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed)) { (false, false) => oboromi_core::guest::Demo::Dungeon, (false, true) => oboromi_core::guest::Demo::DungeonRays, (true, false) => oboromi_core::guest::Demo::DungeonShowcase, (true, true) => oboromi_core::guest::Demo::DungeonShowcaseRays }),
         _ => None,
     }.map(|demo| oboromi_core::guest::Machine::demo(demo).unwrap());
@@ -150,7 +151,10 @@ fn main() {
         let tick = std::time::Instant::now();
         let seconds = start + (i + usize::from(args[0] == "dungeon")) as f32 / fps;
         if let Some(guest) = &mut guest {
-            guest.frame_with(|| { if let Some(wav) = &mut wav { if queued() > 0 { wav.drain(); } } }).unwrap();
+            guest.frame_with(|| {
+                if let Some(wav) = &mut wav { if queued() > 0 { wav.drain(); } }
+                else { let mut discard = vec![0; queued() * CHANNELS as usize]; pull(&mut discard); }
+            }).unwrap();
         } else if audio_only && args[0] == "dungeon" {
             demo_dungeon::render_dungeon_audio_frame(seconds).unwrap();
         } else {

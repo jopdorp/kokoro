@@ -175,7 +175,7 @@ fn pose(frame: usize) -> ([f32; 3], f32, f32, f32) {
     ([value(0), value(1), value(2)], value(3), value(4), value(5))
 }
 
-fn frame_data(frame: usize, showcase: bool, rays: bool, layout: &Layout) {
+fn frame_data(frame: usize, showcase: bool, rays: bool, camera: Option<([f32; 3], f32, f32, f32)>, layout: &Layout) {
     let data = include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-frames.bin"));
     let at = frame.min(72 * 60) * 512;
     nv::guest_slice(cpu(layout.frame), 512).copy_from_slice(&data[at..at + 512]);
@@ -185,6 +185,31 @@ fn frame_data(frame: usize, showcase: bool, rays: bool, layout: &Layout) {
         uniforms[43] = (u8::from(rays && offset != 0) as f32).to_bits();
         uniforms[60] = (layout.grid[0] as f32).to_bits();
         uniforms[61] = (layout.grid[1] as f32).to_bits();
+    }
+    if let Some((eye, yaw, pitch, fade)) = camera {
+        let (yaw_sin, yaw_cos) = scene::pbr::sin_cos(yaw);
+        let (pitch_sin, pitch_cos) = scene::pbr::sin_cos(pitch);
+        let right = [yaw_cos, 0.0, yaw_sin];
+        let forward = [yaw_sin * pitch_cos, pitch_sin, -yaw_cos * pitch_cos];
+        let up = [-right[2] * forward[1], right[2] * forward[0] - right[0] * forward[2], right[0] * forward[1]];
+        let back = forward.map(|v| -v);
+        let axes = [right, up, back];
+        let dot = |a: [f32; 3], b: [f32; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        let view: scene::pbr::Matrix = core::array::from_fn(|column| core::array::from_fn(|row| if row == 3 { f32::from(column == 3) } else if column == 3 { -dot(axes[row], eye) } else { axes[row][column] }));
+        let projection = [[0.974_278_57, 0.0, 0.0, 0.0], [0.0, -1.732_050_8, 0.0, 0.0], [0.0, 0.0, -1.001_001, -1.0], [0.0, 0.0, -0.100_100_1, 0.0]];
+        let vp = scene::pbr::multiply(projection, view);
+        let plane = f32::from_bits(nv::guest_slice::<u32>(cpu(layout.frame + 256), 64)[55]);
+        let reflect = [[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, plane * 2.0, 0.0, 1.0]];
+        let reflected = scene::pbr::multiply(vp, reflect);
+        for (offset, matrix, at, reflection) in [(0, reflected, [eye[0], plane * 2.0 - eye[1], eye[2]], 1.0f32), (256, vp, eye, 0.0f32)] {
+            let uniforms = nv::guest_slice::<u32>(cpu(layout.frame + offset), 64);
+            for (out, value) in uniforms[..16].iter_mut().zip(matrix.as_flattened()) { *out = value.to_bits(); }
+            for (out, value) in uniforms[16..32].iter_mut().zip(reflected.as_flattened()) { *out = value.to_bits(); }
+            for (out, value) in uniforms[32..36].iter_mut().zip([at[0], at[1], at[2], frame as f32 / 60.0]) { *out = value.to_bits(); }
+            for (out, value) in uniforms[36..44].iter_mut().zip([right[0], right[1], right[2], 0.0, up[0], up[1], up[2], 0.0]) { *out = value.to_bits(); }
+            uniforms[51] = (fade.min(0.999) * 0.5).to_bits();
+            uniforms[54] = reflection.to_bits();
+        }
     }
     let light_data = include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-frame-lights.bin"));
     let bytes = LIGHT_COUNT * 32;
@@ -228,8 +253,8 @@ fn setup_graphics(fs: u32, layout: &Layout, showcase: bool, rays: bool) -> svc::
     Ok(())
 }
 
-fn render_frame(channel: &nv::Channel, layout: &Layout, showcase: bool, rays: bool, tick: u32) -> svc::Result<()> {
-    frame_data(tick as usize, showcase, rays, layout);
+fn render_frame(channel: &nv::Channel, layout: &Layout, showcase: bool, rays: bool, camera: Option<([f32; 3], f32, f32, f32)>, tick: u32) -> svc::Result<()> {
+    frame_data(tick as usize, showcase, rays, camera, layout);
     let programs = render::Programs { dungeon_vertex: DUNGEON_VERTEX, dungeon_fragment: DUNGEON_FRAGMENT, dungeon_fragment_registers: if rays { 70 } else { 46 }, cones_vertex: CONES_VERTEX, sprite_vertex: SPRITE_VERTEX, sprite_fragment: SPRITE_FRAGMENT };
     let mesh = render::Mesh { vertices: buffer(layout.vertices, layout.vertex_bytes), indices: layout.indices };
     let target = render::Target { colour: layout.target, depth: layout.target_depth, size: [WIDTH, HEIGHT] };
@@ -292,7 +317,7 @@ fn audio(fs: u32, memory: u64) -> svc::Result<(sound::Engine<'static>, audren::P
     let voices = nv::guest_slice::<sound::Voice>(align(at), VOICE_COUNT);
     for (i, voice) in voices.iter_mut().enumerate() {
         let words = core::array::from_fn::<_, 7, _>(|word| u32::from_le_bytes(config[(i * 7 + word) * 4..][..4].try_into().unwrap()));
-        let sample = unsafe { core::mem::transmute::<u8, sound::Sample>(words[0] as u8) };
+        let sample = [sound::Sample::Torch, sound::Sample::Fire, sound::Sample::River, sound::Sample::Wind, sound::Sample::Heart, sound::Sample::Creak, sound::Sample::Bats, sound::Sample::Room, sound::Sample::Drip, sound::Sample::Scream, sound::Sample::Step, sound::Sample::WetStep, sound::Sample::GravelStep][words[0] as usize];
         *voice = sound::Voice::new(sample, [words[1], words[2], words[3]].map(f32::from_bits), f32::from_bits(words[4]), f32::from_bits(words[5]), words[6] != 0);
     }
     at = align(align(at) + (VOICE_COUNT * core::mem::size_of::<sound::Voice>()) as u64);
@@ -318,6 +343,7 @@ fn audio(fs: u32, memory: u64) -> svc::Result<(sound::Engine<'static>, audren::P
 fn run(config: *const [u64; 3]) -> svc::Result<()> {
     let showcase = has_option(config, b"-showcase");
     let rays = has_option(config, b"-rays");
+    let present_every = if has_option(config, b"-capture4") { 4 } else { 1 };
     let layout = Layout::new(showcase);
     let heap_bytes = (layout.end - BASE + 0x2000_0000).next_multiple_of(0x20_0000);
     let heap = svc::set_heap_size(heap_bytes).map_err(|_| 7u32)?;
@@ -330,28 +356,35 @@ fn run(config: *const [u64; 3]) -> svc::Result<()> {
     hid::initialize().map_err(|_| 3u32)?;
     let window = display::Window::target(&channel.nv, channel.nvmap, handle, [WIDTH, HEIGHT], (layout.output - BASE) as u32).map_err(|_| 11u32)?;
     let (mut tick, mut tour, mut idle, mut blocks) = (0u32, 0usize, 180u32, 0usize);
-    let (mut eye, mut yaw, _, _) = pose(0);
+    let (mut eye, mut yaw, mut pitch, _) = pose(0);
+    let mut fade;
     loop {
         let input = hid::read();
         let moving = input.left.into_iter().chain(input.right).any(|axis| axis.unsigned_abs() > 3276);
         idle = if moving { 0 } else { idle.saturating_add(1) };
         if idle >= 180 {
             tour = (tour + 1).min(72 * 60);
-            (eye, yaw, _, _) = pose(tour);
+            (eye, yaw, pitch, fade) = pose(tour);
         } else {
             yaw += input.right[0] as f32 / 32767.0 / 30.0;
-            eye[0] += input.left[0] as f32 / 32767.0 / 30.0;
-            eye[2] -= input.left[1] as f32 / 32767.0 / 30.0;
+            pitch = (pitch - input.right[1] as f32 / 32767.0 / 30.0).clamp(-1.4, 1.4);
+            let (sin, cos) = scene::pbr::sin_cos(yaw);
+            let [side, forward] = input.left.map(|axis| axis as f32 / 32767.0 / 30.0);
+            eye[0] += side * cos + forward * sin;
+            eye[2] += side * sin - forward * cos;
+            fade = 0.999;
         }
-        render_frame(&channel, &layout, showcase, rays, tick + 1)?;
         let target = (tick as usize + 1) * 10 / 3;
         while blocks < target {
             sound.listen(eye, yaw, 0.005, sound::Mode::Headphones);
             pcm.period(&sound.render()).map_err(|_| 5u32)?;
             blocks += 1;
         }
-        window.present([WIDTH, HEIGHT]).map_err(|_| 6u32)?;
         tick += 1;
+        if tick.is_multiple_of(present_every) {
+            render_frame(&channel, &layout, showcase, rays, (idle < 180).then_some((eye, yaw, pitch, fade)), tick)?;
+            window.present([WIDTH, HEIGHT]).map_err(|_| 6u32)?;
+        }
     }
 }
 

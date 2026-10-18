@@ -20,7 +20,7 @@ pub fn load_segments(ram: &GuestRam, base: u64, segments: &[(u64, &[u8])]) -> Op
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet, Raytraced, RaytracedShowcase, Post, Particles, Julia, Mandelbrot, Music, TensorUpscale, Dungeon, DungeonRays, DungeonShowcase, DungeonShowcaseRays }
+pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet, Raytraced, RaytracedShowcase, Post, Particles, Julia, Mandelbrot, Music, TensorUpscale, Dungeon, DungeonRays, DungeonShowcase, DungeonShowcaseRays, DungeonCapture }
 
 pub struct Machine {
     cpus: crate::cpu::cpu_manager::CpuManager,
@@ -48,8 +48,9 @@ impl Machine {
             Demo::DungeonRays => ("dungeon-rays.nro", include_bytes!("../tests/fixtures/guest/dungeon.nro")),
             Demo::DungeonShowcase => ("dungeon-showcase.nro", include_bytes!("../tests/fixtures/guest/dungeon.nro")),
             Demo::DungeonShowcaseRays => ("dungeon-showcase-rays.nro", include_bytes!("../tests/fixtures/guest/dungeon.nro")),
+            Demo::DungeonCapture => ("dungeon-capture4.nro", include_bytes!("../tests/fixtures/guest/dungeon.nro")),
         };
-        if matches!(demo, Demo::Dungeon | Demo::DungeonRays | Demo::DungeonShowcase | Demo::DungeonShowcaseRays) { stage_dungeon_assets()?; }
+        if matches!(demo, Demo::Dungeon | Demo::DungeonRays | Demo::DungeonShowcase | Demo::DungeonShowcaseRays | Demo::DungeonCapture) { stage_dungeon_assets()?; }
         Self::image(name, image)
     }
 
@@ -247,6 +248,37 @@ mod tests {
         assert_eq!(count, 210 * 480);
         assert_eq!(actual, expected);
         println!("guest and host bounce PCM FNV-1a: {actual:016x}, 210 periods");
+    }
+
+    #[test]
+    fn guest_dungeon_matches_frame_and_spatial_pcm_oracles() {
+        if !crate::gpu::demo::asset_dir("dungeon").exists() { return eprintln!("skipped: run demos/assets/fetch.sh for dungeon"); }
+        let _display = DISPLAY_TEST.lock().unwrap();
+        crate::gpu::demo_dungeon::render::SHOWCASE.store(false, std::sync::atomic::Ordering::Relaxed);
+        crate::gpu::demo_dungeon::render::RAYS.store(false, std::sync::atomic::Ordering::Relaxed);
+        crate::gpu::demo_dungeon::set_dungeon_capture();
+        crate::gpu::demo_dungeon::render_dungeon_frame(2.0 / 60.0).unwrap();
+        let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
+        let mut discard = vec![0; crate::audio::queued() * 2];
+        crate::audio::pull(&mut discard);
+        let mut guest = Machine::demo(Demo::Dungeon).unwrap();
+        let mut pcm = Vec::new();
+        let drain = |pcm: &mut Vec<i16>| {
+            let frames = crate::audio::queued();
+            let mut samples = vec![0; frames * 2];
+            crate::audio::pull(&mut samples);
+            pcm.extend(samples);
+        };
+        for _ in 0..2 {
+            guest.frame_with(|| drain(&mut pcm)).unwrap();
+            drain(&mut pcm);
+        }
+        let actual = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
+        let error: u64 = actual.chunks_exact(4).zip(expected.chunks_exact(4)).flat_map(|(a, b)| a[..3].iter().zip(&b[..3])).map(|(&a, &b)| u64::from(a.abs_diff(b))).sum();
+        let mae = error as f64 / (actual.len() / 4 * 3) as f64;
+        assert!(mae <= 255.0 * 0.08, "frame MAE {mae}");
+        let digest = pcm.iter().flat_map(|sample| sample.to_le_bytes()).fold(0xcbf29ce484222325u64, |hash, byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
+        assert_eq!((pcm.len(), digest), (2880, 0x2854_1d0f_201c_3524));
     }
 
     #[test]

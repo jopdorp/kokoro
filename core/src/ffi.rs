@@ -349,7 +349,12 @@ pub extern "C" fn oboromi_render_dungeon_frame(seconds: f32) -> bool {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn oboromi_dungeon_ray_queries() -> bool {
-    matches!(catch_unwind(|| crate::gpu::device().is_ok_and(|d| d.acceleration_structure.is_some())), Ok(true))
+    // ANV resets the device on the captured dungeon ray shader; lavapipe and non-Intel hardware run it.
+    let supported = catch_unwind(|| crate::gpu::device().is_ok_and(|d| {
+        d.acceleration_structure.is_some() && unsafe { d.instance.get_physical_device_properties(d.physical_device) }.vendor_id != 0x8086
+    })).unwrap_or(false);
+    if !supported { crate::gpu::demo_dungeon::render::RAYS.store(false, std::sync::atomic::Ordering::Relaxed); }
+    supported
 }
 
 #[unsafe(no_mangle)]
