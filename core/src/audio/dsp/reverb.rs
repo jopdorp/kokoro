@@ -106,8 +106,10 @@ impl Reverb {
     pub fn set(&mut self, params: ReverbParams) {
         self.params = params;
         let pre_delay = (params.pre_delay_time_ms * params.sample_rate as f32 / 1000.0) as usize;
-        for channel in &mut self.channels {
+        for (index, channel) in self.channels.iter_mut().enumerate() {
             channel.pre_delay.set_length(pre_delay.max(1));
+            channel.early[0].set_length((pre_delay * 3 / 10 + index).max(1));
+            channel.early[1].set_length((pre_delay * 6 / 10 + index).max(1));
             for comb in &mut channel.combs {
                 let seconds = comb.line.length as f32 / params.sample_rate as f32;
                 comb.feedback = 10.0_f32.powf(-3.0 * seconds / params.decay_time.max(0.001));
@@ -125,8 +127,9 @@ impl Reverb {
             for frame in 0..frames.min(input[channel].len()).min(output[channel].len()) {
                 let sample = input[channel][frame];
                 let predelayed = self.channels[channel].pre_delay.tick(sample);
-                let early = self.channels[channel].early[0].tick(predelayed) * 0.6
-                    + self.channels[channel].early[1].tick(predelayed) * 0.4;
+                let early = predelayed * 0.45
+                    + self.channels[channel].early[0].tick(predelayed) * 0.32
+                    + self.channels[channel].early[1].tick(predelayed) * 0.23;
                 let late = self.channels[channel]
                     .combs
                     .iter_mut()

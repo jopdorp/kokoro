@@ -1,7 +1,37 @@
 //! Note sequencing and audren parcels shared by the host and guest demos.
 use core::f32::consts::FRAC_PI_4;
 pub const REVISION: u32 = 0x3d76_4552;
+pub const REV15: u32 = 0x3f76_4552;
 pub const EFFECTS: usize = 2;
+
+#[derive(Clone, Copy)]
+pub struct Spatial { pub pitch: f32, pub volume: f32, pub pan: f32, pub cutoff: f32, pub send: f32 }
+
+impl Spatial {
+    pub fn boombox(seconds: f32) -> Self {
+        let (position, (sin, cos)) = crate::pbr::boombox_pose(seconds);
+        let phase = crate::pbr::sin_cos(seconds * 0.4);
+        let radius = 3.5 + 0.9 * phase.0;
+        let orbit = crate::pbr::sin_cos(0.28 * phase.0);
+        let distance = sqrt(radius * radius + crate::pbr::EYE[1] * crate::pbr::EYE[1]);
+        let radial_velocity = radius * 0.36 * phase.1 / distance;
+        let direction = (radius / distance * (cos * orbit.1 - sin * orbit.0) + 1.0) * 0.5;
+        let directivity = direction.clamp(0.0, 1.0);
+        Self {
+            pitch: 343.0 / (343.0 + radial_velocity),
+            volume: (0.35 + 0.65 * directivity) / (1.0 + 0.08 * distance * distance),
+            pan: (position[0] / distance * 1.5).clamp(-1.0, 1.0),
+            cutoff: 1_200.0 + 10_800.0 * directivity * directivity,
+            send: 0.3 + 0.05 * distance,
+        }
+    }
+}
+
+fn sqrt(value: f32) -> f32 {
+    let mut root = value.max(1.0);
+    for _ in 0..6 { root = (root + value / root) * 0.5; }
+    root
+}
 #[derive(Clone, Copy, Default)]
 pub struct Note {
     pub sample: usize, pub pitch: f32, pub volume: f32, pub pan: f32,
@@ -15,6 +45,8 @@ impl Note {
 pub fn free_voice(notes: &[Note]) -> usize { (0..notes.len()).min_by_key(|&v| notes[v].ends).unwrap() }
 pub fn parameter(voices: usize, sinks: u32) -> [u32; 13] { [48000, 240, 2, 0, voices as u32, sinks, 2, 0, 0, 0, 0, 0, REVISION] }
 pub fn parcel_size(voices: usize, sinks: usize) -> usize { 0x40 + 0x10 + 0x20 * (EFFECTS + 4 * voices) + 0x70 * voices + 0x170 * voices + 0xc0 * EFFECTS + 0x950 + 0x140 * sinks + 0x10 }
+pub fn spatial_parameter(sinks: u32) -> [u32; 13] { [48000, 240, 4, 0, 1, sinks, 2, 0, 0, 0, 0, 0, REV15] }
+pub fn spatial_parcel_size(sinks: usize) -> usize { 0x40 + 0x10 + 0xc0 + 0x70 + 0x188 + 0x180 + 0x950 + 0x140 * sinks + 0x10 }
 fn record(bytes: &mut [u8], at: usize, fields: &[(usize, &[u8])]) {
     for &(offset, value) in fields { bytes[at + offset..at + offset + value.len()].copy_from_slice(value); }
 }
@@ -45,6 +77,37 @@ pub fn parcel(bytes: &mut [u8], notes: &mut [Note], samples: &[(u64, u32)], pool
     at += sizes[4];
     record(bytes, at, &[(4, &1u32.to_le_bytes())]);
     record(bytes, at + 0x20, &[(0, &1f32.to_le_bytes()), (4, &48000u32.to_le_bytes()), (8, &2u32.to_le_bytes()), (0xc, &[1]), (0x924, &i32::MAX.to_le_bytes()), (0x928, &u32::MAX.to_le_bytes())]); at += sizes[5];
+    record(bytes, at, &[(0, &[1,1]), (0x120, &2u32.to_le_bytes()), (0x124, &[0,1])]);
+    if let Some(address) = ring { record(bytes, at + 0x140, &[(0, &[2,1]), (0x20, &address.to_le_bytes()), (0x28, &960u32.to_le_bytes()), (0x2c, &2u32.to_le_bytes()), (0x30, &1u32.to_le_bytes()), (0x3c, &[0,1])]); }
+    len
+}
+
+pub fn spatial_parcel(bytes: &mut [u8], sample: (u64, u32), pool: (u64, u64), first: bool, spatial: Spatial, ring: Option<u64>) -> usize {
+    let sinks = 1 + usize::from(ring.is_some());
+    let sizes = [0x10, 0xc0, 0x70, 0x188, 0x180, 0x950, 0x140 * sinks, 0x10];
+    let len = spatial_parcel_size(sinks);
+    bytes[..len].fill(0);
+    record(bytes, 0, &[(0, &REV15.to_le_bytes()), (0x3c, &(len as u32).to_le_bytes())]);
+    for (slot, section) in [0,1,3,2,4,5,6,7].into_iter().enumerate() { record(bytes, 4 + slot * 4, &[(0, &(sizes[section] as u32).to_le_bytes())]); }
+    let mut at = 0x40;
+    record(bytes, at, &[(0, &REV15.to_le_bytes())]); at += sizes[0];
+    record(bytes, at, &[(0, &pool.0.to_le_bytes()), (8, &pool.1.to_le_bytes()), (0x10, &4u32.to_le_bytes())]); at += sizes[1];
+    let (sin, cos) = crate::pbr::sin_cos((spatial.pan + 1.0) * FRAC_PI_4);
+    let mix = [cos, sin, cos * spatial.send, sin * spatial.send];
+    for (i, volume) in mix.into_iter().enumerate() { record(bytes, at, &[(4 + i * 4, &volume.to_le_bytes())]); }
+    record(bytes, at, &[(0x64, &[1])]); at += sizes[2];
+    let omega = core::f32::consts::TAU * spatial.cutoff / 48_000.0;
+    let (sine, cosine) = crate::pbr::sin_cos(omega);
+    let alpha = sine * core::f32::consts::FRAC_1_SQRT_2;
+    let filter = [(1.0-cosine)*0.5, 1.0-cosine, (1.0-cosine)*0.5, 2.0*cosine, alpha-1.0].map(|v| v / (1.0 + alpha));
+    record(bytes, at, &[(8, &[u8::from(first),1,0,2]), (0xc, &48000u32.to_le_bytes()), (0x18, &1u32.to_le_bytes()), (0x1c, &spatial.pitch.to_le_bytes()), (0x20, &spatial.volume.to_le_bytes()), (0x24, &[1])]);
+    for (i, coefficient) in filter.into_iter().enumerate() { record(bytes, at, &[(0x28 + i * 4, &coefficient.to_le_bytes())]); }
+    record(bytes, at, &[(0x74, &u32::MAX.to_le_bytes()), (0x78, &sample.0.to_le_bytes()), (0x80, &(u64::from(sample.1) * 2).to_le_bytes()), (0x8c, &sample.1.to_le_bytes()), (0x90, &[1]), (0x92, &[u8::from(!first)]), (0x158, &0u32.to_le_bytes())]); at += sizes[3];
+    let q14 = |value: f32| ((value * 16384.0) as u32).to_le_bytes();
+    record(bytes, at, &[(0, &[4,u8::from(first),1]), (0x18, &0u32.to_le_bytes()), (0x20, &[2,3]), (0x26, &[2,3]), (0x2c, &2u16.to_le_bytes()), (0x2e, &2u16.to_le_bytes()), (0x38, &q14(0.55)), (0x3c, &q14(1000.0 * 3.0 / 343.0)), (0x44, &q14(0.75)), (0x48, &q14(0.55)), (0x4c, &q14(0.58)), (0x50, &q14(0.42)), (0x54, &q14(1.0)), (0x58, &q14(1.0))]);
+    record(bytes, at + 0xc0, &[(0, &[1,u8::from(first),1]), (0x18, &1u32.to_le_bytes()), (0x20, &[2,3]), (0x38, &[0,1]), (0x50, &1f32.to_le_bytes()), (0x54, &1f32.to_le_bytes()), (0xb0, &2u32.to_le_bytes())]); at += sizes[4];
+    record(bytes, at, &[(4, &1u32.to_le_bytes())]);
+    record(bytes, at + 0x20, &[(0, &1f32.to_le_bytes()), (4, &48000u32.to_le_bytes()), (8, &4u32.to_le_bytes()), (0xc, &[1]), (0x924, &i32::MAX.to_le_bytes()), (0x928, &u32::MAX.to_le_bytes())]); at += sizes[5];
     record(bytes, at, &[(0, &[1,1]), (0x120, &2u32.to_le_bytes()), (0x124, &[0,1])]);
     if let Some(address) = ring { record(bytes, at + 0x140, &[(0, &[2,1]), (0x20, &address.to_le_bytes()), (0x28, &960u32.to_le_bytes()), (0x2c, &2u32.to_le_bytes()), (0x30, &1u32.to_le_bytes()), (0x3c, &[0,1])]); }
     len
