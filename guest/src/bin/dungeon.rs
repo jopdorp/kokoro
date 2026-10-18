@@ -434,6 +434,7 @@ fn audio(fs: u32, memory: u64) -> svc::Result<(sound::Engine<'static>, audren::P
 fn run(config: *const [u64; 3]) -> svc::Result<()> {
     let showcase = has_option(config, b"-showcase");
     let rays = has_option(config, b"-rays");
+    let ray_final = has_option(config, b"-rayfinal");
     let cave = has_option(config, b"-cave");
     let start: u32 = if has_option(config, b"-start40") { 40 * 60 } else if has_option(config, b"-start2") { 2 * 60 } else { 0 };
     let present_every = if has_option(config, b"-capture4") { 4 } else { 1 };
@@ -477,7 +478,7 @@ fn run(config: *const [u64; 3]) -> svc::Result<()> {
         }
         tick += 1;
         if tick.is_multiple_of(present_every) {
-            render_frame(&channel, &layout, showcase, rays, (idle < 180).then_some((eye, yaw, pitch, fade)), tick)?;
+            render_frame(&channel, &layout, showcase, rays && (!ray_final || tick >= start + 120), (idle < 180).then_some((eye, yaw, pitch, fade)), tick)?;
             window.present([WIDTH, HEIGHT]).map_err(|_| 6u32)?;
         }
     }
