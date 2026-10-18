@@ -66,7 +66,7 @@ nav:
       - CPU and shared memory: architecture/cpu.md
       - Services: architecture/services.md
       - Audio: architecture/audio.md
-      - Guest path: architecture/guest-path.md
+      - Emulator path: architecture/guest-path.md
       - GPU pipeline: architecture/gpu-pipeline.md
       - SASS translator: architecture/sass-translator.md
       - Vulkan backend: architecture/vulkan-backend.md

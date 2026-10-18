@@ -5,13 +5,13 @@ social_description: See oboromi run Switch 2 graphics demos through its emulator
 
 # oboromi
 
-This is the documentation of oboromi, an early Nintendo Switch 2 emulator written in Rust. An emulator is a program that lets a PC act like the console. It builds on the foundations its maintainer and contributors laid down. Most of the recent work is on the graphics chip, the GPU, with the CPU, services and audio in progress.
+This is the documentation of oboromi, an early Nintendo Switch 2 emulator written in Rust. It builds on the CPU, service, GPU and front-end foundations laid by its maintainer and contributors. Included AArch64 programs now run through the loader, kernel, services, audio renderer and GPU path.
 
 A game hands the Switch 2's GPU small programs called shaders, for example one that computes the colour of each pixel of a sky. Those shaders are NVIDIA machine code. The emulator rewrites them into SPIR-V, the shader format of the cross-vendor graphics API Vulkan. Then an Intel, AMD or NVIDIA card in a PC can run them.
 
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/julia-demo-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/julia-demo.mp4" type="video/mp4"></video>
 
-*The Demo button: a hand-written SM86 program, translated to SPIR-V, redrawing a Julia set every frame on an Intel laptop GPU.*
+*The Julia demo runs on the emulator and dispatches Switch 2 shader machine code, translated to SPIR-V, on an Intel laptop GPU.*
 
 | Start here | For |
 |---|---|

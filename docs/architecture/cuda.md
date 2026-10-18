@@ -10,7 +10,7 @@ flowchart LR
     CUBIN --> LOAD["Kernel::load<br/>Finds code, constants, shared size"]
     LOAD --> LAUNCH["Kernel::launch<br/>Fills constant buffer 0 like the driver"]
     LAUNCH --> TR["Translator + Vulkan<br/>Any graphics card"]
-    SASS["Guest shader code"] --> WR["Seed cubin writer<br/>Wraps the code as a CUDA program"]
+    SASS["Switch 2 shader code"] --> WR["Seed cubin writer<br/>Wraps the code as a CUDA program"]
     WR --> NAT["libcuda.so.1<br/>NVIDIA card only"]
     TR --> CMP{"Same bytes?"}
     NAT --> CMP
@@ -43,7 +43,7 @@ Why this layout: it was recorded from the real driver on a real card. So a cubin
 
 ## How does the native path work?
 
-`cuda.rs`, behind the `cuda` cargo feature, wraps a guest program in a cubin made from a small seed kernel. It swaps in the code, parameter area, shared size, instruction offsets and metadata, and keeps the seed's ELF header and segments.
+`cuda.rs`, behind the `cuda` cargo feature, wraps a shader in a cubin made from a small seed kernel. It swaps in the code, parameter area, shared size, instruction offsets and metadata, and keeps the seed's ELF header and segments.
 
 It opens `libcuda.so.1` at run time, with no new crate. Then it initialises CUDA, makes a context, loads the module, launches it and waits. `CudaDevice::run_native` copies buffers in and out.
 
@@ -56,6 +56,13 @@ When it applies: a host with an NVIDIA card and driver that load sm_86 cubins, r
 | Mul-add `c[i] = a[i] * b[i] + i` | core/tests/fixtures/kernels.cu | Bit for bit equal to the RTX 3090 recording |
 | Gradient | core/tests/fixtures/kernels.cu | Same hash as on the real card |
 | Mandelbrot0, float | NVIDIA cuda-samples, BSD-3 | Correct image, see below |
+| Mandelbrot0, double | NVIDIA cuda-samples, BSD-3 | Runs the deep-zoom demo |
+
+The wider corpus is used as a translation gate:
+
+| Corpus | Handled |
+|---|---:|
+| CUDA sample kernels | 768 / 818 |
 
 Measured, p50 per launch:
 
@@ -68,8 +75,6 @@ Measured, p50 per launch:
 | Mandelbrot pixels equal to the sample's reference image | | 92.7 % |
 
 Nobody knows how the Mandelbrot reference image was made. So that last row is a sanity check, not a pass mark.
-
-Planned next, in order: nbody and particles, simpleTexture, Sobel, box and bilateral filters, fluids and smoke, marching cubes.
 
 Verified by: `cubin_kernels_match_silicon` on Intel and lavapipe, and `native_mul_add_matches_translator` and `native_gradient_matches_translator` on the RTX A6000 (they skip without libcuda).
 
