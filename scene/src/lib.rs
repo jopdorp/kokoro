@@ -8,6 +8,7 @@ extern crate std;
 #[cfg(feature = "std")]
 pub mod sprites_assets;
 pub mod sprites;
+pub mod bounce;
 pub mod sass;
 pub mod threed;
 

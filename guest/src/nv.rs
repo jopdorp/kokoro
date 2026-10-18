@@ -6,19 +6,14 @@ use crate::nvdrv::*;
 use scene::{Addresses, Scene};
 use core::mem::size_of;
 
-const CURRENT_PROCESS: u32 = 0xFFFF_8001;
 const NO_BUFFER: Buffer = Buffer { address: 0, size: 0 };
 
 pub struct Nv(u32);
 
 impl Nv {
-    /// Connects and initializes the driver with `size` bytes of transfer memory at `address`.
-    pub fn initialize(address: u64, size: u64) -> svc::Result<Self> {
-        let nv = Self(crate::hid::service(*b"nvdrv\0\0\0")?);
-        let memory = svc::create_transfer_memory(address, size, 0)?;
-        nv.call(&Request { command: 3, copy_handles: &[CURRENT_PROCESS, memory], data: &[size as u32], ..Default::default() }, 0)?;
-        nv.call(&Request { command: 8, send_pid: true, data: &[0, 0], ..Default::default() }, 0)?;
-        Ok(nv)
+    pub fn initialize() -> svc::Result<Self> {
+        // INvDrv2User has no Switch 1 Initialize or SetAruid commands.
+        Ok(Self(crate::hid::service(*b"nvdrv\0\0\0")?))
     }
 
     /// The reply's data words and first copied handle, once word `error` of the data is zero.
@@ -77,6 +72,7 @@ fn buffer(nv: &Nv, [nvmap, space]: [u32; 2], address: u64, size: u32) -> svc::Re
     nv.ioctl(nvmap, NVMAP_ALLOC, &mut NvmapAlloc { handle: create.handle, heapmask: 0, flags: 1, align: 0x1000, kind: 0, pad: [0; 7], address })?;
     let mut reserved = AsAllocSpace { pages: size / BUFFER as u32, page_size: BUFFER as u32, flags: 0, pad: 0, offset_or_align: BUFFER };
     nv.ioctl(space, AS_ALLOC_SPACE, &mut reserved)?;
+    // SwitchBrew documents no Switch 2 replacement for MapBufferEx.
     let mut map = AsMapBufferEx { flags: 1, kind: 0, nvmap_handle: create.handle, page_size: BUFFER as u32, buffer_offset: 0, mapping_size: u64::from(size), offset: reserved.offset_or_align };
     nv.ioctl(space, AS_MAP_BUFFER_EX, &mut map)?;
     Ok((map.offset, create.handle))
@@ -95,8 +91,8 @@ pub struct Channel {
 }
 
 impl Channel {
-    pub fn new(heap: u64) -> svc::Result<Self> {
-        let nv = Nv::initialize(heap, 0x10_0000)?;
+    pub fn new() -> svc::Result<Self> {
+        let nv = Nv::initialize()?;
         let mut fds = [0; 5];
         for (fd, path) in fds.iter_mut().zip(["/dev/nvmap", "/dev/nvhost-as-gpu", "/dev/nvhost-ctrl", "/dev/nvhost-ctrl-gpu", "/dev/nvhost-gpu"]) {
             *fd = nv.open(path)?;
@@ -109,6 +105,7 @@ impl Channel {
         nv.ioctl(space, AS_BIND_CHANNEL, &mut AsBindChannel { channel_fd: channel })?;
         nv.ioctl(channel, CHANNEL_SET_NVMAP_FD, &mut ChannelFd { fd: nvmap })?;
         let fence = Fence { id: 0, value: 0 };
+        // SwitchBrew lists these GPFIFO ioctls without a Switch 2 variant.
         nv.ioctl(channel, CHANNEL_ALLOC_GPFIFO_EX2, &mut ChannelAllocGpfifoEx2 { entries: 0x800, flags: 0, unknown0: 0, fence, unknown: [0; 3] })?;
         let threed = u32::from_le_bytes(gpu[92..96].try_into().unwrap());
         nv.ioctl(channel, CHANNEL_ALLOC_OBJ_CTX, &mut ChannelAllocObjCtx { class: threed, flags: 0, object_id: 0 })?;
@@ -142,7 +139,7 @@ pub struct Triangle {
 
 impl Triangle {
     pub fn new(heap: u64, size: [u32; 2], vertices: &[scene::Vertex; 3]) -> svc::Result<Self> {
-        let channel = Channel::new(heap)?;
+        let channel = Channel::new()?;
         let (scene, target) = (heap + 0x10_0000, heap + 0x20_0000);
         let (scene_va, _) = channel.buffer(scene, BUFFER as u32)?;
         let (target_va, target_handle) = channel.buffer(target, (size[0] * size[1] * 4).next_multiple_of(BUFFER as u32))?;

@@ -343,8 +343,6 @@ impl Service for Nvdrv {
             0 => read(request.mem, input(0), input(0).map_or(0, |b| b.size as usize)).and_then(|path| self.open(&path)).map(|opened| fd = opened),
             1 => self.ioctls(request.mem, words, [input(0), None], [output(0), None]),
             2 => self.fds.remove(words[0]).map(drop).ok_or(NvError::BadParameter),
-            // Initialize's transfer memory is the driver's own heap, which nothing here allocates from.
-            3 | 8 => Ok(()),
             4 => match self.fds.get(words[0]) {
                 Some(Device::Channel(_)) if (1..=3).contains(&words[1]) => {
                     copy_handles.push(Object::Event(Rc::default()));

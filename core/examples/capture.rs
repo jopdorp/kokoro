@@ -10,6 +10,7 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
     match demo {
         "dungeon" => demo_dungeon::render_dungeon_frame(seconds),
         "julia" => frame::render_demo_frame(seconds).map_err(|e| format!("{e:?}")),
+        "guest-bounce" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Bounce),
         "guest-triangle" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Triangle),
         "guest-sprites" => {
             let phase = seconds * std::f32::consts::TAU / 6.0;
