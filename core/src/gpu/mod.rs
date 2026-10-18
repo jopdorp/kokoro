@@ -56,13 +56,23 @@ pub struct VkState {
 
 static SURFACES: AtomicBool = AtomicBool::new(false);
 
-/// Accuracy traded for speed in every translation from the next one on.
-#[derive(Clone, Copy, Default)]
+/// Accuracy traded for speed in every translation from the next one on, enabled by default.
+#[derive(Clone, Copy)]
 pub struct SpeedHacks {
     pub fast_tensor: bool,
 }
 
-pub static SPEED_HACKS: std::sync::Mutex<SpeedHacks> = std::sync::Mutex::new(SpeedHacks { fast_tensor: false });
+impl SpeedHacks {
+    pub const fn none() -> Self { Self { fast_tensor: false } }
+}
+
+impl Default for SpeedHacks {
+    fn default() -> Self {
+        if std::env::var("OBOROMI_EXACT").as_deref() == Ok("1") { Self::none() } else { Self { fast_tensor: true } }
+    }
+}
+
+pub static SPEED_HACKS: std::sync::LazyLock<std::sync::Mutex<SpeedHacks>> = std::sync::LazyLock::new(|| std::sync::Mutex::new(SpeedHacks::default()));
 
 /// `device`, but created with every window surface extension the loader has if this is the first call.
 pub fn surface_device() -> Result<&'static VkState, VkError> {
