@@ -43,6 +43,7 @@ pub struct Scene<'a> {
     geometry: Vec<Geometry>,
     traced: bool,
     room: bool,
+    boombox: bool,
     material_count: usize,
     model_indices: u32,
     light_first: u32,
@@ -59,15 +60,15 @@ impl<'a> Scene<'a> {
             return Err("ray-traced demo needs ray queries and fragment subgroup arithmetic, ballot and shuffle".into());
         }
         let dir = asset_dir(if room { "boombox" } else { asset });
-        Self::with_scene_files(state, cache, &|file| std::fs::read(dir.join(file)).map_err(|e| format!("{}: {e}", dir.join(file).display())), width, height, room, traced)
+        Self::with_scene_files(state, cache, &|file| std::fs::read(dir.join(file)).map_err(|e| format!("{}: {e}", dir.join(file).display())), width, height, room, traced, asset == "boombox")
     }
 
     /// Like `new`, with the asset's files from `read`.
     pub fn with_files(state: &'static VkState, cache: Option<(&Path, &str)>, read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: u32, raytraced: bool) -> Result<Self, String> {
-        Self::with_scene_files(state, cache, read, width, height, raytraced, raytraced)
+        Self::with_scene_files(state, cache, read, width, height, raytraced, raytraced, false)
     }
 
-    fn with_scene_files(state: &'static VkState, cache: Option<(&Path, &str)>, read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: u32, room: bool, traced: bool) -> Result<Self, String> {
+    fn with_scene_files(state: &'static VkState, cache: Option<(&Path, &str)>, read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: u32, room: bool, traced: bool, boombox: bool) -> Result<Self, String> {
         let asset = scene::pbr::assets::Asset::load(read, width, height, room, traced)?;
         let mut gpu = Gpu::new(state, (asset.end - BASE) as usize, cache, *super::SPEED_HACKS.lock().unwrap()).map_err(|e| format!("{e:?}"))?;
         gpu.space.map(BASE, 0, asset.end - BASE);
@@ -78,12 +79,12 @@ impl<'a> Scene<'a> {
             vec![Geometry { vertices: VERTICES, stride: 48, vertex_count: asset.model_vertices as u32, indices: asset.indices_va, index_count: asset.model_indices, transform: [[0.0; 4]; 3], opaque: true },
                 Geometry { vertices: VERTICES, stride: 48, vertex_count: asset.vertex_count, indices: asset.indices_va + (u64::from(asset.model_indices) + 30) * 4, index_count: asset.index_count - asset.model_indices - 30 - asset.light_count, transform: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]], opaque: true }]
         } else { Vec::new() };
-        Ok(Self { gpu, target: asset.target, width, height, draws: asset.draws, blends: asset.blends, textures: asset.textures, fit: asset.fit, geometry, traced, room, material_count: asset.material_count, model_indices: asset.model_indices, light_first: asset.light_first, light_y: 0.7, frame: 0 })
+        Ok(Self { gpu, target: asset.target, width, height, draws: asset.draws, blends: asset.blends, textures: asset.textures, fit: asset.fit, geometry, traced, room, boombox, material_count: asset.material_count, model_indices: asset.model_indices, light_first: asset.light_first, light_y: 0.7, frame: 0 })
     }
 
     /// Turns the model to `seconds` at 0.8 rad/s, draws every primitive and waits for the frame's report.
     pub fn frame(&mut self, seconds: f32) -> Result<(), String> {
-        let model = scene::pbr::model(self.fit, scene::pbr::sin_cos(seconds * 0.8 + if self.room { std::f32::consts::PI } else { 0.0 }));
+        let model = if self.boombox { scene::pbr::boombox_model(self.fit, seconds) } else { scene::pbr::model(self.fit, scene::pbr::sin_cos(seconds * 0.8 + if self.room { std::f32::consts::PI } else { 0.0 })) };
         if self.traced {
             self.geometry[0].transform = std::array::from_fn(|row| std::array::from_fn(|col| model[col][row]));
             self.gpu.register_acceleration_structure(TLAS, self.geometry.clone()).map_err(|e| format!("{e:?}"))?;

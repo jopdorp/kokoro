@@ -1,4 +1,4 @@
-use guest::{display, nv, svc};
+use guest::{audren, display, nv, svc};
 use scene::{Words, pbr::{self, BASE, PUSHBUFFER, FRAME_SEGMENT}};
 
 core::arch::global_asm!(
@@ -16,19 +16,26 @@ core::arch::global_asm!(
 
 fn draw() -> svc::Result<()> {
     let size = [1920, 1080];
-    let heap = svc::set_heap_size((END - BASE + 0x10_0000).next_multiple_of(0x20_0000))?;
+    let mapped = (END - BASE).next_multiple_of(0x1_0000);
+    let audio_offset = 0x10_0000 + mapped;
+    let heap = svc::set_heap_size((audio_offset + AUDIO.len() as u64 + 0x20_000).next_multiple_of(0x20_0000))?;
     let channel = nv::Channel::new()?;
     let memory = heap + 0x10_0000;
-    let (_, handle) = channel.buffer_at(memory, (END - BASE).next_multiple_of(0x1_0000) as u32, BASE)?;
+    let (_, handle) = channel.buffer_at(memory, mapped as u32, BASE)?;
     for &(va, offset, len) in WRITES {
         nv::guest_slice(memory + va - BASE, len).copy_from_slice(&DATA[offset..offset + len]);
     }
     channel.submit(PUSHBUFFER, INIT_WORDS)?;
     let window = display::Window::target(&channel.nv, channel.nvmap, handle, size, (TARGET - BASE) as u32)?;
     let mut words = Words { storage: nv::guest_slice(memory + FRAME_SEGMENT - BASE, 0x2000), len: 0 };
+    let mut sound = if BOOMBOX { Some(audren::Loop::new(heap + audio_offset, AUDIO)?) } else { None };
     let mut tick = 0u32;
     loop {
-        let model = pbr::model(FIT, pbr::sin_cos(tick as f32 / 60.0 * 0.8));
+        let seconds = tick as f32 / 60.0;
+        if let Some(sound) = &mut sound {
+            while sound.periods < (f64::from(seconds) * 200.0) as u64 + 10 { sound.period(scene::sound::Spatial::boombox(sound.periods as f32 / 200.0))?; }
+        }
+        let model = if BOOMBOX { pbr::boombox_model(FIT, seconds) } else { pbr::model(FIT, pbr::sin_cos(seconds * 0.8)) };
         let uniforms = core::array::from_fn(|i| [model, VIEW].as_flattened().as_flattened()[i].to_bits());
         words.len = 0;
         pbr::draw(&uniforms, VIEW, DRAWS, |i| BLENDS[i], false, false, 0, 0, 0.0, tick + 1, &mut words);

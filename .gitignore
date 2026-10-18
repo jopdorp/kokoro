@@ -10,6 +10,7 @@ build/
 __pycache__/
 /demos/assets/boombox/
 /demos/assets/flighthelmet/
+/demos/assets/boombox-lofi/
 
 /demos/assets/dungeon/
 /demos/assets/dungeon-audio/
