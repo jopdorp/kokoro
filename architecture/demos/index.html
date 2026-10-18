@@ -1704,7 +1704,7 @@
 </tr>
 <tr>
 <td>raytraced</td>
-<td>BoomBox in a red and green room with moving light, ray-query shadows, reflections and ambient occlusion</td>
+<td>BoomBox in a red and green room with soft ray-query shadows, mirror, glass, glossy floor reflections, ambient occlusion and bounced wall colour</td>
 <td>pbr.vert, rt.frag</td>
 </tr>
 </tbody>
@@ -1722,7 +1722,7 @@
 <p><em>BoomBox: the model turns on a turntable under a still light, so the shine and the glowing display move across it.</em></p>
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced.mp4" type="video/mp4"></video>
 
-<p><em>Ray-traced BoomBox: Red and green walls frame glossy floor reflections while warm and cool moving lights sweep shadows across the room.</em></p>
+<p><em>Ray-traced BoomBox: The shaders are Switch 2 shader machine code from the NVIDIA driver, run through our translator. The chrome sphere mirrors the room. The glass sphere bends the wall. Soft shadows cross the scene, and the floor is glossy. We rendered this offline on an RTX 3090 because the Intel laptop GPU cannot run this shader at full resolution yet. This demo still builds its command stream on the host. The translator bug found this round made a compare instruction write a mask instead of 1.0. It is fixed on both branches.</em></p>
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-helmet-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-helmet.mp4" type="video/mp4"></video>
 
 <p><em>FlightHelmet: six materials and fifteen textures through the same shaders, one draw per material.</em></p>
