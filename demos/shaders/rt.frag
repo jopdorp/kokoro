@@ -1,6 +1,7 @@
 // Cornell-room PBR ray queries. light_dir and ambient are the key and cool light positions, with radius in w.
 #version 460
 #extension GL_EXT_ray_query : require
+#extension GL_KHR_shader_subgroup_quad : require
 
 layout(location=0) in vec3 in_world; layout(location=1) in vec3 in_normal;
 layout(location=2) in vec4 in_tangent; layout(location=3) in vec2 in_uv;
@@ -56,8 +57,13 @@ float visibility(vec3 p,vec3 n,vec4 light,float seed){
  return open/float(RAYS);
 }
 vec3 hemisphere(vec3 n,int index,float seed){
+ seed=seed==0.0?12.1:hash(gl_FragCoord.xy+vec2(seed,seed*1.618))*float(RAYS);
  float u=(float(index)+hash(gl_FragCoord.yx+seed))/float(RAYS),phi=6.2831853*fract(float(index)*0.6180339+seed);
  vec3 t=normalize(cross(abs(n.x)<0.8?vec3(1,0,0):vec3(0,1,0),n)); return normalize(t*cos(phi)*sqrt(u)+cross(n,t)*sin(phi)*sqrt(u)+n*sqrt(1.0-u));
+}
+vec3 denoise(vec3 colour,vec3 n,float depth){
+ vec3 sum=colour*2.0,near_n=subgroupQuadSwapHorizontal(n),near_colour=subgroupQuadSwapHorizontal(colour);float near_depth=subgroupQuadSwapHorizontal(depth),weight=pow(max(dot(n,near_n),0.0),16.0)*exp(-abs(depth-near_depth)*80.0);sum+=near_colour*weight;float total=2.0+weight;
+ near_n=subgroupQuadSwapVertical(n);near_colour=subgroupQuadSwapVertical(colour);near_depth=subgroupQuadSwapVertical(depth);weight=pow(max(dot(n,near_n),0.0),16.0)*exp(-abs(depth-near_depth)*80.0);return (sum+near_colour*weight)/(total+weight);
 }
 vec3 reflected(vec3 p,vec3 ray,float roughness){vec3 c=vec3(0);for(int i=0;i<GLOSSY;i++)c+=hit_colour(p,tangent_ray(ray,roughness,i,4.7));return c/float(GLOSSY);}
 vec3 glass(vec3 p,vec3 n,vec3 view){
@@ -83,8 +89,9 @@ void main(){
  if(floor)indirect+=reflected(origin,reflect(-v,n),0.15)*0.72;else if(chrome)indirect=hit_colour(origin,reflect(-v,n));else if(glass_sphere)indirect=glass(in_world,n,v);else if(metallic>0.45)indirect+=reflected(origin,reflect(-v,n),roughness*0.35)*fresnel;
  if(!chrome&&!glass_sphere){vec3 bounce=vec3(0);float ao=0.0;
   // Each direction is traced once per light: shading both lights in one iteration spills registers on SM86.
-  for(int i=0;i<RAYS*2;i++){vec3 ray=hemisphere(geometric,i/2,12.1);float distance;uint instance;bool hit=trace(origin,ray,20.0,distance,instance);ao+=hit&&distance<1.0?0.0:1.0;if(hit)bounce+=bounce_light(origin+ray*distance,instance,i%2==0);}
+  for(int i=0;i<RAYS*2;i++){vec3 ray=hemisphere(geometric,i/2,light_colour.w);float distance;uint instance;bool hit=trace(origin,ray,20.0,distance,instance);ao+=hit&&distance<1.0?0.0:1.0;if(hit)bounce+=bounce_light(origin+ray*distance,instance,i%2==0);}
   indirect+=albedo*(vec3(0.006)*ao/2.0+bounce)/float(RAYS);}
+ if(light_colour.w!=0.0)indirect=denoise(indirect,geometric,gl_FragCoord.z);
  vec3 emissive=srgb_to_linear(texture(emissive_map,in_uv).rgb)*emissive_factor.rgb;
  out_colour=vec4(pow(aces((direct+indirect+emissive)*0.72),vec3(1.0/2.2)),1.0);
 }

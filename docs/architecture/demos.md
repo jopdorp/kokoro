@@ -31,7 +31,7 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 
 ### BoomBox
 
-<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.mp4" type="video/mp4"></video>
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.mp4" type="video/mp4"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced.mp4" type="video/mp4"></video>
 
 *The ray-traced guest turns the BoomBox and moving lamp inside the 3.0 × 3.9 × 4.8 metre room. Ray queries add soft shadows, reflections and colour bounce. The CC0 track “Lofi Hip Hop Loop” by omfgdude goes through the audio renderer: pitch adds Doppler, volumes set cardioid directivity and panning, a biquad dulls the grille off-axis, and the room dimensions and surfaces set the reflections and reverb.*
 
@@ -127,11 +127,11 @@ Dungeon runs as a guest program through the emulated CPU, `nvdrv`, GPU and audio
 
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/dungeon-v8-rt-compare.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-compare.mp4" type="video/mp4"></video>
 
-*Dungeon raster is left and Dungeon ray traced is right over the same fifteen reveal seconds. Every flame moves its traced shadow; wet calcite catches the torches. Mean absolute RGB difference is 8.94% over all 900 frames.*
+*Dungeon raster is left and Dungeon ray traced is right over the same fifteen reveal seconds. Every flame moves its traced shadow; wet calcite catches the torches. Mean absolute RGB difference is 8.09% over all 900 frames.*
 
 ![Raster and ray-query dungeon frame](https://raw.githubusercontent.com/jopdorp/oboromi/assets/dungeon-v8-rt-compare.png)
 
-*The same reveal frame. The difference is clear in the warm ceiling bounce, softer formation shadows and wet calcite reflections.*
+*The same frame at the reveal: raster left, ray queries right. Cool opening light keeps calcite pale while fire bounce falls off into dark manganese and soot.*
 
 ## Measured
 

@@ -8,7 +8,7 @@ use crate::tests::gpu::engine::{bytes, entry};
 #[cfg(test)]
 use crate::tests::gpu_test::inst::bra;
 use std::path::Path;
-use std::sync::{Mutex, atomic::{AtomicBool, Ordering}};
+use std::sync::{Mutex, atomic::{AtomicBool, AtomicU32, Ordering}};
 
 pub use scene::pbr::{Matrix, multiply};
 use scene::pbr::*;
@@ -99,9 +99,10 @@ impl<'a> Scene<'a> {
             self.geometry[0].transform = std::array::from_fn(|row| std::array::from_fn(|col| model[col][row]));
             self.gpu.register_acceleration_structure(TLAS, self.geometry.clone()).map_err(|e| format!("{e:?}"))?;
         }
-        let (eye, head, light_position) = if self.room { scene::pbr::room_frame(seconds, self.traced, f32::sqrt) } else { (EYE, [0.0; 16], [0.0; 3]) };
+        let (eye, mut head, light_position) = if self.room { scene::pbr::room_frame(seconds, self.traced, f32::sqrt) } else { (EYE, [0.0; 16], [0.0; 3]) };
         let view_proj = scene::pbr::assets::view_projection(self.width, self.height, eye);
         if self.room {
+            head[7] = SAMPLE_SEED.load(Ordering::Relaxed) as f32;
             for material in 0..self.material_count { self.gpu.write(MATERIALS + MATERIAL_STRIDE * material as u64 + MATERIAL_UNIFORMS, &floats(&head)).map_err(|e| format!("{e:?}"))?; }
             self.light_position = light_position;
         }
@@ -141,6 +142,7 @@ const HEIGHT: u32 = 1080;
 pub(super) static SCENE: Mutex<Option<(&str, Scene<'static>)>> = Mutex::new(None);
 static RAY_TRACING: AtomicBool = AtomicBool::new(true);
 pub static SHOWCASE: AtomicBool = AtomicBool::new(false);
+pub static SAMPLE_SEED: AtomicU32 = AtomicU32::new(0);
 
 fn render(asset: &'static str, seconds: f32) -> Result<(), String> {
     let mut slot = SCENE.lock().unwrap();

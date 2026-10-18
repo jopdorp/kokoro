@@ -1,10 +1,20 @@
 //! Renders a demo offline at fixed time steps, frame i at i / fps seconds, as `frame_%04d.ppm` in a directory:
-//! `cargo run --release -p oboromi-core --example capture -- <demo> [--seconds 8] [--fps 60] [--showcase] --out <dir>`, then
+//! `cargo run --release -p oboromi-core --example capture -- <demo> [--seconds 8] [--fps 60] [--showcase] [--subframes 8] --out <dir>`, then
 //! `ffmpeg -framerate 60 -i <dir>/frame_%04d.ppm -c:v libx264 -crf 20 -pix_fmt yuv420p -movflags +faststart demo.mp4`.
 use oboromi_core::audio::{CHANNELS, PERIOD, RATE, demo_music, pull, queued};
 use oboromi_core::ffi::oboromi_frame_read;
 use oboromi_core::gpu::{demo, demo_bounce, demo_dungeon, demo_particles, demo_post, demo_sprites, frame};
 use std::io::{Seek, Write};
+use std::sync::atomic::Ordering;
+
+fn aces(x: f32) -> f32 {
+    (x * (2.51 * x + 0.03) / (x * (2.43 * x + 0.59) + 0.14)).clamp(0.0, 1.0)
+}
+
+fn inverse_aces(y: f32) -> f32 {
+    let (a, b, c) = (2.43 * y - 2.51, 0.59 * y - 0.03, 0.14 * y);
+    (-b - (b * b - 4.0 * a * c).sqrt()) / (2.0 * a)
+}
 
 fn guest_sprites_stick(seconds: f32) -> [f32; 2] {
     let points = [(0.0, [0.0, 0.0]), (0.7, [0.1, 0.0]), (1.6, [0.8, 0.2]), (2.2, [0.65, 0.3]), (2.8, [0.7, 0.28]), (3.5, [-0.25, 0.5]), (4.2, [-0.75, -0.15]), (4.8, [-0.68, -0.1]), (5.5, [0.15, -0.35]), (6.0, [0.0, 0.0])];
@@ -26,6 +36,7 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
         "guest-solar-showcase" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::SolarShowcase),
         "guest-julia" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Julia),
         "guest-raytraced" => oboromi_core::guest::render_demo(if demo::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) { oboromi_core::guest::Demo::RaytracedShowcase } else { oboromi_core::guest::Demo::Raytraced }),
+        "guest-dungeon" => oboromi_core::guest::render_demo(match (demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed), demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed)) { (false, false) => oboromi_core::guest::Demo::Dungeon, (false, true) => oboromi_core::guest::Demo::DungeonRays, (true, false) => oboromi_core::guest::Demo::DungeonShowcase, (true, true) => oboromi_core::guest::Demo::DungeonShowcaseRays }),
         "guest-mandelbrot" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Mandelbrot),
         "guest-triangle" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Triangle),
         "guest-sprites" => {
@@ -103,7 +114,7 @@ fn main() {
             .position(|arg| arg == name)
             .map(|i| args[i + 1].clone())
     };
-    if args[0] == "dungeon" {
+    if matches!(args[0].as_str(), "dungeon" | "guest-dungeon") {
         demo_dungeon::set_dungeon_capture();
         demo_dungeon::render::PROFILE.store(args.iter().any(|a|a=="--profile"), std::sync::atomic::Ordering::Relaxed);
         if let Some(debug) = flag("--water-debug") {
@@ -126,6 +137,9 @@ fn main() {
     let seconds: f32 = flag("--seconds").map_or(8.0, |s| s.parse().unwrap());
     let start: f32 = flag("--start").map_or(0.0, |s| s.parse().unwrap());
     let fps: f32 = flag("--fps").map_or(60.0, |s| s.parse().unwrap());
+    let subframes: usize = flag("--subframes").map_or(1, |s| s.parse().unwrap());
+    assert!(subframes > 0);
+    if args.iter().any(|a| a == "--subframes") { assert!(matches!(args[0].as_str(), "raytraced" | "guest-raytraced") && args.iter().any(|a| a == "--showcase"), "--subframes needs raytraced --showcase"); }
     let out = std::path::PathBuf::from(flag("--out").expect("--out <dir>"));
     std::fs::create_dir_all(&out).unwrap();
     let mut wav = flag("--audio").map(Wav::new);
@@ -133,25 +147,40 @@ fn main() {
     if let Some(solo) = flag("--solo") {
         demo_dungeon::set_dungeon_audio_solo(&solo);
     }
-    let mut guest = match args[0].as_str() {
+    let mut guest = if args[0] == "guest-raytraced" && subframes > 1 { Some(oboromi_core::guest::Machine::raytraced_showcase(subframes as u32).unwrap()) } else { match args[0].as_str() {
         "guest-music" => Some(oboromi_core::guest::Demo::Music),
         "guest-raytraced" => Some(if audio_only { oboromi_core::guest::Demo::RaytracedAudio } else if demo::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) { oboromi_core::guest::Demo::RaytracedShowcase } else { oboromi_core::guest::Demo::Raytraced }),
         "guest-bounce" => Some(oboromi_core::guest::Demo::Bounce),
+        "guest-dungeon" if fps == 15.0 && !demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) && !demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed) => Some(oboromi_core::guest::Demo::DungeonCapture),
+        "guest-dungeon" => Some(match (demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed), demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed)) { (false, false) => oboromi_core::guest::Demo::Dungeon, (false, true) => oboromi_core::guest::Demo::DungeonRays, (true, false) => oboromi_core::guest::Demo::DungeonShowcase, (true, true) => oboromi_core::guest::Demo::DungeonShowcaseRays }),
         _ => None,
-    }.map(|demo| oboromi_core::guest::Machine::demo(demo).unwrap());
+    }.map(|demo| oboromi_core::guest::Machine::demo(demo).unwrap()) };
     let mut pixels = Vec::new();
+    let mut linear = Vec::new();
     let mut timings = Vec::new();
     let frames = (seconds * fps).round() as usize;
     for i in 0..frames {
         let tick = std::time::Instant::now();
         let seconds = start + (i + usize::from(args[0] == "dungeon")) as f32 / fps;
-        if let Some(guest) = &mut guest {
-            guest.frame_with(|| { if let Some(wav) = &mut wav { if queued() > 0 { wav.drain(); } } }).unwrap();
-        } else if audio_only && args[0] == "dungeon" {
-            demo_dungeon::render_dungeon_audio_frame(seconds).unwrap();
-        } else {
-            render(&args[0], seconds).unwrap();
+        for subframe in 0..subframes {
+            demo::SAMPLE_SEED.store(if subframes == 1 { 0 } else { (i * subframes + subframe + 1) as u32 }, Ordering::Relaxed);
+            if let Some(guest) = &mut guest {
+                guest.frame_with(|| {
+                    if let Some(wav) = &mut wav { if queued() > 0 { wav.drain(); } }
+                    else { let mut discard = vec![0; queued() * CHANNELS as usize]; pull(&mut discard); }
+                }).unwrap();
+            } else if audio_only && args[0] == "dungeon" { demo_dungeon::render_dungeon_audio_frame(seconds).unwrap(); } else { render(&args[0], seconds).unwrap(); }
+            if !audio_only {
+                let (mut width, mut height) = (0, 0);
+                pixels.resize(unsafe { oboromi_frame_read(std::ptr::null_mut(), 0, &mut width, &mut height) }, 0);
+                unsafe { oboromi_frame_read(pixels.as_mut_ptr(), pixels.len(), &mut width, &mut height) };
+                if subframes > 1 {
+                    if subframe == 0 { linear.clear(); linear.resize(pixels.len() / 4 * 3, 0.0); }
+                    for (out, &channel) in linear.iter_mut().zip(pixels.chunks_exact(4).flat_map(|pixel| &pixel[..3])) { *out += inverse_aces((f32::from(channel) / 255.0).powf(2.2)); }
+                }
+            }
         }
+        demo::SAMPLE_SEED.store(0, Ordering::Relaxed);
         timings.push(tick.elapsed().as_secs_f64() * 1000.0);
         if args.iter().any(|a| a == "--profile") {
             eprintln!("dungeon_cpu,{i},{:.4}", timings.last().unwrap());
@@ -161,16 +190,8 @@ fn main() {
             continue;
         }
         let (mut width, mut height) = (0, 0);
-        pixels.resize(
-            unsafe { oboromi_frame_read(std::ptr::null_mut(), 0, &mut width, &mut height) },
-            0,
-        );
-        unsafe { oboromi_frame_read(pixels.as_mut_ptr(), pixels.len(), &mut width, &mut height) };
-        let rgb: Vec<u8> = pixels
-            .chunks(4)
-            .flat_map(|pixel| &pixel[..3])
-            .copied()
-            .collect();
+        unsafe { oboromi_frame_read(std::ptr::null_mut(), 0, &mut width, &mut height) };
+        let rgb: Vec<u8> = if subframes == 1 { pixels.chunks(4).flat_map(|pixel| &pixel[..3]).copied().collect() } else { linear.iter().map(|&channel| (aces(channel / subframes as f32).powf(1.0 / 2.2) * 255.0).round() as u8).collect() };
         std::fs::write(
             out.join(format!("frame_{i:04}.ppm")),
             [format!("P6\n{width} {height}\n255\n").as_bytes(), &rgb].concat(),

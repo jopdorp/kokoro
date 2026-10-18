@@ -20,7 +20,7 @@ pub fn load_segments(ram: &GuestRam, base: u64, segments: &[(u64, &[u8])]) -> Op
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum Demo { Triangle, Sprites, Bounce, Helmet, Raytraced, RaytracedShowcase, RaytracedAudio, Post, Particles, Solar, SolarShowcase, Julia, Mandelbrot, Music, TensorUpscale }
+pub enum Demo { Triangle, Sprites, Bounce, Helmet, Raytraced, RaytracedShowcase, RaytracedAudio, Post, Particles, Solar, SolarShowcase, Julia, Mandelbrot, Music, TensorUpscale, Dungeon, DungeonRays, DungeonShowcase, DungeonShowcaseRays, DungeonCapture }
 
 pub struct Machine {
     cpus: crate::cpu::cpu_manager::CpuManager,
@@ -46,18 +46,29 @@ impl Machine {
             Demo::Triangle => ("triangle.nro", include_bytes!("../tests/fixtures/guest/triangle.nro")),
             Demo::Sprites => ("sprites.nro", include_bytes!("../tests/fixtures/guest/sprites.nro")),
             Demo::TensorUpscale => ("tensor-upscale.nro", include_bytes!("../tests/fixtures/guest/tensor-upscale.nro")),
+            Demo::Dungeon => ("dungeon.nro", include_bytes!("../tests/fixtures/guest/dungeon.nro")),
+            Demo::DungeonRays => ("dungeon-rays.nro", include_bytes!("../tests/fixtures/guest/dungeon.nro")),
+            Demo::DungeonShowcase => ("dungeon-showcase.nro", include_bytes!("../tests/fixtures/guest/dungeon.nro")),
+            Demo::DungeonShowcaseRays => ("dungeon-showcase-rays.nro", include_bytes!("../tests/fixtures/guest/dungeon.nro")),
+            Demo::DungeonCapture => ("dungeon-capture4.nro", include_bytes!("../tests/fixtures/guest/dungeon.nro")),
         }
     }
 
     pub fn demo(demo: Demo) -> Result<Self, String> {
         let (name, image) = Self::demo_image(demo);
+        if matches!(demo, Demo::Dungeon | Demo::DungeonRays | Demo::DungeonShowcase | Demo::DungeonShowcaseRays | Demo::DungeonCapture) { stage_dungeon_assets()?; }
         Self::image(name, image)
     }
 
     #[cfg(test)]
     fn demo_exact(demo: Demo) -> Result<Self, String> {
         let (name, image) = Self::demo_image(demo);
+        if matches!(demo, Demo::Dungeon | Demo::DungeonRays | Demo::DungeonShowcase | Demo::DungeonShowcaseRays | Demo::DungeonCapture) { stage_dungeon_assets()?; }
         Self::image_with(name, image, crate::cpu::cpu_manager::CpuBackend::Unicorn, crate::gpu::SpeedHacks::none())
+    }
+
+    pub fn raytraced_showcase(subframes: u32) -> Result<Self, String> {
+        Self::image(&format!("raytraced-showcase-subframes={subframes}.nro"), include_bytes!("../tests/fixtures/guest/raytraced.nro"))
     }
 
     fn image(name: &str, image: &[u8]) -> Result<Self, String> {
@@ -93,6 +104,18 @@ impl Machine {
         }
         Ok(())
     }
+}
+
+fn stage_dungeon_assets() -> Result<(), String> {
+    let sd = crate::gpu::frame::cache_root().join("guests/sdmc");
+    std::fs::create_dir_all(&sd).map_err(|e| e.to_string())?;
+    for name in ["dungeon", "dungeon-audio"] {
+        let target = sd.join(name);
+        if !target.exists() {
+            std::os::unix::fs::symlink(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../demos/assets").join(name), target).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
 }
 
 // The kernel's Rc service graph stays on one thread even when Qt changes render workers.
@@ -251,6 +274,38 @@ mod tests {
         assert_eq!(count, 210 * 480);
         assert_eq!(actual, expected);
         println!("guest and host bounce PCM FNV-1a: {actual:016x}, 210 periods");
+    }
+
+    #[test]
+    fn guest_dungeon_matches_frame_and_spatial_pcm_oracles() {
+        if !crate::gpu::demo::asset_dir("dungeon").exists() { return eprintln!("skipped: run demos/assets/fetch.sh for dungeon"); }
+        let _display = DISPLAY_TEST.lock().unwrap();
+        crate::gpu::demo_dungeon::render::SHOWCASE.store(false, std::sync::atomic::Ordering::Relaxed);
+        crate::gpu::demo_dungeon::render::RAYS.store(false, std::sync::atomic::Ordering::Relaxed);
+        crate::gpu::demo_dungeon::set_dungeon_capture();
+        crate::gpu::demo_dungeon::render_dungeon_frame(2.0 / 60.0).unwrap();
+        let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
+        let mut discard = vec![0; crate::audio::queued() * 2];
+        crate::audio::pull(&mut discard);
+        let mut guest = Machine::demo(Demo::Dungeon).unwrap();
+        let mut pcm = Vec::new();
+        let drain = |pcm: &mut Vec<i16>| {
+            let frames = crate::audio::queued();
+            let mut samples = vec![0; frames * 2];
+            crate::audio::pull(&mut samples);
+            pcm.extend(samples);
+        };
+        for _ in 0..2 {
+            guest.frame_with(|| drain(&mut pcm)).unwrap();
+            drain(&mut pcm);
+        }
+        let actual = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
+        let error: u64 = actual.chunks_exact(4).zip(expected.chunks_exact(4)).flat_map(|(a, b)| a[..3].iter().zip(&b[..3])).map(|(&a, &b)| u64::from(a.abs_diff(b))).sum();
+        let mae = error as f64 / (actual.len() / 4 * 3) as f64;
+        println!("dungeon frame MAE {mae}");
+        assert!(mae <= 255.0 * 0.08, "frame MAE {mae}");
+        let digest = pcm.iter().flat_map(|sample| sample.to_le_bytes()).fold(0xcbf29ce484222325u64, |hash, byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
+        assert_eq!((pcm.len(), digest), (7680, 0x6f5a_c691_45bd_5e11));
     }
 
     #[test]

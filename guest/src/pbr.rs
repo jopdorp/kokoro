@@ -19,9 +19,10 @@ fn sqrt(mut value: f32) -> f32 {
     value
 }
 
-fn options(config: *const [u64; 3]) -> ([u32; 2], bool, u32) {
+fn options(config: *const [u64; 3]) -> ([u32; 2], bool, u32, u32) {
     let argv = (0..).map(|i| unsafe { *config.add(i) }).take_while(|entry| entry[0] as u32 != 0).find(|entry| entry[0] as u32 == 5).map(|entry| unsafe { core::ffi::CStr::from_ptr(entry[2] as *const _) }.to_bytes()).unwrap_or_default();
-    (if argv.windows(5).any(|word| word == b"-test") { [320, 180] } else { [1920, 1080] }, argv.windows(9).any(|word| word == b"-showcase"), if argv.windows(6).any(|word| word == b"-audio") { 60 } else { 1 })
+    let subframes=argv.windows(11).position(|word|word==b"-subframes=").map_or(1,|i|argv[i+11..].iter().take_while(|byte|byte.is_ascii_digit()).fold(0,|n,byte|n*10+u32::from(*byte-b'0')).max(1));
+    (if argv.windows(5).any(|word| word == b"-test") { [320, 180] } else { [1920, 1080] }, argv.windows(9).any(|word| word == b"-showcase"), if argv.windows(6).any(|word| word == b"-audio") { 60 } else { 1 }, subframes)
 }
 
 fn write_floats(address: u64, values: &[f32]) {
@@ -29,7 +30,7 @@ fn write_floats(address: u64, values: &[f32]) {
 }
 
 fn draw(config: *const [u64; 3]) -> svc::Result<()> {
-    let (size, showcase, step) = options(config);
+    let (size, showcase, step, subframes) = options(config);
     let mapped = (END - BASE).next_multiple_of(0x1_0000);
     let audio_offset = 0x10_0000 + mapped;
     let heap = svc::set_heap_size((audio_offset + AUDIO.len() as u64 + 0x20_000).next_multiple_of(0x20_0000))?;
@@ -52,7 +53,7 @@ fn draw(config: *const [u64; 3]) -> svc::Result<()> {
     let mut sound = if ROOM { Some(audren::Loop::new(heap + audio_offset, AUDIO)?) } else { None };
     let mut tick = if step == 1 { 0 } else { step };
     loop {
-        let seconds = tick as f32 / 60.0;
+        let seconds = (tick/subframes) as f32 / 60.0;
         if let Some(sound) = &mut sound {
             while sound.periods < (f64::from(seconds) * 200.0) as u64 + 10 {
                 let time = sound.periods as f32 / 200.0;
@@ -61,7 +62,8 @@ fn draw(config: *const [u64; 3]) -> svc::Result<()> {
             }
         }
         let model = if ROOM { pbr::room_model(FIT, seconds) } else { pbr::model(FIT, pbr::sin_cos(seconds * 0.8)) };
-        let (eye, head, light_position) = if ROOM { pbr::room_frame(seconds, TRACED, sqrt) } else { (pbr::EYE, [0.0; 16], [0.0; 3]) };
+        let (eye, mut head, light_position) = if ROOM { pbr::room_frame(seconds, TRACED, sqrt) } else { (pbr::EYE, [0.0; 16], [0.0; 3]) };
+        if subframes>1 { head[7]=(tick+1) as f32; }
         if ROOM { for material in 0..MATERIAL_COUNT { write_floats(memory + MATERIALS + MATERIAL_STRIDE * material as u64 + MATERIAL_UNIFORMS - BASE, &head); } }
         let view = if ROOM { pbr::view_projection(size[0], size[1], eye, sqrt) } else { VIEW };
         let uniforms = core::array::from_fn(|i| [model, view].as_flattened().as_flattened()[i].to_bits());
