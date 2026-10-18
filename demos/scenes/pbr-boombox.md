@@ -5,6 +5,10 @@ driver's SM86 build of `shaders/pbr.vert` + `shaders/pbr.frag` into an RGBA8 tar
 `core/src/gpu/demo.rs` builds it for any size; the tables below use 1280x720. This file is also the reference for the
 setup the other scenes reuse.
 
+The guest BoomBox uses one world unit as one metre. Its source follows a 2.6-4.4 m arc around the listener while the
+model keeps turning; the grille is local +Z. The 3.0 x 3.9 x 4.8 m listening-room preset has an 8.75 ms first reflection,
+11.37/13.99 ms later wall taps, 0.55 s decay and 0.58 high-frequency decay ratio.
+
 Values tagged `(verify)` rest on a convention not yet confirmed on hardware or by the rig's compiled output.
 
 ## Conventions shared by every scene

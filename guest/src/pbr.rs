@@ -1,4 +1,4 @@
-use guest::{display, nv, svc};
+use guest::{audren, display, nv, svc};
 use scene::{Words, pbr::{self, BASE, PUSHBUFFER, FRAME_SEGMENT, MATERIALS, MATERIAL_STRIDE, MATERIAL_UNIFORMS, PIXEL_PROGRAM, TLAS}};
 
 core::arch::global_asm!(
@@ -30,10 +30,12 @@ fn write_floats(address: u64, values: &[f32]) {
 
 fn draw(config: *const [u64; 3]) -> svc::Result<()> {
     let (size, showcase) = options(config);
-    let heap = svc::set_heap_size((END - BASE + 0x10_0000).next_multiple_of(0x20_0000))?;
+    let mapped = (END - BASE).next_multiple_of(0x1_0000);
+    let audio_offset = 0x10_0000 + mapped;
+    let heap = svc::set_heap_size((audio_offset + AUDIO.len() as u64 + 0x20_000).next_multiple_of(0x20_0000))?;
     let channel = nv::Channel::new()?;
     let memory = heap + 0x10_0000;
-    let (_, handle) = channel.buffer_at(memory, (END - BASE).next_multiple_of(0x1_0000) as u32, BASE)?;
+    let (_, handle) = channel.buffer_at(memory, mapped as u32, BASE)?;
     for &(va, offset, len) in WRITES {
         nv::guest_slice(memory + va - BASE, len).copy_from_slice(&DATA[offset..offset + len]);
     }
@@ -47,10 +49,14 @@ fn draw(config: *const [u64; 3]) -> svc::Result<()> {
     }
     let window = display::Window::target(&channel.nv, channel.nvmap, handle, size, (TARGET - BASE) as u32)?;
     let mut words = Words { storage: nv::guest_slice(memory + FRAME_SEGMENT - BASE, 0x2000), len: 0 };
+    let mut sound = if BOOMBOX { Some(audren::Loop::new(heap + audio_offset, AUDIO)?) } else { None };
     let mut tick = 0u32;
     loop {
         let seconds = tick as f32 / 60.0;
-        let model = pbr::model(FIT, pbr::sin_cos(seconds * 0.8 + if ROOM { core::f32::consts::PI } else { 0.0 }));
+        if let Some(sound) = &mut sound {
+            while sound.periods < (f64::from(seconds) * 200.0) as u64 + 10 { sound.period(scene::sound::Spatial::boombox(sound.periods as f32 / 200.0))?; }
+        }
+        let model = if BOOMBOX { pbr::boombox_model(FIT, seconds) } else { pbr::model(FIT, pbr::sin_cos(seconds * 0.8 + if ROOM { core::f32::consts::PI } else { 0.0 })) };
         let (eye, head, light_y) = if ROOM { pbr::room_frame(seconds, TRACED, sqrt) } else { (pbr::EYE, [0.0; 16], 0.0) };
         if ROOM { for material in 0..MATERIAL_COUNT { write_floats(memory + MATERIALS + MATERIAL_STRIDE * material as u64 + MATERIAL_UNIFORMS - BASE, &head); } }
         let view = if ROOM { pbr::view_projection(size[0], size[1], eye, sqrt) } else { VIEW };
