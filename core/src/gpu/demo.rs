@@ -55,21 +55,21 @@ impl<'a> Scene<'a> {
     /// Lays the asset in demos/assets/`asset` out in guest memory and runs the init segment.
     pub fn new(state: &'static VkState, cache: Option<(&Path, &str)>, asset: &str, width: u32, height: u32) -> Result<Self, String> {
         let room = asset.starts_with("raytraced");
-        let traced = asset == "raytraced";
+        let traced = room && asset != "raytraced-off";
         if traced && !supports_raytraced(state) {
             return Err("ray-traced demo needs ray queries and fragment subgroup arithmetic, ballot and shuffle".into());
         }
         let dir = asset_dir(if room { "boombox" } else { asset });
-        Self::with_scene_files(state, cache, &|file| std::fs::read(dir.join(file)).map_err(|e| format!("{}: {e}", dir.join(file).display())), width, height, room, traced, asset == "boombox")
+        Self::with_scene_files(state, cache, &|file| std::fs::read(dir.join(file)).map_err(|e| format!("{}: {e}", dir.join(file).display())), width, height, room, traced, asset == "raytraced-showcase", asset == "boombox")
     }
 
     /// Like `new`, with the asset's files from `read`.
     pub fn with_files(state: &'static VkState, cache: Option<(&Path, &str)>, read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: u32, raytraced: bool) -> Result<Self, String> {
-        Self::with_scene_files(state, cache, read, width, height, raytraced, raytraced, false)
+        Self::with_scene_files(state, cache, read, width, height, raytraced, raytraced, false, false)
     }
 
-    fn with_scene_files(state: &'static VkState, cache: Option<(&Path, &str)>, read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: u32, room: bool, traced: bool, boombox: bool) -> Result<Self, String> {
-        let asset = scene::pbr::assets::Asset::load(read, width, height, room, traced)?;
+    fn with_scene_files(state: &'static VkState, cache: Option<(&Path, &str)>, read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: u32, room: bool, traced: bool, showcase: bool, boombox: bool) -> Result<Self, String> {
+        let asset = scene::pbr::assets::Asset::load(read, width, height, room, traced, showcase)?;
         let mut gpu = Gpu::new(state, (asset.end - BASE) as usize, cache, *super::SPEED_HACKS.lock().unwrap()).map_err(|e| format!("{e:?}"))?;
         gpu.space.map(BASE, 0, asset.end - BASE);
         for (va, data) in &asset.writes { gpu.write(*va, data).map_err(|e| format!("{e:?}"))?; }
@@ -89,16 +89,11 @@ impl<'a> Scene<'a> {
             self.geometry[0].transform = std::array::from_fn(|row| std::array::from_fn(|col| model[col][row]));
             self.gpu.register_acceleration_structure(TLAS, self.geometry.clone()).map_err(|e| format!("{e:?}"))?;
         }
-        let eye = if self.room { [(seconds * 0.18).sin() * 0.55, ROOM_EYE[1], ROOM_EYE[2]] } else { EYE };
+        let (eye, head, light_y) = if self.room { scene::pbr::room_frame(seconds, self.traced, f32::sqrt) } else { (EYE, [0.0; 16], 0.0) };
         let view_proj = scene::pbr::assets::view_projection(self.width, self.height, eye);
         if self.room {
-            let (orbit, bob) = ((seconds * 0.45).sin(), (seconds * 1.4).sin());
-            let mut light = [orbit * 0.65, 0.7 + bob * 0.08, 0.55 * (seconds * 0.45).cos()];
-            let length = light.iter().map(|v| v * v).sum::<f32>().sqrt();
-            light.iter_mut().for_each(|v| *v /= length);
-            let head = [&light[..], &[3.6 + bob * 0.25, 2.55 + bob * 0.15, 1.75 + (1.0 - bob) * 0.2, 0.0], &[0.13 + 0.08 * (orbit + 1.0), 0.13 + 0.08 * (1.0 - orbit), 0.2 + 0.04 * bob, 0.0], &eye, &[1.0]].concat();
             for material in 0..self.material_count { self.gpu.write(MATERIALS + MATERIAL_STRIDE * material as u64 + MATERIAL_UNIFORMS, &floats(&head)).map_err(|e| format!("{e:?}"))?; }
-            self.light_y = 0.7 + 0.25 * bob;
+            self.light_y = light_y;
         }
         self.draw(model, view_proj, eye)
     }
@@ -153,7 +148,7 @@ pub fn render_boombox_frame(seconds: f32) -> Result<(), String> {
 }
 
 pub fn render_raytraced_frame(seconds: f32) -> Result<(), String> {
-    render(if RAY_TRACING.load(Ordering::Relaxed) { "raytraced" } else { "raytraced-off" }, seconds)
+    render(if !RAY_TRACING.load(Ordering::Relaxed) { "raytraced-off" } else if SHOWCASE.load(Ordering::Relaxed) { "raytraced-showcase" } else { "raytraced" }, seconds)
 }
 
 pub fn set_raytracing_enabled(enabled: bool) {
