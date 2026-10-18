@@ -32,10 +32,12 @@ pub struct RayGeometry {
     pub light_count: u32,
 }
 pub const IDENTITY: Matrix = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]];
-pub const ROOM_EYE: [f32; 3] = [0.0, 1.0, 5.5];
-pub const ROOM_MATERIALS: [([u8; 3], f32, f32); 8] = [
+pub const ROOM_SIZE: [f32; 3] = [3.9, 3.0, 4.8];
+pub const ROOM_RUG: [f32; 2] = [2.6, 3.4];
+pub const ROOM_EYE: [f32; 3] = [0.0, 0.55, 4.4];
+pub const ROOM_MATERIALS: [([u8; 3], f32, f32); 9] = [
     ([28, 31, 38], 0.75, 0.18), ([150, 18, 24], 0.0, 0.72), ([20, 112, 52], 0.0, 0.72),
-    ([218, 205, 174], 0.0, 0.72), ([226, 215, 188], 0.0, 0.8), ([205, 218, 232], 1.0, 0.06),
+    ([218, 205, 174], 0.0, 0.72), ([226, 215, 188], 0.0, 0.8), ([92, 54, 38], 0.0, 0.92), ([205, 218, 232], 1.0, 0.06),
     ([120, 195, 220], 0.2, 0.42),
     ([255, 190, 96], 0.0, 0.25),
 ];
@@ -98,12 +100,15 @@ pub fn view_projection(width: u32, height: u32, eye: [f32; 3], sqrt: impl Fn(f32
     multiply(projection, view)
 }
 
+pub fn room_listener() -> ([f32; 3], [f32; 3]) {
+    (ROOM_EYE, [0.0; 3])
+}
+
 pub fn room_frame(seconds: f32, traced: bool, sqrt: impl Fn(f32) -> f32) -> ([f32; 3], [f32; 16], [f32; 3]) {
-    let (camera, _) = sin_cos(seconds * 0.18);
     let (orbit, orbit_cos) = sin_cos(seconds * 0.45);
     let (bob, _) = sin_cos(seconds * 1.4);
-    let eye = [camera * 0.55, ROOM_EYE[1], ROOM_EYE[2]];
-    let key = [orbit * 2.4, 0.05 + bob * 0.16, 0.4 + 1.25 * orbit_cos];
+    let eye = ROOM_EYE;
+    let key = [orbit * 1.55, 0.05 + bob * 0.16, 0.3 + 1.0 * orbit_cos];
     let length = sqrt(key.iter().map(|v| v * v).sum());
     let cool = [-1.65, 0.7 + 0.25 * bob, -0.55, 0.12];
     let light = if traced { [key[0], key[1], key[2], 0.32] } else { [key[0] / length, key[1] / length, key[2] / length, 0.0] };
@@ -230,6 +235,10 @@ pub fn boombox_model(fit: ([f32; 3], f32), seconds: f32) -> Matrix {
     let mut model = model(fit, rotation);
     for i in 0..3 { model[3][i] += position[i]; }
     model
+}
+
+pub fn room_model(fit: ([f32; 3], f32), seconds: f32) -> Matrix {
+    model(fit, sin_cos(seconds * core::f32::consts::TAU / 16.0))
 }
 
 // Shared range reduction keeps guest and host matrix bits identical without a guest libm.

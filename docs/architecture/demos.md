@@ -33,7 +33,11 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.mp4" type="video/mp4"></video>
 
-*The BoomBox plays the CC0 track “Lofi Hip Hop Loop” by omfgdude. The guest places it in 3D the way a game does, through the audio renderer's voice parameters. Pitch adds Doppler as it orbits, while volumes set distance and panning, and a filter dulls it when the grille turns away. The reverb effect gives it a lively room instead of a box.*
+*The ray-traced guest turns the BoomBox and moving lamp inside the 3.0 × 3.9 × 4.8 metre room. Ray queries add soft shadows, reflections and colour bounce. The CC0 track “Lofi Hip Hop Loop” by omfgdude goes through the audio renderer: pitch adds Doppler, volumes set cardioid directivity and panning, a biquad dulls the grille off-axis, and the room dimensions and surfaces set the reflections and reverb.*
+
+![Ray-traced scene with the old and new lighting](https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-gi-proof.png)
+
+*The top row is v4 and the bottom row is v5. Look at the lamp's pool, the moving shadows and the wall colour on the BoomBox.*
 
 ### FlightHelmet
 
@@ -64,16 +68,6 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-mandelbrot.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-mandelbrot.mp4" type="video/mp4"></video>
 
 *NVIDIA's CUDA sample kernel runs unchanged through the translator. The guest owns the frame memory, launches the kernel through `nvdrv` each frame with the new zoom, and presents it.*
-
-### Ray-traced scene
-
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced.mp4" type="video/mp4"></video>
-
-*The guest places the geometry, instances and commands in its memory, then issues the draw with the ray-query shader through `nvdrv`. The emulator builds the acceleration structure from that memory, and the frame digest is equal to the host's. The lamp is now the main light. Its pool sweeps the red and green walls as it orbits, the shadows swing with it, and the walls' colour bounces onto the BoomBox. Soft shadows, chrome, glass and the glossy floor remain. The clip was rendered offline on an RTX A5000, in the same chip family as the 3090, because the laptop runs this shader slowly.*
-
-![Ray-traced scene with the old and new lighting](https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-gi-proof.png)
-
-*The top row is v4 and the bottom row is v5. Look at the lamp's pool, the moving shadows and the wall colour on the BoomBox.*
 
 ### Music
 
@@ -115,4 +109,4 @@ These are laptop measurements, not native Switch 2 measurements.
 ## Share
 
 Paste the dungeon [clip](https://jopdorp.github.io/oboromi/media/demo-dungeon.mp4), [poster](https://jopdorp.github.io/oboromi/media/demo-dungeon-poster.png), or [GIF teaser](https://jopdorp.github.io/oboromi/media/teaser-dungeon.gif) straight into Discord.
-The ray-traced [clip](https://jopdorp.github.io/oboromi/media/demo-raytraced.mp4) and [GIF teaser](https://jopdorp.github.io/oboromi/media/teaser-raytraced.gif), and the sprites [clip](https://jopdorp.github.io/oboromi/media/fullcircle-sprites.mp4) and [GIF teaser](https://jopdorp.github.io/oboromi/media/teaser-sprites.gif), work there too.
+The BoomBox [clip](https://jopdorp.github.io/oboromi/media/fullcircle-boombox.mp4) and the sprites [clip](https://jopdorp.github.io/oboromi/media/fullcircle-sprites.mp4) and [GIF teaser](https://jopdorp.github.io/oboromi/media/teaser-sprites.gif) work there too.

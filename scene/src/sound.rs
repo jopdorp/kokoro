@@ -5,26 +5,37 @@ pub const REV15: u32 = 0x3f76_4552;
 pub const EFFECTS: usize = 2;
 
 #[derive(Clone, Copy)]
-pub struct Spatial { pub pitch: f32, pub volume: f32, pub pan: f32, pub cutoff: f32, pub send: f32 }
+pub struct Spatial { pub pitch: f32, pub volume: f32, pub pan: f32, pub filter: [f32; 5], pub send: f32 }
 
 impl Spatial {
-    pub fn boombox(seconds: f32) -> Self {
-        let (position, (sin, cos)) = crate::pbr::boombox_pose(seconds);
-        let phase = crate::pbr::sin_cos(seconds * 0.4);
-        let radius = 3.5 + 0.9 * phase.0;
-        let orbit = crate::pbr::sin_cos(0.28 * phase.0);
-        let distance = sqrt(radius * radius + crate::pbr::EYE[1] * crate::pbr::EYE[1]);
-        let radial_velocity = radius * 0.36 * phase.1 / distance;
-        let direction = (radius / distance * (cos * orbit.1 - sin * orbit.0) + 1.0) * 0.5;
-        let directivity = direction.clamp(0.0, 1.0);
+    pub fn boombox(seconds: f32, listener: [f32; 3], velocity: [f32; 3]) -> Self {
+        let distance = sqrt(listener.iter().map(|v| v * v).sum());
+        let horizontal = sqrt(listener[0] * listener[0] + listener[2] * listener[2]);
+        let (sin, cos) = crate::pbr::sin_cos(seconds * core::f32::consts::TAU / 16.0);
+        let direction = (sin * listener[0] + cos * listener[2]) / horizontal;
+        const BACK_GAIN_18_DB: f32 = 0.125_893;
+        let directivity = ((direction + 1.0) * 0.5).max(BACK_GAIN_18_DB);
+        let radial_velocity = listener.iter().zip(velocity).map(|(p, v)| p * v).sum::<f32>() / distance;
         Self {
             pitch: 343.0 / (343.0 + radial_velocity),
-            volume: (0.35 + 0.65 * directivity) / (1.0 + 0.08 * distance * distance),
-            pan: (position[0] / distance * 1.5).clamp(-1.0, 1.0),
-            cutoff: 1_200.0 + 10_800.0 * directivity * directivity,
+            volume: directivity / (1.0 + 0.08 * distance * distance),
+            pan: (-listener[0] / distance * 1.5).clamp(-1.0, 1.0),
+            filter: off_axis_filter(direction),
             send: 0.3 + 0.05 * distance,
         }
     }
+}
+
+fn off_axis_filter(direction: f32) -> [f32; 5] {
+    const FLAT: [f32; 5] = [1.0, 0.0, 0.0, 0.0, 0.0];
+    const SIDE_SHELF_3_DB_2500_HZ: [f32; 5] = [0.789_457, -0.510_361, 0.0, 0.720_904, 0.0];
+    const REAR_CUTOFF: f32 = 1_500.0;
+    let omega = core::f32::consts::TAU * REAR_CUTOFF / 48_000.0;
+    let (sine, cosine) = crate::pbr::sin_cos(omega);
+    let alpha = sine * core::f32::consts::FRAC_1_SQRT_2;
+    let rear = [(1.0-cosine)*0.5, 1.0-cosine, (1.0-cosine)*0.5, 2.0*cosine, alpha-1.0].map(|v| v / (1.0 + alpha));
+    let (from, to, mix) = if direction >= 0.0 { (FLAT, SIDE_SHELF_3_DB_2500_HZ, 1.0 - direction) } else { (SIDE_SHELF_3_DB_2500_HZ, rear, -direction) };
+    core::array::from_fn(|i| from[i] + (to[i] - from[i]) * mix)
 }
 
 fn sqrt(value: f32) -> f32 {
@@ -96,15 +107,16 @@ pub fn spatial_parcel(bytes: &mut [u8], sample: (u64, u32), pool: (u64, u64), fi
     let mix = [cos, sin, cos * spatial.send, sin * spatial.send];
     for (i, volume) in mix.into_iter().enumerate() { record(bytes, at, &[(4 + i * 4, &volume.to_le_bytes())]); }
     record(bytes, at, &[(0x64, &[1])]); at += sizes[2];
-    let omega = core::f32::consts::TAU * spatial.cutoff / 48_000.0;
-    let (sine, cosine) = crate::pbr::sin_cos(omega);
-    let alpha = sine * core::f32::consts::FRAC_1_SQRT_2;
-    let filter = [(1.0-cosine)*0.5, 1.0-cosine, (1.0-cosine)*0.5, 2.0*cosine, alpha-1.0].map(|v| v / (1.0 + alpha));
     record(bytes, at, &[(8, &[u8::from(first),1,0,2]), (0xc, &48000u32.to_le_bytes()), (0x18, &1u32.to_le_bytes()), (0x1c, &spatial.pitch.to_le_bytes()), (0x20, &spatial.volume.to_le_bytes()), (0x24, &[1])]);
-    for (i, coefficient) in filter.into_iter().enumerate() { record(bytes, at, &[(0x28 + i * 4, &coefficient.to_le_bytes())]); }
+    for (i, coefficient) in spatial.filter.into_iter().enumerate() { record(bytes, at, &[(0x28 + i * 4, &coefficient.to_le_bytes())]); }
     record(bytes, at, &[(0x74, &u32::MAX.to_le_bytes()), (0x78, &sample.0.to_le_bytes()), (0x80, &(u64::from(sample.1) * 2).to_le_bytes()), (0x8c, &sample.1.to_le_bytes()), (0x90, &[1]), (0x92, &[u8::from(!first)]), (0x158, &0u32.to_le_bytes())]); at += sizes[3];
     let q14 = |value: f32| ((value * 16384.0) as u32).to_le_bytes();
-    record(bytes, at, &[(0, &[4,u8::from(first),1]), (0x18, &0u32.to_le_bytes()), (0x20, &[2,3]), (0x26, &[2,3]), (0x2c, &2u16.to_le_bytes()), (0x2e, &2u16.to_le_bytes()), (0x38, &q14(0.55)), (0x3c, &q14(1000.0 * 3.0 / 343.0)), (0x44, &q14(0.75)), (0x48, &q14(0.55)), (0x4c, &q14(0.58)), (0x50, &q14(0.42)), (0x54, &q14(1.0)), (0x58, &q14(1.0))]);
+    let [width, height, depth] = crate::pbr::ROOM_SIZE;
+    let surface = 2.0 * (width * height + width * depth + height * depth);
+    let rug = crate::pbr::ROOM_RUG[0] * crate::pbr::ROOM_RUG[1];
+    let (hard_absorption, rug_absorption) = (0.12, 0.65);
+    let decay = 0.161 * width * height * depth / ((surface - rug) * hard_absorption + rug * rug_absorption);
+    record(bytes, at, &[(0, &[4,u8::from(first),1]), (0x18, &0u32.to_le_bytes()), (0x20, &[2,3]), (0x26, &[2,3]), (0x2c, &2u16.to_le_bytes()), (0x2e, &2u16.to_le_bytes()), (0x38, &q14(0.55)), (0x3c, &q14(1000.0 * height / 343.0)), (0x44, &q14(0.75)), (0x48, &q14(decay)), (0x4c, &q14(0.58)), (0x50, &q14(0.42)), (0x54, &q14(1.0)), (0x58, &q14(1.0))]);
     record(bytes, at + 0xc0, &[(0, &[1,u8::from(first),1]), (0x18, &1u32.to_le_bytes()), (0x20, &[2,3]), (0x38, &[0,1]), (0x50, &1f32.to_le_bytes()), (0x54, &1f32.to_le_bytes()), (0xb0, &2u32.to_le_bytes())]); at += sizes[4];
     record(bytes, at, &[(4, &1u32.to_le_bytes())]);
     record(bytes, at + 0x20, &[(0, &1f32.to_le_bytes()), (4, &48000u32.to_le_bytes()), (8, &4u32.to_le_bytes()), (0xc, &[1]), (0x924, &i32::MAX.to_le_bytes()), (0x928, &u32::MAX.to_le_bytes())]); at += sizes[5];

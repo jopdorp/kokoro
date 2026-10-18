@@ -19,7 +19,6 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
     match demo {
         "dungeon" => demo_dungeon::render_dungeon_frame(seconds),
         "julia" => frame::render_demo_frame(seconds).map_err(|e| format!("{e:?}")),
-        "guest-boombox" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::BoomBox),
         "guest-helmet" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Helmet),
         "guest-post" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Post),
         "guest-particles" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Particles),
@@ -38,7 +37,6 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
         "triangle" => frame::render_triangle_demo(seconds),
         "sprites" => demo_sprites::render_sprites_frame(seconds),
         "post" => demo_post::render_post_frame(seconds),
-        "boombox" => demo::render_boombox_frame(seconds),
         "raytraced" => demo::render_raytraced_frame(seconds),
         "raytraced-off" => { demo::set_raytracing_enabled(false); demo::render_raytraced_frame(seconds) },
         "helmet" => demo::render_helmet_frame(seconds),
@@ -137,7 +135,7 @@ fn main() {
     }
     let mut guest = match args[0].as_str() {
         "guest-music" => Some(oboromi_core::guest::Demo::Music),
-        "guest-boombox" => Some(oboromi_core::guest::Demo::BoomBox),
+        "guest-raytraced" => Some(if audio_only { oboromi_core::guest::Demo::RaytracedAudio } else if demo::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) { oboromi_core::guest::Demo::RaytracedShowcase } else { oboromi_core::guest::Demo::Raytraced }),
         "guest-bounce" => Some(oboromi_core::guest::Demo::Bounce),
         _ => None,
     }.map(|demo| oboromi_core::guest::Machine::demo(demo).unwrap());

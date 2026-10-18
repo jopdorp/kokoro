@@ -1,6 +1,6 @@
 # Ray-traced BoomBox
 
-`demo::render_raytraced_frame` draws BoomBox on a ground plane through the guest command list. The NVIDIA-compiled
+`demo::render_raytraced_frame` draws the rotating BoomBox inside a 3.0 x 3.9 x 4.8 metre room through the guest command list. The NVIDIA-compiled
 `rt.vert.bin` and `rt.frag.bin` come from `pbr.vert` and `rt.frag`. The fragment shader casts area-light shadows,
 glossy reflections, glass reflection and refraction, ambient occlusion and one-bounce diffuse light in one pass.
 
@@ -23,6 +23,10 @@ handle at +0x28. Bank 1 contains the root-offset location, 0x20. The synthetic g
 `Gpu::register_acceleration_structure` builds the host structure from the same guest vertices and indices used for
 the draws, with the model's transform and the ground's identity transform. The structure is rebuilt each frame.
 Native guest BVH construction still needs a source of build inputs; this demo registers its inputs explicitly.
+
+The guest plays the CC0 lo-fi loop through audren while it draws. The grille is the cardioid acoustic front; voice
+volume supplies its directivity and distance, the REV15 voice biquad darkens the rear, and the visible room dimensions
+set the reflection delays and reverb decay.
 
 The scene regression redraws the same geometry after moving the acceleration-structure instances beyond the rays'
 range and checks that ray intersections darken the visible surfaces. The captured shaders also pass SPIR-V validation.

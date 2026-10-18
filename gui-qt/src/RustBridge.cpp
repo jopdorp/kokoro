@@ -48,10 +48,6 @@ bool flushDemoCaches() {
     return oboromi_flush_demo_caches();
 }
 
-bool renderBoomBoxDemo(float seconds) {
-    return oboromi_render_boombox_demo(seconds);
-}
-
 bool renderRaytracedDemo(float seconds) {
     return oboromi_render_raytraced_demo(seconds);
 }
