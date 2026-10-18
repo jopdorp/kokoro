@@ -752,6 +752,45 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#guest-programs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Guest programs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Guest programs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#triangle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Triangle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sprites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sprites
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-runs-today" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1326,6 +1365,45 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#guest-programs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Guest programs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Guest programs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#triangle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Triangle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sprites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sprites
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-runs-today" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1415,6 +1493,15 @@
 
 
 <h1 id="demos">Demos<a class="headerlink" href="#demos" title="Permanent link">&para;</a></h1>
+<h2 id="guest-programs">Guest programs<a class="headerlink" href="#guest-programs" title="Permanent link">&para;</a></h2>
+<h3 id="triangle">Triangle<a class="headerlink" href="#triangle" title="Permanent link">&para;</a></h3>
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-triangle.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-triangle.mp4" type="video/mp4"></video>
+
+<h3 id="sprites">Sprites<a class="headerlink" href="#sprites" title="Permanent link">&para;</a></h3>
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-sprites.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-sprites.mp4" type="video/mp4"></video>
+
+<p><em>Runs as a guest program on the emulated CPU and GPU. The binary is loaded by the NRO loader, runs on the emulated ARM CPU, calls the kernel and the services, and draws through nvdrv on the emulated GPU with Switch 2 shader machine code. The sprites move with a real controller through the hid service.</em></p>
+<p>The other demos still build their command streams on the host. They are being converted one by one.</p>
 <p>The Qt window has buttons that draw through the GPU work today. Larger scenes show post effects, sprites, particles, BoomBox, FlightHelmet, ray tracing and a dungeon. For example, the Triangle button writes GPU commands into emulated memory every frame, and the full engine draws them.</p>
 <h2 id="what-runs-today">What runs today?<a class="headerlink" href="#what-runs-today" title="Permanent link">&para;</a></h2>
 <table>
