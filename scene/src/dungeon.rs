@@ -7,3 +7,4 @@ pub const PROP_WORDS: usize = 8;
 #[cfg(feature = "std")]
 pub mod data;
 pub mod compute;
+pub mod render;
