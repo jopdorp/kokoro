@@ -20,7 +20,7 @@ pub fn load_segments(ram: &GuestRam, base: u64, segments: &[(u64, &[u8])]) -> Op
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet , Post , Particles , Julia, Mandelbrot, Music, TensorUpscale }
+pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet, Raytraced, RaytracedShowcase, Post, Particles, Julia, Mandelbrot, Music, TensorUpscale }
 
 pub struct Machine {
     cpus: crate::cpu::cpu_manager::CpuManager,
@@ -30,11 +30,11 @@ pub struct Machine {
 
 impl Machine {
     pub fn demo(demo: Demo) -> Result<Self, String> {
-        use crate::nn::{hipc::Service, nvdrv::Nvdrv, vi};
-        use std::{cell::RefCell, rc::Rc};
         let (name, image): (_, &[u8]) = match demo {
             Demo::BoomBox => ("boombox.nro", include_bytes!("../tests/fixtures/guest/boombox.nro")),
             Demo::Helmet => ("helmet.nro", include_bytes!("../tests/fixtures/guest/helmet.nro")),
+            Demo::Raytraced => ("raytraced.nro", include_bytes!("../tests/fixtures/guest/raytraced.nro")),
+            Demo::RaytracedShowcase => ("raytraced-showcase.nro", include_bytes!("../tests/fixtures/guest/raytraced.nro")),
             Demo::Post => ("post.nro", include_bytes!("../tests/fixtures/guest/post.nro")),
             Demo::Particles => ("particles.nro", include_bytes!("../tests/fixtures/guest/particles.nro")),
             Demo::Music => ("music.nro", include_bytes!("../tests/fixtures/guest/music.nro")),
@@ -45,6 +45,12 @@ impl Machine {
             Demo::Sprites => ("sprites.nro", include_bytes!("../tests/fixtures/guest/sprites.nro")),
             Demo::TensorUpscale => ("tensor-upscale.nro", include_bytes!("../tests/fixtures/guest/tensor-upscale.nro")),
         };
+        Self::image(name, image)
+    }
+
+    fn image(name: &str, image: &[u8]) -> Result<Self, String> {
+        use crate::nn::{hipc::Service, nvdrv::Nvdrv, vi};
+        use std::{cell::RefCell, rc::Rc};
         let cpus = crate::cpu::cpu_manager::CpuManager::new();
         let mut kernel = crate::kernel::Kernel::default();
         kernel.scheduler.virtual_time = true;
@@ -357,6 +363,26 @@ mod tests {
         let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
         assert_eq!(digest(frame.pixels()), digest(&expected));
         println!("boombox {brightness_db:.1} dB brighter facing, {pitch_hz} Hz Doppler, FNV-1a {:016x}", digest(&expected));
+    }
+
+    #[test]
+    fn guest_raytraced_matches_host_frame() {
+        if !crate::gpu::demo::asset_dir("boombox").exists() { return eprintln!("skipped: run demos/assets/fetch.sh for boombox"); }
+        let _display = DISPLAY_TEST.lock().unwrap();
+        let state = crate::gpu::device().expect("ray-traced guest requires Vulkan");
+        if !crate::gpu::demo::supports_raytraced(state) { return eprintln!("skipped: device does not support the ray-traced demo"); }
+        let mut host = crate::gpu::demo::Scene::new(state, None, "raytraced", 320, 180).unwrap();
+        host.frame(0.0).unwrap();
+        let mut expected = vec![0; 320 * 180 * 4];
+        host.gpu.read(host.target, &mut expected).unwrap();
+        drop(host);
+        let mut guest = Machine::image("raytraced-test.nro", include_bytes!("../tests/fixtures/guest/raytraced.nro")).unwrap();
+        guest.frame().unwrap();
+        let mut frame = crate::display::DISPLAY.lock().unwrap();
+        assert_eq!((frame.width, frame.height), (320, 180));
+        let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
+        assert_eq!(digest(frame.pixels()), digest(&expected));
+        println!("guest and host ray-traced FNV-1a: {:016x}", digest(&expected));
     }
 
     #[test]
