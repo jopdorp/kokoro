@@ -27,6 +27,8 @@ pub mod silicon;
 mod special;
 mod stages;
 mod tensor;
+#[cfg(test)]
+mod tensor_upscale;
 mod texture;
 mod uniform;
 mod warp;

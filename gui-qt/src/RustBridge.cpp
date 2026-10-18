@@ -68,6 +68,10 @@ bool renderSpritesFrame(float seconds) {
     return oboromi_render_sprites_frame(seconds);
 }
 
+bool renderTensorUpscaleFrame(float seconds) {
+    return oboromi_render_tensor_upscale_frame(seconds);
+}
+
 bool renderMusicDemo(float seconds) {
     return oboromi_render_music_demo(seconds);
 }

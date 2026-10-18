@@ -218,3 +218,4 @@ pub mod solar;
 pub mod julia;
 
 pub mod sound;
+pub mod dungeon;
