@@ -20,7 +20,7 @@ pub fn load_segments(ram: &GuestRam, base: u64, segments: &[(u64, &[u8])]) -> Op
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet, Raytraced, RaytracedShowcase, Post, Particles, Julia, Mandelbrot, Music, TensorUpscale }
+pub enum Demo { Triangle, Sprites, Bounce, Helmet, Raytraced, RaytracedShowcase, RaytracedAudio, Post, Particles, Solar, SolarShowcase, Julia, Mandelbrot, Music, TensorUpscale }
 
 pub struct Machine {
     cpus: crate::cpu::cpu_manager::CpuManager,
@@ -31,12 +31,14 @@ pub struct Machine {
 impl Machine {
     fn demo_image(demo: Demo) -> (&'static str, &'static [u8]) {
         match demo {
-            Demo::BoomBox => ("boombox.nro", include_bytes!("../tests/fixtures/guest/boombox.nro")),
             Demo::Helmet => ("helmet.nro", include_bytes!("../tests/fixtures/guest/helmet.nro")),
             Demo::Raytraced => ("raytraced.nro", include_bytes!("../tests/fixtures/guest/raytraced.nro")),
             Demo::RaytracedShowcase => ("raytraced-showcase.nro", include_bytes!("../tests/fixtures/guest/raytraced.nro")),
+            Demo::RaytracedAudio => ("raytraced-audio.nro", include_bytes!("../tests/fixtures/guest/raytraced.nro")),
             Demo::Post => ("post.nro", include_bytes!("../tests/fixtures/guest/post.nro")),
             Demo::Particles => ("particles.nro", include_bytes!("../tests/fixtures/guest/particles.nro")),
+            Demo::Solar => ("solar.nro", include_bytes!("../tests/fixtures/guest/solar.nro")),
+            Demo::SolarShowcase => ("solar-showcase.nro", include_bytes!("../tests/fixtures/guest/solar.nro")),
             Demo::Music => ("music.nro", include_bytes!("../tests/fixtures/guest/music.nro")),
             Demo::Julia => ("julia.nro", include_bytes!("../tests/fixtures/guest/julia.nro")),
             Demo::Mandelbrot => ("mandelbrot.nro", include_bytes!("../tests/fixtures/guest/mandelbrot.nro")),
@@ -316,14 +318,15 @@ mod tests {
         use scene::mandelbrot::*;
         let _display = DISPLAY_TEST.lock().unwrap();
         let frame_number = 10u32;
-        let name = "_Z11Mandelbrot0IfEvP6uchar4iiiT_S2_S2_S2_S2_S0_iiiib";
+        let name = "_Z11Mandelbrot0IdEvP6uchar4iiiT_S2_S2_S2_S2_S0_iiiib";
         let output = vec![0; (WIDTH * HEIGHT * 4) as usize];
-        let [width, height, crunch, frame, animation, grid_width, blocks] = [WIDTH, HEIGHT, CRUNCH, 0, 0, GRID_WIDTH, GRID[0]].map(u32::to_le_bytes);
-        let [x_off, zero, scale] = [-0.5f32, 0.0, scale(frame_number)].map(f32::to_le_bytes);
+        let (x, y, scale, crunch) = view(frame_number);
+        let [width, height, crunch, frame, animation, grid_width, blocks] = [WIDTH, HEIGHT, crunch, 0, 0, GRID_WIDTH, GRID[0]].map(u32::to_le_bytes);
+        let [x_off, y_off, zero, scale] = [x, y, 0.0, scale].map(f64::to_le_bytes);
         let args = [
             Arg::Buffer(&output), Arg::Value(&width), Arg::Value(&height), Arg::Value(&crunch),
-            Arg::Value(&x_off), Arg::Value(&zero), Arg::Value(&zero), Arg::Value(&zero),
-            Arg::Value(&scale), Arg::Value(&[3, 5, 7, 0]), Arg::Value(&frame),
+            Arg::Value(&x_off), Arg::Value(&y_off), Arg::Value(&zero), Arg::Value(&zero),
+            Arg::Value(&scale), Arg::Value(&[1, 2, 3, 0]), Arg::Value(&frame),
             Arg::Value(&animation), Arg::Value(&grid_width), Arg::Value(&blocks), Arg::Value(&[0]),
         ];
         let expected = run_kernel(include_bytes!("../tests/fixtures/mandelbrot-sm86.cubin"), name, GRID, BLOCK, 0, &args).unwrap().remove(0);
@@ -336,9 +339,7 @@ mod tests {
     }
 
     #[test]
-    fn guest_boombox_spatial_audio_and_frame_match() {
-        let _exact = exact();
-        if !crate::gpu::demo::asset_dir("boombox").exists() { return eprintln!("skipped: run demos/assets/fetch.sh for boombox"); }
+    fn boombox_cardioid_directivity() {
         let tone: Vec<i16> = (0..48_000).map(|n| {
             let t = n as f32 / 48_000.0;
             ((0.35 * (std::f32::consts::TAU * 500.0 * t).sin() + 0.35 * (std::f32::consts::TAU * 4_000.0 * t).sin()) * 32767.0) as i16
@@ -355,7 +356,7 @@ mod tests {
             let mut pcm = Vec::new();
             for period in 0..200 {
                 let mut parcel = vec![0; scene::sound::spatial_parcel_size(1)];
-                scene::sound::spatial_parcel(&mut parcel, (base, tone.len() as u32), (base, memory.bytes.len() as u64), period == 0, scene::sound::Spatial::boombox(seconds), None);
+                scene::sound::spatial_parcel(&mut parcel, (base, tone.len() as u32), (base, memory.bytes.len() as u64), period == 0, scene::sound::Spatial::boombox(seconds, scene::pbr::ROOM_EYE, [0.0; 3]), None);
                 renderer.request_update(&parcel, &mut vec![0; 0x4000]).unwrap();
                 pcm.extend_from_slice(renderer.step(&mut memory));
             }
@@ -371,23 +372,14 @@ mod tests {
             sum[0] * sum[0] + sum[1] * sum[1]
         };
         let front = render(0.0);
-        let away = render(std::f32::consts::PI / 0.8);
-        let approaching = render(std::f32::consts::TAU / 0.8);
+        let away = render(8.0);
         let band = |pcm: &[i16], frequency| (frequency - 20..=frequency + 20).map(|f| power(pcm, f64::from(f))).sum::<f64>();
-        let brightness_db = 10.0 * ((band(&front, 4_000) / band(&front, 500)) / (band(&away, 4_000) / band(&away, 500))).log10();
-        let peak = |pcm: &[i16]| (3_980..=4_020).max_by(|a, b| power(pcm, f64::from(*a)).total_cmp(&power(pcm, f64::from(*b)))).unwrap();
-        let pitch_hz = peak(&approaching) - peak(&front);
-        assert!(brightness_db > 3.0, "{brightness_db:.1} dB");
-        assert!(pitch_hz > 4, "{pitch_hz} Hz");
-        let _display = DISPLAY_TEST.lock().unwrap();
-        crate::gpu::demo::render_boombox_frame(1.0).unwrap();
-        let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
-        let mut guest = Machine::demo_exact(Demo::BoomBox).unwrap();
-        for _ in 0..=60 { guest.frame().unwrap(); }
-        let mut frame = crate::display::DISPLAY.lock().unwrap();
-        let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
-        assert_eq!(digest(frame.pixels()), digest(&expected));
-        println!("boombox {brightness_db:.1} dB brighter facing, {pitch_hz} Hz Doppler, FNV-1a {:016x}", digest(&expected));
+        let broadband = |pcm: &[i16]| pcm.iter().skip(9_600).map(|&sample| f64::from(sample).powi(2)).sum::<f64>();
+        let broadband_db = 10.0 * (broadband(&front) / broadband(&away)).log10();
+        let high_db = 10.0 * (band(&front, 4_000) / band(&away, 4_000)).log10();
+        assert!(broadband_db >= 12.0, "{broadband_db:.1} dB broadband");
+        assert!(high_db >= 15.0, "{high_db:.1} dB at 4 kHz");
+        println!("boombox front/back {broadband_db:.1} dB broadband, {high_db:.1} dB at 4 kHz");
     }
 
     #[test]
@@ -407,8 +399,10 @@ mod tests {
         let mut frame = crate::display::DISPLAY.lock().unwrap();
         assert_eq!((frame.width, frame.height), (320, 180));
         let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
-        assert_eq!(digest(frame.pixels()), digest(&expected));
-        println!("guest and host ray-traced FNV-1a: {:016x}", digest(&expected));
+        let expected = digest(&expected);
+        assert_eq!(expected, 0x643d_1ec7_95b2_a930);
+        assert_eq!(digest(frame.pixels()), expected);
+        println!("guest and host ray-traced FNV-1a: {expected:016x}");
     }
 
     #[test]

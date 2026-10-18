@@ -262,7 +262,6 @@ fn main() {
     texture_header(&mut quad, TEXTURES + 0x1000, 64, 64, 64 * 4).unwrap();
     bench("pushbuffer textured quad 1080p", 2, 100, Some(state), || textured_quad_frame(&mut quad, 1920, 1080, TARGET, 0).unwrap());
     bench("demo bounce 1080p", 2, 100, Some(state), || render_bounce_frame(0.25).unwrap());
-    bench("demo boombox 1080p", 2, 100, Some(state), || demo::render_boombox_frame(0.25).unwrap());
     match demo::asset_dir("flighthelmet").exists() {
         true => { bench("demo helmet 1080p", 2, 100, Some(state), || demo::render_helmet_frame(0.25).unwrap()); }
         false => println!("demo helmet 1080p skipped: run demos/assets/fetch.sh"),

@@ -20,6 +20,8 @@ fn main() {
     std::fs::write(out.join("sprites-atlas.bin"), scene::sprites_assets::atlas()).unwrap();
     std::fs::write(out.join("particles.bin"), scene::particles::assets::initial_particles()).unwrap();
     std::fs::write(out.join("particles-background.bin"), scene::particles::assets::background()).unwrap();
+    std::fs::write(out.join("solar-bodies.bin"), scene::solar::assets::initial_bodies()).unwrap();
+    std::fs::write(out.join("solar-stars.bin"), scene::solar::assets::stars()).unwrap();
     let julia: Vec<u8> = scene::julia::julia_program().iter().chain(&[scene::sass::bra(-16)]).flat_map(|v| v.to_le_bytes()).collect();
     std::fs::write(out.join("julia.bin"), julia).unwrap();
     let instances: Vec<u8> = scene::sprites_assets::instances(0.0).iter().flatten().flat_map(|v| v.to_le_bytes()).collect();
@@ -33,7 +35,7 @@ fn main() {
     std::fs::write(out.join("biquad.bin"), scene::sound::assets::biquad()).unwrap();
     let pitches: Vec<f32> = (-12..=15).map(|n| 2f32.powf(n as f32 / 12.0)).collect();
     std::fs::write(out.join("music.rs"), format!("const SAMPLES: [(u64,u32); 4] = {samples:?};\nconst PITCHES: [f32; 28] = {pitches:?};\nconst BIQUAD: [u8;10] = {:?};\n", scene::sound::assets::biquad())).unwrap();
-    for (name, directory, room, traced) in [("boombox", "boombox", false, false), ("helmet", "flighthelmet", false, false), ("raytraced", "boombox", true, true)] {
+    for (name, directory, room, traced) in [("helmet", "flighthelmet", false, false), ("raytraced", "boombox", true, true)] {
         println!("cargo:rerun-if-changed=../demos/assets/{directory}");
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../demos/assets").join(directory);
     let asset = scene::pbr::assets::Asset::load(&|file| std::fs::read(dir.join(file)).map_err(|e| e.to_string()), 1920, 1080, room, traced, false).expect("run demos/assets/fetch.sh before building guests");

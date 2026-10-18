@@ -106,13 +106,7 @@ pub extern "C" fn oboromi_flush_demo_caches() -> bool {
     matches!(catch_unwind(crate::gpu::frame::flush_demo_caches), Ok(Ok(())))
 }
 
-/// draws the pbr BoomBox demo at `seconds` and presents it, false if vulkan is
-/// missing or the draw fails. blocks, so call it from a worker thread.
-#[unsafe(no_mangle)]
-pub extern "C" fn oboromi_render_boombox_demo(_seconds: f32) -> bool {
-    matches!(catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::BoomBox)), Ok(Ok(())))
-}
-
+/// draws the ray-traced BoomBox guest and presents it.
 #[unsafe(no_mangle)]
 pub extern "C" fn oboromi_render_raytraced_demo(_seconds: f32) -> bool {
     matches!(catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::Raytraced)), Ok(Ok(())))
@@ -175,6 +169,12 @@ pub extern "C" fn oboromi_render_particles_frame(_seconds: f32) -> bool {
         catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::Particles)),
         Ok(Ok(()))
     )
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn oboromi_render_solar_frame(showcase: bool) -> bool {
+    let demo = if showcase { crate::guest::Demo::SolarShowcase } else { crate::guest::Demo::Solar };
+    matches!(catch_unwind(|| crate::guest::render_demo(demo)), Ok(Ok(())))
 }
 
 /// generation of the last presented frame, 0 until the guest presents one.
