@@ -2,7 +2,7 @@
 
 ## Guest programs
 
-When a demo becomes a guest program, its entry moves here.
+Everything on this page except the ray-traced scene and the dungeon now runs as a guest program. The ray-traced scene still builds its command stream on the host because the Intel GPU cannot run its shader live yet. The dungeon is native Vulkan.
 
 ### Triangle
 
@@ -18,13 +18,45 @@ When a demo becomes a guest program, its entry moves here.
 
 ### Bounce
 
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-bounce.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-bounce.mp4" type="video/mp4"></video>
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-bounce.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-bounce.mp4" type="video/mp4"></video>
 
-*The guest runs the same physics on the emulated CPU each frame and submits the particles shader through nvdrv. Its collision sounds come with the audio pass, so this clip is silent.*
+*The guest runs the physics and submits the particles shader through nvdrv. Its collision sounds go through the audio renderer service from the guest.*
 
-They run as guest programs on the emulated CPU and GPU. The other demos still build their command streams on the host and are being converted one by one.
+### BoomBox
 
-The Qt window has buttons that draw through the GPU work today. Larger scenes show post effects, sprites, particles, BoomBox, FlightHelmet, ray tracing and a dungeon. For example, the Triangle button writes GPU commands into emulated memory every frame, and the full engine draws them.
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.mp4" type="video/mp4"></video>
+
+*The guest loads the model and its textures, then sends each material through nvdrv.*
+
+### FlightHelmet
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-helmet.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-helmet.mp4" type="video/mp4"></video>
+
+*The guest draws all six materials through nvdrv, one draw for each material.*
+
+### Post
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-post.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-post.mp4" type="video/mp4"></video>
+
+*The guest draws the pinwheel into one image, then samples it in a second pass for the screen effects.*
+
+### Particles
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-particles.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-particles.mp4" type="video/mp4"></video>
+
+*The guest runs the compute update, then submits one instanced draw through nvdrv.*
+
+### Julia
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-julia.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-julia.mp4" type="video/mp4"></video>
+
+*The guest sends the Julia set shader through nvdrv and passes time through constant buffer 0.*
+
+### Music
+
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-music.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-music.mp4" type="video/mp4"></video>
+
+*The guest makes the instruments and sends the mix through the audio renderer service from the guest.*
 
 ## What runs today?
 
@@ -58,10 +90,6 @@ Every frame ends in `display::present`, which the window shows.
 ![The Render Test Frame button: a full-HD gradient](https://raw.githubusercontent.com/jopdorp/oboromi/assets/test-frame.png)
 
 *Render Test Frame: a short SASS program (S2R, IMAD, STG) writes a gradient, translated to SPIR-V and run on an Intel laptop GPU.*
-
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/julia-demo-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/julia-demo.mp4" type="video/mp4"></video>
-
-*Demo: a hand-written SM86 program, translated to SPIR-V, redrawing a Julia set every frame on an Intel laptop GPU.*
 
 ![NVIDIA's Mandelbrot sample, run through the translator](https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot.png)
 
@@ -106,90 +134,31 @@ The ray-traced scene runs through `demo::render_raytraced_frame` or the `capture
 
 ### What do the new scenes look like?
 
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-post-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-post.mp4" type="video/mp4"></video>
-
-*Post-effect: a pinwheel drawn into one image, then sampled as a texture by a second pass that adds the screen effects.*
-
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-particles-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-particles.mp4" type="video/mp4"></video>
-
-*Particles: a compute launch from the command list moves the particles, then one instanced draw shows them.*
-
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-boombox-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-boombox.mp4" type="video/mp4"></video>
-
-*BoomBox: the model turns on a turntable under a still light, so the shine and the glowing display move across it.*
-
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced.mp4" type="video/mp4"></video>
 
 *Ray-traced BoomBox: The shaders are Switch 2 shader machine code from the NVIDIA driver, run through our translator. The chrome sphere mirrors the room. The glass sphere bends the wall. Soft shadows cross the scene, and the floor is glossy. We rendered this offline on an RTX 3090 because the Intel laptop GPU cannot run this shader at full resolution yet. This demo still builds its command stream on the host. The translator bug found this round made a compare instruction write a mask instead of 1.0. It is fixed on both branches.*
-
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-helmet-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-helmet.mp4" type="video/mp4"></video>
-
-*FlightHelmet: six materials and fifteen textures through the same shaders, one draw per material.*
-
-<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-music-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-music.mp4" type="video/mp4"></video>
-
-*Music: four instruments made at startup play a looping tune through the audio renderer, with a low-pass and an echo on the mix.*
 
 ### Dungeon
 
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon.mp4" type="video/mp4"></video>
 
-*Showcase: rendered offline at 1080p60 with ray-query shadows, reflections and ambient occlusion ON. Sized for the console; native Switch 2 performance remains unverified. Gentle river waves reveal the pebble bed, with filtered torch reflections, drifting volumetric mist, rounded wet formations and hanging stalactites with drips. Measured offline median frame time on Intel Arc MTL is 100.1 ms. The dungeon's shaders are compiled from GLSL for now.*
-
-Console cost estimate: translated/twin efficiency cannot be measured while these shaders use native GLSL. Only raw Intel GPU measurements are available; a native console total below 16.7 ms has not been established.
-
-| Pass | Realtime GPU ms | Showcase GPU ms | Translated/twin ratio | Native Switch 2 ms |
-|---|---:|---:|---|---|
-| Heightfield | 0.021 | 0.020 | N/A: native GLSL | unverified |
-| Particle simulation | 0.043 | 0.036 | N/A: native GLSL | unverified |
-| Planar reflection | 0.480 | 0.000 | N/A: native GLSL | unverified |
-| Instanced cave formations | 0.148 | 0.141 | N/A: native GLSL | unverified |
-| PBR, shadows and wet reflections | 4.803 | 88.338 | N/A: native GLSL | unverified |
-| River surface | 0.015 | 0.056 | N/A: native GLSL | unverified |
-| Flames, smoke and other sprites | 0.311 | 0.717 | N/A: native GLSL | unverified |
-| Height fog, moon shaft and bloom prefilter | 0.298 | 0.472 | N/A: native GLSL | unverified |
-| Bloom reconstruction, heat haze and tonemap | 1.875 | 1.308 | N/A: native GLSL | unverified |
+*Showcase: This tech demo renders through Vulkan directly with its own GLSL shaders. It does not run on the emulated GPU or CPU yet. It drives the audio renderer and sets the bar for the guest version. Ray queries add flame-sized soft shadows, contact shadows, off-screen reflections and crevice occlusion.*
 
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime.mp4" type="video/mp4"></video>
 
-*Realtime preset: recorded offline at 1080p60, with baked shadows, filtered planar reflections and reduced particle, water, formation and fog budgets. Six selected lamps light each view. The standalone live-audio tour measures 9.67 ms median and 13.50 ms p95 on Intel Arc MTL. The dungeon's shaders are compiled from GLSL for now.*
+*Realtime: This tech demo renders through Vulkan directly with its own GLSL shaders. It does not run on the emulated GPU or CPU yet. It drives the audio renderer and sets the bar for the guest version. This version uses baked shadows and planar reflections.*
 
-Release measurements use 1200 frames per run, excluding the first three. GPU times
-are Vulkan timestamp medians, summed within each frame across main and reflection
-draws. Per-pass medians need not sum to the median total. Frame times include GPU
-waits and audio but exclude PPM writes. Offline capture uses synchronous audio;
-the live harness drains the audio ring on a separate clock without a window or audio
-device. Both clips retain the approved round-three WAV and normalization.
+![Raster and ray-query dungeon frame](https://raw.githubusercontent.com/jopdorp/oboromi/assets/dungeon-v6-rt-compare.png)
 
-| Run | Median frame ms | p95 frame ms | Median summed GPU ms |
-|---|---:|---:|---:|
-| Realtime live tour | 9.67 | 13.50 | 5.81 |
-| Realtime cave entrance | 14.49 | 15.08 | 10.73 |
-| Realtime cave downstream | 13.15 | 13.70 | 9.43 |
-| Realtime offline capture | 18.38 | 34.90 | 8.04 |
-| Showcase offline capture | 100.14 | 211.66 | 91.10 |
+*Raster is left. Ray queries are right. The right side traces every torch and the fire for softer shadows, contact under the bridge and rocks, reflected off-screen walls and torches, and darker rock crevices. The difference is small in this frame and clearest in the water.*
 
-Cave GPU timings, realtime preset:
-
-| Pass | Entrance ms | Downstream ms |
-|---|---:|---:|
-| Heightfield | 0.016 | 0.016 |
-| Particle simulation | 0.035 | 0.035 |
-| Planar reflection | 0.643 | 0.510 |
-| Instanced cave formations | 0.836 | 1.042 |
-| PBR, shadows and wet reflections | 6.450 | 5.000 |
-| River surface | 0.248 | 0.455 |
-| Flames, smoke and other sprites | 0.879 | 0.737 |
-| Height fog, moon shaft and bloom prefilter | 0.279 | 0.280 |
-| Bloom reconstruction, heat haze and tonemap | 1.326 | 1.341 |
-
-Active graphics CPU in the live tour is 0.454 ms median. Recorded Vulkan commands are reused, heightfield vertices stay on the GPU, and the audio worker keeps mixing off the frame thread. No guest pushbuffer or FIFO decode is involved in this native GLSL path. These measurements do not establish stable 60 fps on other hardware.
+The release clips contain 3840 unique frames and the same round-six mix at -16 LUFS and -1 dBTP. Native console cost remains unverified while this path uses its own GLSL shaders.
 
 The scene uses one opaque batch, instanced formations and sprites, and a water
 draw; offscreen room batches and cave formations are culled. Realtime additionally
 renders the reflected scene. Showcase uses 96 particles per light, a 256x64 water
-grid, 24 quarter-resolution fog steps, four shadow rays per contributing flame,
-one AO ray, one reflection ray on wet floors and three nearby rays on the river. Realtime uses 24 particles per
+grid, 24 quarter-resolution fog steps, five shadow rays per contributing flame,
+three occlusion rays, one reflection ray on wet floors and three nearby rays on the river. Realtime uses 24 particles per
 light, a 96x24 water grid, four fog steps and a 480x270 planar reflection. Ten
 128px shadow cubemaps are baked, with at most two nearby lights
 casting shadows; rock textures use the dominant face projection.
