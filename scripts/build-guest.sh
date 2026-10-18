@@ -1,5 +1,5 @@
 #!/bin/sh
-# Rebuilds core/tests/fixtures/guest/guest.bin, the flat AArch64 image of guest/, homebrew.nro, triangle.nro, sprites.nro bounce.nro and boombox.nro, and prints their sha256.
+# Rebuilds the guest fixture images and prints their sha256.
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 rustup target list --installed | grep -qx aarch64-unknown-none || rustup target add aarch64-unknown-none
@@ -16,6 +16,7 @@ mkdir -p "$root/core/tests/fixtures/guest"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/helmet" "$root/core/tests/fixtures/guest/helmet.nro"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/post" "$root/core/tests/fixtures/guest/post.nro"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/particles" "$root/core/tests/fixtures/guest/particles.nro"
+"$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/solar" "$root/core/tests/fixtures/guest/solar.nro"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/julia" "$root/core/tests/fixtures/guest/julia.nro"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/music" "$root/core/tests/fixtures/guest/music.nro"
-sha256sum "$root/core/tests/fixtures/guest/guest.bin" "$root/core/tests/fixtures/guest/homebrew.nro" "$root/core/tests/fixtures/guest/triangle.nro" "$root/core/tests/fixtures/guest/sprites.nro" "$root/core/tests/fixtures/guest/bounce.nro" "$root/core/tests/fixtures/guest/boombox.nro" "$root/core/tests/fixtures/guest/helmet.nro" "$root/core/tests/fixtures/guest/post.nro" "$root/core/tests/fixtures/guest/particles.nro" "$root/core/tests/fixtures/guest/julia.nro"
+sha256sum "$root/core/tests/fixtures/guest/guest.bin" "$root/core/tests/fixtures/guest/homebrew.nro" "$root/core/tests/fixtures/guest/triangle.nro" "$root/core/tests/fixtures/guest/sprites.nro" "$root/core/tests/fixtures/guest/bounce.nro" "$root/core/tests/fixtures/guest/boombox.nro" "$root/core/tests/fixtures/guest/helmet.nro" "$root/core/tests/fixtures/guest/post.nro" "$root/core/tests/fixtures/guest/particles.nro" "$root/core/tests/fixtures/guest/solar.nro" "$root/core/tests/fixtures/guest/julia.nro"

@@ -22,6 +22,7 @@ mod program;
 mod qmd;
 mod ray;
 mod shared;
+mod solar;
 pub mod silicon;
 mod special;
 mod stages;

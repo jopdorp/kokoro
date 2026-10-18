@@ -5,6 +5,8 @@ fn main() {
     std::fs::write(out.join("sprites-atlas.bin"), scene::sprites_assets::atlas()).unwrap();
     std::fs::write(out.join("particles.bin"), scene::particles::assets::initial_particles()).unwrap();
     std::fs::write(out.join("particles-background.bin"), scene::particles::assets::background()).unwrap();
+    std::fs::write(out.join("solar-bodies.bin"), scene::solar::assets::initial_bodies()).unwrap();
+    std::fs::write(out.join("solar-stars.bin"), scene::solar::assets::stars()).unwrap();
     let julia: Vec<u8> = scene::julia::julia_program().iter().chain(&[scene::sass::bra(-16)]).flat_map(|v| v.to_le_bytes()).collect();
     std::fs::write(out.join("julia.bin"), julia).unwrap();
     let instances: Vec<u8> = scene::sprites_assets::instances(0.0).iter().flatten().flat_map(|v| v.to_le_bytes()).collect();

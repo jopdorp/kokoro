@@ -257,6 +257,9 @@ bool oboromi_render_bounce_demo(float seconds);
 /// vulkan is missing or the frame fails. blocks, so call it from a worker thread.
 bool oboromi_render_particles_frame(float seconds);
 
+/// runs the realtime or offline solar-system guest to its next frame.
+bool oboromi_render_solar_frame(bool showcase);
+
 /// generation of the last presented frame, 0 until the guest presents one.
 uint64_t oboromi_frame_generation();
 

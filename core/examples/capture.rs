@@ -23,6 +23,8 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
         "guest-helmet" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Helmet),
         "guest-post" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Post),
         "guest-particles" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Particles),
+        "guest-solar" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Solar),
+        "guest-solar-showcase" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::SolarShowcase),
         "guest-julia" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Julia),
         "guest-triangle" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Triangle),
         "guest-sprites" => {

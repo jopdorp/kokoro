@@ -527,10 +527,15 @@ impl<'a> Gpu<'a> {
                 _ => Err(format!("pushbuffer at {va:#x} spans discontiguous pages")),
             }
         })?;
-        for event in events {
+        for (index, event) in events.clone().into_iter().enumerate() {
             match event {
                 Event::Draw(draw) => self.draw(&draw)?,
-                Event::Dispatch(dispatch) => self.dispatch(&dispatch)?,
+                Event::Dispatch(dispatch) => {
+                    let following = &events[index + 1..];
+                    let next_dispatch = following.iter().position(|event| matches!(event, Event::Dispatch(_)));
+                    let sync = next_dispatch.is_none() || following[..next_dispatch.unwrap()].iter().any(|event| matches!(event, Event::Draw(_)));
+                    self.dispatch(&dispatch, sync)?;
+                }
                 Event::Report { addr, payload, one_word: true } | Event::SemaphoreRelease { addr, payload } => {
                     self.store(addr, &payload.to_le_bytes(), Writer::Gpu).map_err(named)?
                 }
@@ -687,7 +692,7 @@ impl<'a> Gpu<'a> {
     }
 
     /// Runs a QMD launch over one global window spanning all mapped guest memory, then stores the pages it changed.
-    fn dispatch(&mut self, dispatch: &DispatchSnapshot) -> Result<(), String> {
+    fn dispatch(&mut self, dispatch: &DispatchSnapshot, sync: bool) -> Result<(), String> {
         self.settle_all().map_err(named)?;
         let code = self.code(dispatch.program_address)?;
         let key = hash((&code, dispatch.block));
@@ -759,7 +764,7 @@ impl<'a> Gpu<'a> {
         }
         pipeline.descriptors.bind(&bound);
         self.state.dispatch(pipeline, dispatch.grid).map_err(named)?;
-        if global {
+        if global && sync {
             self.memory.download(self.window.as_mut().unwrap(), unsafe { self.ram.slice_mut(0, self.ram.size()) }).map_err(named)?;
         }
         for release in dispatch.release_semaphores.iter().flatten() {
