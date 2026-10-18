@@ -1,11 +1,11 @@
-// The structured plan: the program's basic blocks and their terminators, dominators and post-dominators, natural
-// loops, and from those a tree of sequences, if/else, loops, breaks, continues and exits that follows every guest
-// path. A program the tree cannot express exactly stays on the dispatcher, with the reason.
+// The structured plan: the program's basic blocks and their terminators, dominators and natural loops, and from those
+// Ramsey's recursive translation (N. Ramsey, "Beyond Relooper: recursive translation of unstructured control flow to
+// structured control flow", ICFP 2022). A node that two forward edges reach, or that a loop exits to, follows a block
+// its predecessors break out of, so lanes rejoin where the guest's paths do; a loop header heads a loop its back edges
+// continue; every other node is inlined at its one branch. A program with an irreducible loop, or with a collective
+// some lanes of its loop iteration can bypass, stays on the dispatcher, with the reason.
 use super::*;
 use std::ops::Range;
-
-const BSSY: u32 = 0x945;
-const BREAK: u32 = 0x942;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Translation {
@@ -22,19 +22,14 @@ pub struct Pred {
     pub not: bool,
 }
 
-#[derive(Debug)]
-pub enum Cond {
-    All(Vec<Pred>),
-    Exited,
-}
-
+// Br(n) leaves the n-th enclosing Block or Loop counting from the innermost: it lands after a Block and continues a Loop.
 #[derive(Debug)]
 pub enum Ast {
     Code(Range<u32>),
-    If(Cond, Vec<Ast>, Vec<Ast>),
+    If(Vec<Pred>, Vec<Ast>, Vec<Ast>),
+    Block(Vec<Ast>),
     Loop(Vec<Ast>),
-    Break,
-    Continue,
+    Br(usize),
     Exit,
 }
 
@@ -107,13 +102,12 @@ impl Tree {
 }
 
 struct Builder {
-    starts: Vec<u32>,
     code: Vec<Range<u32>>,
     terms: Vec<Term>,
     dom: Tree,
-    postdom: Tree,
-    merges: Vec<Option<usize>>,
-    visited: Vec<bool>,
+    children: Vec<Vec<usize>>,
+    follows: Vec<bool>,
+    bodies: Vec<Vec<bool>>,
 }
 
 fn condition(inst: u128) -> Option<Pred> {
@@ -134,14 +128,12 @@ fn exits(inst: u128) -> bool {
 
 fn unsupported(pc: usize, inst: u128, collectives: bool) -> Option<String> {
     let op = opcode(inst);
-    let reason = if !collectives && exchanges(inst) || partial_warpsync(inst) || matches!(op, 0x198c | 0x1f8c | 0x38c | 0x38d) {
+    let reason = if !collectives && (exchanges(inst) || partial_warpsync(inst)) || matches!(op, 0x198c | 0x1f8c | 0x38c | 0x38d) {
         "collective"
     } else if dynamic_target(inst) || matches!(op, RET | 0x1950) {
         "dynamic branch target"
     } else if matches!(op, 0x1478 | 0x1878 | 0x1a78 | 0x1c78) {
         "indexed register"
-    } else if op == BREAK {
-        "BREAK"
     } else {
         return None;
     };
@@ -191,136 +183,135 @@ pub(super) fn plan_with_collectives(words: &[u128], collectives: bool) -> Result
     }).collect();
     succs.push(Vec::new());
     let dom = Tree::new(&succs, 0);
-    let mut reverse = vec![Vec::new(); succs.len()];
-    let mut latches = vec![Vec::new(); succs.len()];
-    for v in (0..exit).filter(|&v| dom.idom[v].is_some()) {
+    let reachable = |v: usize| dom.idom[v].is_some();
+    let n = succs.len();
+    let mut reverse = vec![Vec::new(); n];
+    let mut latches = vec![Vec::new(); n];
+    let mut forward = vec![0; n];
+    for v in (0..exit).filter(|&v| reachable(v)) {
         for &w in &succs[v] {
             reverse[w].push(v);
-            if dom.number[w] >= dom.number[v] {
-                if !dom.dominates(w, v) {
-                    return Err(format!("irreducible loop into pc {}", starts[w]));
-                }
+            if dom.number[w] < dom.number[v] {
+                forward[w] += 1;
+            } else if dom.dominates(w, v) {
                 latches[w].push(v);
+            } else {
+                return Err(format!("irreducible loop into pc {}", starts[w]));
             }
         }
     }
-    let postdom = Tree::new(&reverse, exit);
-    if let Some(v) = (0..exit).find(|&v| dom.idom[v].is_some() && postdom.idom[v].is_none()) {
-        return Err(format!("no exit from pc {}", starts[v]));
-    }
-    let mut merges = vec![None; succs.len()];
-    for (h, latches) in latches.iter().enumerate().filter(|(_, latches)| !latches.is_empty()) {
-        let mut body = vec![false; succs.len()];
+    // An outer header precedes its inner ones in reverse postorder, so the innermost loop of a node is assigned last.
+    let mut headers: Vec<usize> = (0..exit).filter(|&h| !latches[h].is_empty()).collect();
+    headers.sort_by_key(|&h| std::cmp::Reverse(dom.number[h]));
+    let mut bodies = vec![Vec::new(); n];
+    let mut inner = vec![None; n];
+    let mut outer = vec![None; n];
+    for &h in &headers {
+        let mut body = vec![false; n];
         body[h] = true;
-        let mut work = latches.clone();
+        let mut work = latches[h].clone();
         while let Some(v) = work.pop() {
             if !std::mem::replace(&mut body[v], true) {
                 work.extend(&reverse[v]);
             }
         }
-        let targets = (0..exit).filter(|&v| body[v]).flat_map(|v| succs[v].iter().copied()).filter(|&w| !body[w] && w != exit);
-        merges[h] = Some(targets.reduce(|a, b| postdom.common(a, b)).unwrap_or(exit));
+        outer[h] = inner[h];
+        (0..n).filter(|&v| body[v]).for_each(|v| inner[v] = Some(h));
+        bodies[h] = body;
     }
-    let mut builder = Builder { starts, code, terms, dom, postdom, merges, visited: vec![false; exit + 1] };
-    builder.check_tokens(words)?;
-    builder.walk(0, None, None, false)
+    let mut children = vec![Vec::new(); n];
+    let mut follows: Vec<bool> = forward.iter().map(|&count| count > 1).collect();
+    for t in (1..exit).filter(|&t| reachable(t)) {
+        let mut parent = dom.idom[t].unwrap();
+        let mut ring = inner[parent];
+        while let Some(h) = ring {
+            if !bodies[h][t] {
+                parent = h;
+                follows[t] = true;
+            }
+            ring = outer[h];
+        }
+        children[parent].push(t);
+    }
+    for (v, pc) in (0..exit).filter(|&v| reachable(v)).flat_map(|v| code[v].clone().map(move |pc| (v, pc))) {
+        let inst = words[pc as usize];
+        if !(exchanges(inst) || partial_warpsync(inst)) { continue; }
+        // Each loop iteration runs in lockstep, so a lane may not skip a collective and start the next iteration while
+        // the others are still on their way to it.
+        let h = inner[v].unwrap_or(0);
+        let mut seen = vec![false; n];
+        let mut work = vec![h];
+        while let Some(u) = work.pop().filter(|_| v != h) {
+            for &w in succs[u].iter().filter(|&&w| w != v && w != exit && inner[v].is_none_or(|l| bodies[l][w])) {
+                if w == h {
+                    return Err(format!("collective {:#x} at pc {pc} that lanes of its iteration can bypass", opcode(inst)));
+                }
+                if !std::mem::replace(&mut seen[w], true) { work.push(w); }
+            }
+        }
+    }
+    let builder = Builder { code, terms, dom, children, follows, bodies };
+    builder.tree(0, &mut Vec::new())
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum Frame {
+    Loop(usize),
+    Follow(usize),
 }
 
 impl Builder {
-    fn block(&self, pc: u32) -> usize {
-        self.starts.partition_point(|&start| start <= pc) - 1
+    fn tree(&self, x: usize, frames: &mut Vec<Frame>) -> Result<Vec<Ast>, String> {
+        let mut merges: Vec<usize> = self.children[x].iter().copied().filter(|&t| self.follows[t]).collect();
+        merges.sort_by_key(|&t| std::cmp::Reverse(self.dom.number[t]));
+        if self.bodies[x].is_empty() {
+            return self.within(&merges, frames, |b, frames| b.node(x, frames));
+        }
+        let (inside, after): (Vec<usize>, Vec<usize>) = merges.iter().partition(|&&t| self.bodies[x][t]);
+        self.within(&after, frames, |b, frames| {
+            frames.push(Frame::Loop(x));
+            let body = b.within(&inside, frames, |b, frames| b.node(x, frames));
+            frames.pop();
+            Ok(vec![Ast::Loop(body?)])
+        })
     }
 
-    // A BSSY Bx and the BSYNC Bx at its target or just before it bracket a single-entry, single-exit region.
-    fn check_tokens(&self, words: &[u128]) -> Result<(), String> {
-        let token = |pc: u32| (words[pc as usize] >> 16 & 0xf) as u32;
-        let reachable = |pc: u32| self.dom.idom[self.block(pc)].is_some();
-        let at = |op| (0..words.len() as u32).filter(move |&pc| opcode(words[pc as usize]) == op);
-        let mut paired = Vec::new();
-        for pc in at(BSSY).filter(|&pc| reachable(pc)) {
-            let target = (pc as i64 + 1 + branch_offset(words[pc as usize])) as u32;
-            let simple = |q: u32| (q as usize) < words.len() && opcode(words[q as usize]) == BSYNC && token(q) == token(pc) && q > pc;
-            let sync = [target, target.wrapping_sub(1)].into_iter().find(|&q| simple(q));
-            let unguarded = |pc: u32| words[pc as usize] >> 12 & 0xf == PT as u128;
-            match sync {
-                Some(q) if unguarded(pc) && unguarded(q) && self.dom.dominates(self.block(pc), self.block(q)) && self.postdom.dominates(self.block(q), self.block(pc)) && !paired.contains(&q) => paired.push(q),
-                _ => return Err(format!("BSSY B{} at pc {pc} without a simple BSYNC pair", token(pc))),
-            }
-        }
-        match at(BSYNC).find(|&q| reachable(q) && !paired.contains(&q)) {
-            Some(q) => Err(format!("BSYNC B{} at pc {q} without its BSSY", token(q))),
-            None => Ok(()),
-        }
+    // Each merge follows a block around the code before it, the latest in reverse postorder outermost.
+    fn within(&self, merges: &[usize], frames: &mut Vec<Frame>, code: impl Fn(&Self, &mut Vec<Frame>) -> Result<Vec<Ast>, String>) -> Result<Vec<Ast>, String> {
+        let Some((&last, rest)) = merges.split_last() else { return code(self, frames) };
+        frames.push(Frame::Follow(last));
+        let block = self.within(rest, frames, code);
+        frames.pop();
+        let mut seq = vec![Ast::Block(block?)];
+        seq.extend(self.tree(last, frames)?);
+        Ok(seq)
     }
 
-    // The innermost loop's header continues and its merge breaks; a selection merges at its immediate post-dominator,
-    // or when that lies outside the loop, at a successor that stays inside, preferring the fall-through.
-    fn walk(&mut self, mut cur: usize, stop: Option<usize>, ctx: Option<(usize, usize)>, mut entering: bool) -> Result<Vec<Ast>, String> {
-        let exit = self.terms.len();
-        let mut seq = Vec::new();
-        loop {
-            if !entering {
-                let special = match ctx {
-                    Some((h, _)) if cur == h => Some(Ast::Continue),
-                    Some((_, m)) if cur == m => Some(Ast::Break),
-                    _ if cur == exit => Some(Ast::Exit),
-                    _ => None,
-                };
-                if let Some(ast) = special {
-                    seq.push(ast);
-                    return Ok(seq);
-                }
-                if Some(cur) == stop {
-                    return Ok(seq);
-                }
-                if let Some(m) = self.merges[cur] {
-                    let body = self.walk(cur, None, Some((cur, m)), true)?;
-                    let exits = exits_from(&body);
-                    seq.push(Ast::Loop(body));
-                    if exits && m != exit {
-                        seq.push(Ast::If(Cond::Exited, vec![Ast::Exit], Vec::new()));
-                    }
-                    cur = m;
-                    continue;
-                }
-            }
-            entering = false;
-            let straight = matches!(self.terms[cur], Term::Goto(_)) && self.merges[cur].is_none();
-            if std::mem::replace(&mut self.visited[cur], true) && !straight {
-                return Err(format!("unstructured join at pc {}", self.starts[cur]));
-            }
-            if !self.code[cur].is_empty() {
-                seq.push(Ast::Code(self.code[cur].clone()));
-            }
-            let (preds, t, f) = match &self.terms[cur] {
-                Term::Goto(t) => {
-                    cur = *t;
-                    continue;
-                }
-                Term::Branch(preds, t, f) => (preds.clone(), *t, *f),
-            };
-            let outside = |n: usize| n == exit || ctx.is_some_and(|(h, m)| n == h || n == m || !self.dom.dominates(h, n) || m != exit && self.dom.dominates(m, n));
-            let merge = match self.postdom.idom[cur].unwrap() {
-                m if !outside(m) => Some(m),
-                _ if !outside(f) => Some(f),
-                _ if !outside(t) => Some(t),
-                _ => None,
-            };
-            let then = self.walk(t, merge, ctx, false)?;
-            let otherwise = self.walk(f, merge, ctx, false)?;
-            seq.push(Ast::If(Cond::All(preds), then, otherwise));
-            match merge {
-                Some(m) => cur = m,
-                None => return Ok(seq),
+    fn node(&self, x: usize, frames: &mut Vec<Frame>) -> Result<Vec<Ast>, String> {
+        let mut seq: Vec<Ast> = Some(self.code[x].clone()).filter(|code| !code.is_empty()).map(Ast::Code).into_iter().collect();
+        match &self.terms[x] {
+            Term::Goto(t) => seq.extend(self.branch(x, *t, frames)?),
+            Term::Branch(preds, t, f) => {
+                let yes = self.branch(x, *t, frames)?;
+                seq.push(Ast::If(preds.clone(), yes, self.branch(x, *f, frames)?));
             }
         }
+        Ok(seq)
     }
-}
 
-fn exits_from(seq: &[Ast]) -> bool {
-    seq.iter().any(|ast| match ast {
-        Ast::Exit => true,
-        Ast::If(_, then, otherwise) => exits_from(then) || exits_from(otherwise),
-        _ => false,
-    })
+    fn branch(&self, x: usize, t: usize, frames: &mut Vec<Frame>) -> Result<Vec<Ast>, String> {
+        let depth = |frame| match frames.iter().rev().position(|&f| f == frame) {
+            Some(depth) => Ok(vec![Ast::Br(depth)]),
+            None => Err(format!("branch to pc {} outside every enclosing block", self.code[t].start)),
+        };
+        if t == self.terms.len() {
+            Ok(vec![Ast::Exit])
+        } else if self.dom.number[t] >= self.dom.number[x] {
+            depth(Frame::Loop(t))
+        } else if self.follows[t] {
+            depth(Frame::Follow(t))
+        } else {
+            self.tree(t, frames)
+        }
+    }
 }
