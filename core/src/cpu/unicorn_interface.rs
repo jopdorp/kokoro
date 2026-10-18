@@ -221,15 +221,15 @@ impl UnicornCPU {
         let virtual_time = data.clock.virtual_time.get();
         let remaining = deadline.saturating_sub(data.clock.now());
         if remaining == 0 { return Ok(true); }
-        let block_ticks = data.clock.block_ticks.get().max(1);
-        let count = if virtual_time { remaining.div_ceil(block_ticks).saturating_mul(INSTRUCTIONS_PER_BLOCK).min(usize::MAX as u64) as usize } else { 0 };
+        let block_ticks = data.clock.block_ticks.get();
+        let count = if virtual_time && block_ticks != 0 { remaining.div_ceil(block_ticks).saturating_mul(INSTRUCTIONS_PER_BLOCK).min(usize::MAX as u64) as usize } else { 0 };
         let timeout = if virtual_time { 0 } else { (u128::from(remaining) * 1_000_000).div_ceil(u128::from(TICK_HZ)).min(u128::from(u64::MAX)) as u64 };
         let pc = emu.pc_read()?;
         let result = emu.emu_start(pc, u64::MAX, timeout, count);
         self.flush_dirty(&mut emu);
         result?;
         let sliced = if virtual_time { emu.get_data().svc.is_none() } else { emu.query(Query::TIMEOUT)? != 0 };
-        if virtual_time {
+        if virtual_time && block_ticks != 0 {
             let elapsed = if sliced { remaining } else { block_ticks };
             let clock = &emu.get_data().clock;
             clock.ticks.set(clock.ticks.get().saturating_add(elapsed));
