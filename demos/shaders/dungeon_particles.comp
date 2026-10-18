@@ -22,7 +22,7 @@ void main(){
     if(type==0.) {
         float angle=float(k)*2.39996;
         float hero=step(1.,scale),radius=sqrt(float(k)/9.)*scale*mix(.22,.3,hero);
-        size=vec2(mix(.25,.36,hero),mix(.48,.7,hero)+hash(seed)*.22)*scale;
+        size=vec2(mix(.25,.36,hero),(mix(.48,.7,hero)+hash(seed)*.22)*.5)*scale;
         p+=vec3(cos(angle)*radius,size.y,sin(angle)*radius);
         colour.a=k<3?.32:.13;
     }else if(type==2.) {
