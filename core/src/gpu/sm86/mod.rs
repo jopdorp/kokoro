@@ -157,6 +157,7 @@ pub struct Decoder<'a> {
     type_ptr_local: u32,
     locals: Option<Locals>,
     pending_nan: BTreeMap<u32, u32>,
+    shared_words: u32,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -164,6 +165,7 @@ pub struct Hints {
     pub timing: bool,
     pub translation: Translation,
     pub tensor: TensorMode,
+    pub shared_words: u32,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -345,6 +347,7 @@ impl<'a> Decoder<'a> {
             type_ptr_local: 0,
             locals: None,
             pending_nan: BTreeMap::new(),
+            shared_words: hints.shared_words.max(SHARED_WORDS),
             timing: if !hints.timing { Timing::Off } else if let Some(device) = device.filter(|d| d.shader_device_clock) {
                 Timing::Clock { period: device.timestamp_period, emitted: false }
             } else {

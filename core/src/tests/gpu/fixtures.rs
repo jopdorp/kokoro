@@ -834,7 +834,7 @@ mod tests {
                 continue;
             }
             let args: Vec<Arg> = buffers.iter().map(|buffer| Arg::Buffer(buffer)).chain(values.chunks(4).map(Arg::Value)).collect();
-            let [dispatched, planned] = both_ways(|| run_kernel(BENCH, name, grid, block, &args));
+            let [dispatched, planned] = both_ways(|| run_kernel(BENCH, name, grid, block, 0, &args));
             assert_eq!(dispatched, planned, "{name}");
         }
         println!("structured {structured}, dispatcher only {rejected:?}");

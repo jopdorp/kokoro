@@ -42,6 +42,7 @@ pub struct VkState {
     pub shader_buffer_float32_atomic_add: bool,
     pub shader_shared_float32_atomic_add: bool,
     pub subgroup_size: u32,
+    pub max_compute_shared_memory_size: u32,
     /// The (M, N, K) subgroup tiles VK_KHR_cooperative_matrix multiplies f16 A and B in, and whether C is f32 rather than f16.
     pub cooperative_f16_tiles: Vec<([u32; 3], bool)>,
     pub exact_cooperative_hmma: std::sync::OnceLock<Vec<(u32, bool)>>,
@@ -127,6 +128,7 @@ impl VkState {
             Vec::new()
         };
         let timestamp_period = props.properties.limits.timestamp_period;
+        let max_compute_shared_memory_size = props.properties.limits.max_compute_shared_memory_size;
         let mut state = Self {
             queue_family,
             queue: unsafe { device.get_device_queue(queue_family, 0) },
@@ -164,6 +166,7 @@ impl VkState {
             shader_buffer_float32_atomic_add,
             shader_shared_float32_atomic_add,
             subgroup_size: subgroup.subgroup_size,
+            max_compute_shared_memory_size,
             cooperative_f16_tiles,
             exact_cooperative_hmma: Default::default(),
             shader_device_clock,
