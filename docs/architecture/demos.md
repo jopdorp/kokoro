@@ -5,7 +5,7 @@ social_description: Watch guest programs and graphics demos running through obor
 
 # Demos
 
-This page shows oboromi's graphics and sound demos. Every clip is captured from the emulator on an Intel laptop unless its caption says otherwise.
+This page shows oboromi's graphics and sound demos. Every demo except Dungeon runs as a guest program. Every clip is captured from the emulator on an Intel laptop unless its caption says otherwise.
 
 ## Guest programs
 
@@ -31,9 +31,9 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 
 ### BoomBox
 
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.mp4" type="video/mp4"></video>
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.mp4" type="video/mp4"></video>
 
-*The guest loads the model and its textures, then draws each material through `nvdrv`.*
+*The BoomBox plays the CC0 track “Lofi Hip Hop Loop” by omfgdude. The guest places it in 3D the way a game does, through the audio renderer's voice parameters. Pitch adds Doppler as it orbits, while volumes set distance and panning, and a filter dulls it when the grille turns away. The reverb effect gives it a lively room instead of a box.*
 
 ### FlightHelmet
 
@@ -65,23 +65,21 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 
 *NVIDIA's CUDA sample kernel runs unchanged through the translator. The guest owns the frame memory, launches the kernel through `nvdrv` each frame with the new zoom, and presents it.*
 
+### Ray-traced scene
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced.mp4" type="video/mp4"></video>
+
+*The guest places the geometry, instances and commands in its memory, then issues the draw with the ray-query shader through `nvdrv`. The emulator builds the acceleration structure from that memory, and the frame digest is equal to the host's. This heavy showcase shader adds soft shadows, chrome, glass and bounce light. The clip was rendered offline on an RTX 3090 through the host capture path; the guest renders the same shader, and its 3090 capture follows.*
+
+![Ray-traced scene without and with bounce light](https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-gi-proof.png)
+
+*The top row is without bounce light and the bottom row is with it. Look at the BoomBox picking up the wall colour near the lamp.*
+
 ### Music
 
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-music.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-music.mp4" type="video/mp4"></video>
 
 *The guest makes the instruments and sends the mix through the audio renderer.*
-
-## Still driven from the host
-
-### Ray-traced scene
-
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced.mp4" type="video/mp4"></video>
-
-*Light now bounces once, so the red and green walls tint the BoomBox and the tint follows the moving lamp. Soft shadows, chrome, glass and the glossy floor work as before. The shaders are Switch 2 shader machine code through the translator, but the command stream is still built on the host. This clip was rendered offline on an RTX 3090 because the Intel laptop runs this shader slowly.*
-
-![Ray-traced scene without and with bounce light](https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-gi-proof.png)
-
-*The top row is without bounce light and the bottom row is with it. Look at the BoomBox picking up the wall colour near the lamp.*
 
 ## Dungeon
 
