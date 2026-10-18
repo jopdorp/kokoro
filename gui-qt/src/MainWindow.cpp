@@ -95,7 +95,7 @@ void MainWindow::buildUi() {
     auto *frameButton = new QPushButton("Render Test Frame", central);
     connect(frameButton, &QPushButton::clicked, this, &MainWindow::onRenderTestFrameClicked);
     buttons->addWidget(frameButton);
-    for (auto [name, render] : {std::pair{"Demo", RustBridge::renderDemoFrame}, {"Triangle", RustBridge::renderTriangleDemo}, {"Post", RustBridge::renderPostFrame},
+    for (auto [name, render] : {std::pair{"Demo", RustBridge::renderDemoFrame}, {"Mandelbrot", RustBridge::renderMandelbrotFrame}, {"Triangle", RustBridge::renderTriangleDemo}, {"Post", RustBridge::renderPostFrame},
                                 {"Dungeon", RustBridge::renderDungeonFrame}, {"Sprites", RustBridge::renderSpritesFrame}, {"BoomBox", RustBridge::renderBoomBoxDemo}, {"Ray traced", RustBridge::renderRaytracedDemo}, {"Helmet", RustBridge::renderHelmetDemo},
                                 {"Particles", RustBridge::renderParticlesFrame}, {"Tensor upscale", RustBridge::renderTensorUpscaleFrame}, {"Music", RustBridge::renderMusicDemo}, {"Bounce", RustBridge::renderBounceDemo}}) {
         auto *demoButton = new QPushButton(name, central);
@@ -118,6 +118,12 @@ void MainWindow::buildUi() {
     rayTracing->setChecked(true);
     connect(rayTracing, &QCheckBox::toggled, this, RustBridge::setRaytracingEnabled);
     buttons->addWidget(rayTracing);
+    auto *fastTensors = new QCheckBox("Fast tensors", central);
+    connect(fastTensors, &QCheckBox::toggled, this, oboromi_set_tensor_mode);
+    buttons->addWidget(fastTensors);
+    auto *rayBudget = new QCheckBox("Ray budget", central);
+    connect(rayBudget, &QCheckBox::toggled, this, [](bool enabled) { oboromi_set_ray_budget(enabled ? 1 : UINT32_MAX); });
+    buttons->addWidget(rayBudget);
     auto *quality = new QComboBox(central);
     quality->addItems({"Dungeon: showcase", "Dungeon: realtime"});
     auto *rays = new QCheckBox("Ray tracing", central);

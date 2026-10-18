@@ -215,6 +215,7 @@ pub mod pbr;
 pub mod post;
 pub mod particles;
 pub mod julia;
+pub mod mandelbrot;
 
 pub mod sound;
 pub mod dungeon;

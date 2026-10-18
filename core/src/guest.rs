@@ -20,7 +20,7 @@ pub fn load_segments(ram: &GuestRam, base: u64, segments: &[(u64, &[u8])]) -> Op
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet , Post , Particles , Julia, Music, TensorUpscale }
+pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet , Post , Particles , Julia, Mandelbrot, Music, TensorUpscale }
 
 pub struct Machine {
     cpus: crate::cpu::cpu_manager::CpuManager,
@@ -39,6 +39,7 @@ impl Machine {
             Demo::Particles => ("particles.nro", include_bytes!("../tests/fixtures/guest/particles.nro")),
             Demo::Music => ("music.nro", include_bytes!("../tests/fixtures/guest/music.nro")),
             Demo::Julia => ("julia.nro", include_bytes!("../tests/fixtures/guest/julia.nro")),
+            Demo::Mandelbrot => ("mandelbrot.nro", include_bytes!("../tests/fixtures/guest/mandelbrot.nro")),
             Demo::Bounce => ("bounce.nro", include_bytes!("../tests/fixtures/guest/bounce.nro")),
             Demo::Triangle => ("triangle.nro", include_bytes!("../tests/fixtures/guest/triangle.nro")),
             Demo::Sprites => ("sprites.nro", include_bytes!("../tests/fixtures/guest/sprites.nro")),
@@ -276,6 +277,32 @@ mod tests {
         let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
         assert_eq!(digest(frame.pixels()), digest(&expected));
         println!("guest and host julia FNV-1a: {:016x}", digest(&expected));
+    }
+
+    #[test]
+    fn guest_mandelbrot_matches_host_launch() {
+        use crate::gpu::cubin::Arg;
+        use crate::tests::gpu::harness::run_kernel;
+        use scene::mandelbrot::*;
+        let _display = DISPLAY_TEST.lock().unwrap();
+        let frame_number = 10u32;
+        let name = "_Z11Mandelbrot0IfEvP6uchar4iiiT_S2_S2_S2_S2_S0_iiiib";
+        let output = vec![0; (WIDTH * HEIGHT * 4) as usize];
+        let [width, height, crunch, frame, animation, grid_width, blocks] = [WIDTH, HEIGHT, CRUNCH, 0, 0, GRID_WIDTH, GRID[0]].map(u32::to_le_bytes);
+        let [x_off, zero, scale] = [-0.5f32, 0.0, scale(frame_number)].map(f32::to_le_bytes);
+        let args = [
+            Arg::Buffer(&output), Arg::Value(&width), Arg::Value(&height), Arg::Value(&crunch),
+            Arg::Value(&x_off), Arg::Value(&zero), Arg::Value(&zero), Arg::Value(&zero),
+            Arg::Value(&scale), Arg::Value(&[3, 5, 7, 0]), Arg::Value(&frame),
+            Arg::Value(&animation), Arg::Value(&grid_width), Arg::Value(&blocks), Arg::Value(&[0]),
+        ];
+        let expected = run_kernel(include_bytes!("../tests/fixtures/mandelbrot-sm86.cubin"), name, GRID, BLOCK, &args).unwrap().remove(0);
+        let mut guest = Machine::demo(Demo::Mandelbrot).unwrap();
+        for _ in 0..=frame_number { guest.frame().unwrap(); }
+        let mut displayed = crate::display::DISPLAY.lock().unwrap();
+        let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
+        assert_eq!(digest(displayed.pixels()), digest(&expected));
+        println!("guest and host Mandelbrot FNV-1a: {:016x}", digest(&expected));
     }
 
     #[test]
