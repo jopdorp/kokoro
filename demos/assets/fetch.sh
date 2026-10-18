@@ -12,6 +12,16 @@ fetch() {
 fetch boombox 8256f5d473da5d0df8a7f36c9d85f6a1eeaeaa43b8e6ae99bc0aa4e9579c55c7
 fetch flighthelmet 9c409e8ceeb8e5f8500f4d901f4dbb4abb5026ca464f589dbc584f2965dfa1b4
 
+fetch_lofi() {
+    dir=$(dirname "$0")/boombox-lofi
+    [ -f "$dir/lofi.pcm" ] && return
+    mkdir -p "$dir"
+    curl -fL https://raw.githubusercontent.com/jopdorp/oboromi/87945844df4c0740733db4c6c26fabfed954dfd6/boombox-lofi.tar.xz -o "$dir/lofi.tar.xz"
+    echo "2f053d8b20cfb3f7222bd8625f5e5b9b86bfd21fad48c6fe64d06e99df32c876  $dir/lofi.tar.xz" | sha256sum -c -
+    tar -xJf "$dir/lofi.tar.xz" -C "$dir" && rm "$dir/lofi.tar.xz"
+}
+fetch_lofi
+
 fetch_dungeon() {
     dir=$(dirname "$0")/dungeon
     [ -f "$dir/manifest.json" ] && return

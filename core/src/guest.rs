@@ -278,8 +278,48 @@ mod tests {
     }
 
     #[test]
-    fn guest_boombox_matches_host_frame() {
+    fn guest_boombox_spatial_audio_and_frame_match() {
         if !crate::gpu::demo::asset_dir("boombox").exists() { return eprintln!("skipped: run demos/assets/fetch.sh for boombox"); }
+        let tone: Vec<i16> = (0..48_000).map(|n| {
+            let t = n as f32 / 48_000.0;
+            ((0.35 * (std::f32::consts::TAU * 500.0 * t).sin() + 0.35 * (std::f32::consts::TAU * 4_000.0 * t).sin()) * 32767.0) as i16
+        }).collect();
+        let render = |seconds| {
+            let base = 0x10_000u64;
+            let mut bytes: Vec<u8> = tone.iter().flat_map(|sample| sample.to_le_bytes()).collect();
+            bytes.resize(bytes.len().next_multiple_of(0x1000), 0);
+            let mut memory = crate::audio::HostMemory { base, bytes };
+            let parameter = crate::audio::renderer::AudioRendererParameter { sample_rate: 48_000, sample_count: 240, mix_buffer_count: 4, voice_count: 1, sink_count: 1, effect_count: 2, revision: scene::sound::REV15, ..Default::default() };
+            let mut work = vec![0; crate::audio::renderer::work_buffer_size(&parameter).unwrap() as usize];
+            let mut renderer = crate::audio::renderer::Renderer::open(parameter, &mut work).unwrap();
+            renderer.start();
+            let mut pcm = Vec::new();
+            for period in 0..200 {
+                let mut parcel = vec![0; scene::sound::spatial_parcel_size(1)];
+                scene::sound::spatial_parcel(&mut parcel, (base, tone.len() as u32), (base, memory.bytes.len() as u64), period == 0, scene::sound::Spatial::boombox(seconds), None);
+                renderer.request_update(&parcel, &mut vec![0; 0x4000]).unwrap();
+                pcm.extend_from_slice(renderer.step(&mut memory));
+            }
+            pcm
+        };
+        let power = |pcm: &[i16], frequency: f64| {
+            let mut sum = [0.0; 2];
+            for (n, frame) in pcm.chunks_exact(2).skip(4_800).enumerate() {
+                let sample = f64::from(frame[0]) + f64::from(frame[1]);
+                let phase = std::f64::consts::TAU * frequency * n as f64 / 48_000.0;
+                sum[0] += sample * phase.cos(); sum[1] += sample * phase.sin();
+            }
+            sum[0] * sum[0] + sum[1] * sum[1]
+        };
+        let front = render(0.0);
+        let away = render(std::f32::consts::PI / 0.8);
+        let approaching = render(std::f32::consts::TAU / 0.8);
+        let band = |pcm: &[i16], frequency| (frequency - 20..=frequency + 20).map(|f| power(pcm, f64::from(f))).sum::<f64>();
+        let brightness_db = 10.0 * ((band(&front, 4_000) / band(&front, 500)) / (band(&away, 4_000) / band(&away, 500))).log10();
+        let peak = |pcm: &[i16]| (3_980..=4_020).max_by(|a, b| power(pcm, f64::from(*a)).total_cmp(&power(pcm, f64::from(*b)))).unwrap();
+        let pitch_hz = peak(&approaching) - peak(&front);
+        assert!(brightness_db > 3.0, "{brightness_db:.1} dB");
+        assert!(pitch_hz > 4, "{pitch_hz} Hz");
         let _display = DISPLAY_TEST.lock().unwrap();
         crate::gpu::demo::render_boombox_frame(1.0).unwrap();
         let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
@@ -288,7 +328,7 @@ mod tests {
         let mut frame = crate::display::DISPLAY.lock().unwrap();
         let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
         assert_eq!(digest(frame.pixels()), digest(&expected));
-        println!("guest and host boombox FNV-1a: {:016x}", digest(&expected));
+        println!("boombox {brightness_db:.1} dB brighter facing, {pitch_hz} Hz Doppler, FNV-1a {:016x}", digest(&expected));
     }
 
     #[test]
