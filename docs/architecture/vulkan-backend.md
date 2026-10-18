@@ -10,7 +10,7 @@ flowchart TB
     SUB --> GP["GraphicsPipeline<br/>Vertex and pixel shaders, ready to draw"]
     CP --> D0["Descriptors<br/>The numbered data slots, sets 0 and 1"]
     GP --> D0
-    D0 --> HB["HostBuffer<br/>Constants, guest memory window, vertices"]
+    D0 --> HB["HostBuffer<br/>Constants, emulated memory window, vertices"]
     D0 --> HI["HostImage<br/>Textures and writable images"]
     GP --> RT["RenderTarget<br/>The image a draw paints, plus depth"]
 ```
@@ -55,10 +55,10 @@ A Vulkan pipeline is a compiled bundle of shaders and settings. Building one is 
 
 ## How does it stay fast?
 
-- Nothing is allocated per frame. The card connection is created once per process, the command buffer and fence are reused, and demo pipelines are built once.
+- The card connection is created once per process. Command buffers, fences, translated shaders and pipelines are reused.
 - Results are read from cached host memory, because reading uncached memory is slow.
-- The engine caches translated shaders by content, pipelines by key, and buffer copies by guest memory range. A copy refreshes only when its memory changed.
-- Pipelines can be built on worker threads. A draw whose pipeline is not ready either waits for it or is skipped, whichever the caller picks.
+- The engine caches translated shaders by content, pipelines by key, and buffer copies by emulated RAM range. A copy refreshes only when its memory changed.
+- Pipelines can be built on worker threads. Default mode skips a draw whose pipeline is not ready; exact mode waits.
 - Translated SPIR-V and the driver's pipeline cache are saved to disk per game, so the next run starts warm.
 
 Measured on an Intel Arc (MTL), p50, `cargo run --release -p oboromi-core --example perf`:
@@ -78,4 +78,4 @@ Mesa's lavapipe is a Vulkan driver that runs on the CPU, so CI needs no graphics
 
 Verified by: the Vulkan validation layer, a debug layer that reports API misuse, clean on Intel and lavapipe for dispatch, draw and depth; and the suite skipping without a Vulkan driver.
 
-Sources: core/src/gpu/{mod,compute,graphics,engine,pipeline_cache}.rs, core/examples/perf.rs, .github/workflows/ci.yml, PR #79 body.
+Sources: `core/src/gpu/{mod,compute,graphics,engine,pipeline_cache}.rs`, `core/examples/perf.rs`, `.github/workflows/ci.yml`.

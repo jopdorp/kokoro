@@ -20,7 +20,7 @@ A pushbuffer, the game's command list, interleaves state writes, draws, constant
 
 `LOAD_CONSTANT_BUFFER`, which updates a constant table, is an event in the same list. So are compute launches, clears, reports, semaphore releases and acquires. They therefore apply in command order.
 
-The engine runs each event before the next, and `Gpu::submit` returns once every draw is back in guest memory. An acquire must already be met when it is reached, since nothing else runs that could release it. There are no macros (MME) yet, and no overlap of GPU work.
+The engine runs each event before the next, and `Gpu::submit` returns once every draw is back in emulated RAM. An acquire must already be met when it is reached, since nothing else runs that could release it. There are no macros (MME) yet, and no overlap of GPU work.
 
 ### What this makes easy
 
@@ -35,6 +35,6 @@ The engine runs each event before the next, and `Gpu::submit` returns once every
 
 ### Confirmation
 
-`core/src/tests/gpu/fifo.rs` for decoding and ordering, and the engine tests for report sizes, semaphore values and acquires in guest memory.
+`core/src/tests/gpu/fifo.rs` for decoding and ordering, and the engine tests for report sizes, semaphore values and acquires in emulated RAM.
 
 Sources: core/src/gpu/fifo.rs, core/src/gpu/threed.rs, core/src/gpu/engine.rs.

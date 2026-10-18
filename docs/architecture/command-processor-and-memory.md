@@ -4,7 +4,7 @@ The command processor is the GPU's front desk: it reads the command lists a game
 
 ## What does a command look like?
 
-A game puts commands in a pushbuffer, a list of 32-bit words in guest memory. It then adds an entry to the GPFIFO, a ring of pointers to those lists. Each command starts with a header word saying which register to write, on which engine, and how many data words follow.
+A game puts commands in a pushbuffer, a list of 32-bit words in emulated RAM. It then adds an entry to the GPFIFO, a ring of pointers to those lists. Each command starts with a header word saying which register to write, on which engine, and how many data words follow.
 
 | Item | Bits | Meaning |
 |---|---|---|
@@ -45,7 +45,7 @@ A constant buffer, or cbuf, is a small read-only table the game hands a shader, 
 
 ## How is a compute launch read?
 
-The compute class, 0xC7C0, starts compute work. A launch is described by a QMD, a fixed-size block in guest memory. Writing `SEND_SIGNALING_PCAS_B` makes the class fetch the QMD at `SEND_PCAS_A` and decode it into a `DispatchSnapshot`. The engine then runs it, see the [GPU pipeline](gpu-pipeline.md).
+The compute class, 0xC7C0, starts compute work. A launch is described by a QMD, a fixed-size block in emulated RAM. Writing `SEND_SIGNALING_PCAS_B` makes the class fetch the QMD at `SEND_PCAS_A` and decode it into a `DispatchSnapshot`. The engine then runs it, see the [GPU pipeline](gpu-pipeline.md).
 
 | QMD field group | What it holds |
 |---|---|
@@ -60,7 +60,7 @@ The compute class, 0xC7C0, starts compute work. A launch is described by a QMD, 
 
 ## How do GPU addresses become memory?
 
-Shaders use GPU virtual addresses (VA), which the game can point anywhere. `PageMap` turns them into guest-physical addresses (PA), the place in emulated RAM where the bytes really sit. There is one map per GPU address space, and an address outside it is an error, never a guess.
+Shaders use GPU virtual addresses (VA), which the game can point anywhere. `PageMap` turns them into physical offsets in emulated RAM. There is one map per GPU address space, and an address outside it is an error, never a guess.
 
 `MemoryTracker` stamps every write to a physical page with a global counter, the generation, and who wrote it, CPU or GPU. A host copy compares that counter with the one it was made from, so it knows when it is stale.
 
@@ -71,21 +71,21 @@ Shaders use GPU virtual addresses (VA), which the game can point anywhere. `Page
 
 | Host copy | Keyed by | Refreshed when |
 |---|---|---|
-| Buffer mirror: vertices, cbufs | Guest-physical ranges | The ranges' generation moved |
+| Buffer mirror: vertices, cbufs | Physical RAM ranges | The ranges' generation moved |
 | Render target, the image a draw paints | Ranges, format, size, depth | Loaded before a draw when its pages changed elsewhere, always written back after |
 | Texture | Ranges, texture header, sampler entry | The ranges' generation moved |
 | Depth target | The draw's depth address | Kept on the host only; it must be cleared before its first draw |
 | Translated shader | Hash of shader header and code | Never, the key is the content |
 
-The rule: guest memory is the authority. Every GPU result is written back before `submit` returns. A colour target whose pages changed outside its own draws is loaded from guest memory before the next draw. A clear that no draw uses is written into guest memory, where the next draw loads it. So drawing into an image and then sampling it as a texture shows the latest draw. Repointing a VA changes what the next draw reads.
+The rule: emulated RAM is the authority. Every GPU result is written back before `submit` returns. A colour target whose pages changed outside its own draws is loaded from RAM before the next draw. A clear that no draw uses is written into RAM, where the next draw loads it. So drawing into an image and then sampling it as a texture shows the latest draw. Repointing a VA changes what the next draw reads.
 
-Why: keying by physical page stays right when memory is remapped or shared. And nothing can show a frame the guest's memory does not hold. See [ADR-0004](../adr/0004-backing-memory-authority-for-coherence.md).
+Why: keying by physical page stays right when memory is remapped or shared. Nothing can show a frame the emulated RAM does not hold. See [ADR-0004](../adr/0004-backing-memory-authority-for-coherence.md).
 
 ## What do semaphores and reports write?
 
 A semaphore release writes a value to memory, so the CPU can see how far the GPU got. A report is the same kind of write, asked for by the 3D class. An acquire is the other side: it waits until a memory word reaches a value.
 
-| Command | What lands in guest memory |
+| Command | What lands in emulated RAM |
 |---|---|
 | Semaphore release | One 32-bit word |
 | Short report | One 32-bit word |
@@ -99,7 +99,6 @@ Commands run one after another here, so nothing else could release a waiting acq
 | Item | Why it waits |
 |---|---|
 | MME64 macros, the GPU's built-in macro processor | No Ampere header exists; the only public MME64 docs are Turing's |
-| Syncpoint and channel calls, nvdrv, nvmap, address-space calls | They arrive with the [guest path](guest-path.md) |
 | 2D, DMA and inline-to-memory classes | The first scenes do not need them |
 
 Verified by: `core/src/tests/gpu/fifo.rs`, `memory_map.rs` and `qmd.rs`, and the engine tests in `engine.rs` (draws, render to texture, clears, reports, acquires, VA remap).

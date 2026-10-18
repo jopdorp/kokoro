@@ -19,7 +19,7 @@ flowchart LR
 | Term | What it is | Example |
 |---|---|---|
 | GPU | The graphics chip: many small cores running the same program on many pixels or numbers at once. | Shading every pixel of a frame in parallel. |
-| Guest, host | The guest is the emulated Switch 2 and its memory; the host is the PC running oboromi. | A guest address points into emulated console RAM. |
+| Emulated system, PC | The emulated system is the Switch 2 model and its RAM; the PC runs oboromi. | An emulated address points into console RAM. |
 | Shader | A small program the GPU runs once per vertex, pixel or work item. | A pixel shader that returns one pixel's colour. |
 | SASS | NVIDIA's native GPU machine code, the instructions the chip really executes. | `FADD R0, R1, R2` adds two floats; on SM86 each instruction is a 128-bit word. |
 | SM86 | The instruction set of NVIDIA's Ampere desktop chips, which the Switch 2 also uses. | An RTX 3090 runs SM86 code. |
@@ -28,7 +28,7 @@ flowchart LR
 | T239 | The Switch 2's system-on-chip: ARM CPU cores plus an Ampere GPU called GA10F. | The main chip inside every Switch 2. |
 | GA102 | The desktop Ampere chip the reference results are recorded on. | RTX 3090 and RTX A6000 are GA102 cards. |
 | Silicon | Real hardware, as opposed to an emulator or a CPU-based driver. | "matches silicon" means an RTX 3090 gave the same bytes. |
-| SPIR-V | The binary shader format Vulkan accepts, like bytecode for GPUs. | The translator writes one SPIR-V module per guest program. |
+| SPIR-V | The binary shader format Vulkan accepts, like bytecode for GPUs. | The translator writes one SPIR-V module per shader. |
 | Module | One SPIR-V program, ready to hand to a Vulkan driver. | The translated Julia demo shader. |
 | Translator | oboromi's code that rewrites SASS into SPIR-V. | `core/src/gpu/sm86`. |
 | Encoding class | One row of NVIDIA's instruction table: a bit pattern plus its fields. | An add with a register operand and one with a constant are two classes. |
@@ -41,7 +41,7 @@ flowchart LR
 |---|---|---|
 | Channel | One stream of commands from a program to the GPU. | A game's renderer usually owns one. |
 | GPFIFO | A ring of small entries, each pointing at a pushbuffer and giving its length. | The game appends one entry per batch of commands. |
-| Pushbuffer | A list of 32-bit command words in guest memory: a header word, then data words. | "set viewport width to 1920" is one header and one data word. |
+| Pushbuffer | A list of 32-bit command words in emulated RAM: a header word, then data words. | "set viewport width to 1920" is one header and one data word. |
 | Method | One register write to a GPU engine, named by its register offset. | Writing the vertex count before a draw. |
 | Class | A GPU engine's set of registers, identified by a number. | 0xC797 is the Ampere 3D engine, 0xC7C0 compute, 0xC76F the channel. |
 | Subchannel | One of eight slots a channel binds a class into, so each header can pick an engine. | Subchannel 0 holds the 3D class after `SET_OBJECT`. |
@@ -52,7 +52,7 @@ flowchart LR
 | Syncpoint | The Switch's hardware counter for the same job, managed by the OS. | The display waits on one before showing a frame. |
 | Report | A value the GPU writes to memory on request. | A counter or timestamp after a draw. |
 | MME, MME64 | A small macro processor in the GPU that expands one call into many method writes. | One macro call that sets up a whole draw. |
-| QMD | Queue meta data: a block in guest memory describing one compute launch. | Grid size, threads per group, program address, constant buffers. |
+| QMD | Queue meta data: a block in emulated RAM describing one compute launch. | Grid size, threads per group, program address, constant buffers. |
 | Dispatch | One compute launch: run a program over a grid of threads. | One dispatch per frame of the Julia demo. |
 
 ## Shaders and their data
@@ -102,7 +102,7 @@ flowchart LR
 | Sampler | The settings for reading a texture: edge wrapping, filtering, level of detail. | Repeat at the edges, smooth between pixels. |
 | TIC | Texture image control: a header describing one texture's format, size, layout, address and mip levels. | One 32-byte entry per texture. |
 | TSC | Texture sampler control: an entry holding one sampler's settings. | One 32-byte entry per sampler. |
-| Pool | A table of TIC or TSC entries in guest memory. | A game's texture pool with hundreds of headers. |
+| Pool | A table of TIC or TSC entries in emulated RAM. | A game's texture pool with hundreds of headers. |
 | Handle | A cbuf word that picks one TIC entry and one TSC entry. | Low 20 bits pick the texture, top 12 bits the sampler. |
 | Mip level | A smaller copy of the same texture, used when it appears far away. | A 512 pixel texture with 256, 128 and smaller copies. |
 | LOD | Level of detail: which mip level a read uses. | LOD 0 is full size. |
@@ -147,8 +147,8 @@ flowchart LR
 | Dynamic rendering | Drawing straight into images, without Vulkan's older render pass objects. | One call names the colour and depth images. |
 | Descriptor | A small record telling a shader where one buffer or image is. | "binding 33 is this buffer". |
 | Binding | A numbered slot a shader reads a resource from; the host plugs a buffer or image into it. | Binding 9 holds the global memory window. |
-| Descriptor set | A group of bindings plugged in together. | oboromi uses only set 0. |
-| Uniform buffer | A small read-only buffer behind a binding. | A guest cbuf. |
+| Descriptor set | A group of bindings plugged in together. | Vertex and compute resources use set 0; fragment resources use set 1. |
+| Uniform buffer | A small read-only buffer behind a binding. | A game's cbuf. |
 | Storage buffer, SSBO | A large buffer a shader can read and write. | The global memory window. |
 | std140 | Vulkan's layout rule for uniform buffers, which pads each array element to 16 bytes. | Why cbufs are declared as `uvec4` arrays. |
 | uvec4 | Four 32-bit unsigned integers, 16 bytes in total. | One row of a cbuf array. |
@@ -167,26 +167,27 @@ flowchart LR
 
 | Term | What it is | Example |
 |---|---|---|
-| VA, PA | GPU virtual address, which shaders use, and guest-physical address, where the bytes sit in emulated RAM. | One VA can be repointed to another PA. |
+| VA, PA | GPU virtual address, which shaders use, and physical address, where the bytes sit in emulated RAM. | One VA can be repointed to another PA. |
 | Page | The fixed-size chunk the address map works in. | 64 KiB here. |
-| Page map | The table that turns GPU virtual pages into guest-physical pages. | `PageMap` in `memory.rs`. |
+| Page map | The table that turns GPU virtual pages into physical RAM pages. | `PageMap` in `memory.rs`. |
 | Remap | Pointing a GPU address at different memory. | A game moving a vertex buffer. |
 | Aliasing | Two addresses sharing the same memory. | A texture that is also a render target. |
-| Mirror | A host copy of a guest buffer, kept for Vulkan. | The vertex buffer copy a draw reads. |
+| Mirror | A PC-side copy of an emulated buffer, kept for Vulkan. | The vertex buffer copy a draw reads. |
 | Generation | A counter stamped on each page write, so a copy can tell it is stale. | A mirror refreshes when its pages' generation moved. |
 | Coherence | Keeping all copies of the same data in agreement. | The CPU seeing the pixels a draw wrote. |
-| Global memory window | One storage buffer holding the guest memory range a program can touch. | The output image of the gradient program. |
+| Global memory window | One storage buffer holding the emulated memory range a program can touch. | The output image of the gradient program. |
 | Memory descriptor | An extra policy word the compiler attaches to some loads and stores; it is not part of the address. | `LDG.E desc[UR4][R2.64]`. |
 
 ## The rest of the emulator
 
 | Term | What it is | Example |
 |---|---|---|
-| Unicorn | The CPU emulator library oboromi's ARM cores run on, built on QEMU's CPU core. | It executes AArch64 instructions. |
+| Dynarmic | The default AArch64 JIT backend. | It runs the included demos unless exact mode is selected. |
+| Unicorn | The comparison and exact AArch64 backend, built on QEMU's CPU core. | `OBOROMI_CPU=unicorn` selects it. |
 | QEMU | The open-source machine emulator whose CPU core Unicorn reuses. | It also runs whole ARM Linux systems. |
 | Cortex-A78C | The Arm CPU core in the Switch 2's chip. | Eight of them in the T239. |
 | switchbrew | The community wiki that documents the Switch's system calls, services and hardware. | Its NV services page. |
-| libnx | The homebrew library for writing Switch programs. | Its request layout is what the guest's encoder follows. |
+| libnx | The homebrew library for writing Switch programs. | The request encoder follows its layout. |
 | AArch64 | The 64-bit ARM instruction set the Switch 2's CPU runs. | The game's main code. |
 | FFI | Foreign function interface: the Rust functions the C++ Qt window calls. | `ffi.rs`. |
 | HLE | High-level emulation: writing a firmware service's behaviour instead of running its code. | Answering a "get time" call directly. |
@@ -196,18 +197,18 @@ flowchart LR
 | Ioctl | A control call into a driver. | An `nvdrv` call that allocates GPU memory. |
 | nvmap, host1x | The Switch's GPU memory allocator and its sync and DMA unit. | `nvmap` hands out buffer handles. |
 | NSO, NRO | Switch executable file formats. | A game's main program is an NSO. |
-| Loader | The code that places a game's executable in memory and starts it. | The flat-image loader for our own guest program. |
+| Loader | The code that places an executable in memory and starts it. | The NRO loader starts an included demo image. |
 | Session | An open connection from a game to one service. | A session with `nvdrv`. |
 | Handle | A number the kernel gives a program to name something it opened. | The session handle `SendSyncRequest` takes. |
 | Port | A named address a program connects to in order to open a session. | The port named `nvdrv`. |
 | IPC | Inter-process communication: one program sending a message to another. | A game asking the display service for a layer. |
 | IPC buffer | A small per-thread memory area that holds the request and then the reply. | The request bytes for `SendSyncRequest`. |
 | CMIF | The command layer on top of HIPC: a magic word, a command id and arguments. | `SFCI`, then command 1, then the ioctl number. |
-| Transfer memory | Guest memory a program lends to a service. | The audio renderer's work buffer. |
+| Transfer memory | Emulated memory a program lends to a service. | The audio renderer's work buffer. |
 | Driver fence | A sync counter value a program waits on to know its GPU work finished. | The fence `SubmitGpfifo` returns. |
 | Binder | The display's messaging layer, inherited from Android, for handing over frames. | `QueueBuffer` through `IHOSBinderDriver`. |
-| Turn lock | The lock that lets either the CPU or the GPU use guest RAM, never both. | The GPU takes it before a draw. |
-| Write hook | A Unicorn callback that runs on every guest store to a chosen range. | Marking pages the GPU must refresh. |
+| Turn lock | The lock that lets either the CPU or the GPU use emulated RAM, never both. | The GPU takes it before a draw. |
+| Write hook | A CPU-backend callback for stores to a watched range. | Marking pages the GPU must refresh. |
 
 ## Tools, tests and references
 

@@ -17,11 +17,11 @@ A generator reads the instruction table NVIDIA's disassembler, nvdisasm, carries
 
 Why the SM86 table works for the Switch 2: NVIDIA's disassembler ships byte-identical tables for the desktop chip and the Switch 2 chip. See [ADR-0007](../adr/0007-t239-decodes-with-the-sm86-table.md).
 
-## Where does the guest's state live?
+## Where does the emulated GPU state live?
 
-SPIR-V has no direct way to name a GPU's hardware registers. So each guest register becomes an entry in an array the shader owns. "Private" below means one copy per thread, and "Workgroup" means one copy shared by a group of threads.
+SPIR-V has no direct way to name the emulated GPU's hardware registers. Each register therefore becomes an entry in an array the shader owns. "Private" below means one copy per thread, and "Workgroup" means one copy shared by a group of threads.
 
-| Guest state | Home in SPIR-V | Note |
+| Emulated state | Home in SPIR-V | Note |
 |---|---|---|
 | Registers R0 to R253, RZ | Private array of 32-bit words | RZ always reads zero |
 | Predicates P0 to P6, PT | One Private word of bits | One-bit "run this?" flags; PT is always true |
@@ -43,9 +43,9 @@ flowchart TB
     blk --> loop
 ```
 
-*Guest jumps become one loop around a jump table.*
+*The fallback turns machine-code jumps into one loop around a jump table.*
 
-Vulkan only accepts structured control flow: nested loops and ifs, never a free jump. So a guest branch only stores the next program position, the pc. One loop around a switch then runs the piece of code at that pc.
+Vulkan only accepts structured control flow: nested loops and ifs, never a free jump. The Beyond Relooper structurizer now turns reducible machine-code control flow into nested SPIR-V selections and loops. Programs it cannot structure use the pc dispatcher shown above, where a branch stores the next program position and one loop runs the matching block.
 
 Those pieces are basic blocks, runs of code with no jump in or out except at the ends. A block starts at the program start, at every jump target, after every branch and EXIT, at BSYNC and after BAR. A jump to an address held in a register (BRX, JMX, CALL) could land anywhere, so then every instruction starts a block. EXIT sets the pc past the end.
 
@@ -94,7 +94,7 @@ A Vulkan shader cannot follow pointers to its data. It reads from numbered slots
 |---|---|---|
 | 0 | Uniform buffer, small and read-only | oboromi's own helper values, never game data |
 | 1 to 32 | Uniform buffers | The game's constant buffers 0 to 31, stored as `uvec4` arrays |
-| 33 | Storage buffer, large and read-write | The window onto guest memory |
+| 33 | Storage buffer, large and read-write | The window onto emulated RAM |
 | 34, 35 | Storage buffers | Register values in and out, tests only |
 | 36 and up | Texture and image slots | Textures and writable images, in the order the shader first uses them |
 
@@ -125,22 +125,25 @@ How smoothly a value blends across a triangle comes from the pixel shader's head
 
 ## How much is covered?
 
-| Measure | Count |
-|---|---|
-| Encoding classes decoded | 999 |
-| Handler functions | 176 |
-| Handlers left as named todos | 19 |
-| Named sub-form todos inside implemented handlers | 13 |
+| Corpus | Handled |
+|---|---:|
+| CUDA sample kernels | 768 / 818 |
+| GENGA instruction cases | 167 / 167 |
 
-Left out on purpose until something needs them, each with a named panic:
+Compute, vertex, fragment, geometry, tessellation and ray-query programs all pass through the same translator. Remaining named failures cover unsupported runtime facilities and operations without a safe portable mapping, including sparse tensors, complete `FOOTPRINT` results and `BAR.SCAN` results.
 
-| Group | Instructions |
-|---|---|
-| Graphics-only data transport | ISBERD, ISBEWR, LDTRAM, OUT, PIXLD |
-| Ray tracing | The six TTU instructions |
-| Sparse tensor | GATHER, SCATTER, GENMETADATA, SPMETADATA, BITEXTRACT |
-| Other | FOOTPRINT, SUQUERY, UCLEA, float atomics, ATOM ARRIVE, CAST and SAFEADD, BAR.SCAN, texture reads with implicit level of detail |
+## How are exact NVIDIA shaders built?
+
+The NVIDIA driver is used on the GPU pod when exact SASS is required. The repository also carries a NAK offline compiler built from Mesa. Its binding shim lays out textures and uniform buffers the way the emulator expects and writes the shader header plus machine code.
+
+| NAK result | Difference from driver output |
+|---|---:|
+| Triangle | Exact frame |
+| Dungeon sprite | Exact frame |
+| Sprites | Within 1 LSB |
+| BoomBox PBR | Within 1 LSB |
+| Ray-query fragment | Unsupported by the current offline compiler |
 
 Verified by: spirv-val, the Khronos SPIR-V checker, on every emitted module; nvdisasm on every hand-built instruction word; and the silicon scoreboards (see [verification](verification.md)).
 
-Sources: scripts/decoder_generator.rs, core/src/gpu/sm86_decoder_generated.rs, core/src/gpu/sm86/{mod,access,memory,control,warp}.rs, PR #80 body.
+Sources: `scripts/decoder_generator.rs`, `core/src/gpu/sm86_decoder_generated.rs`, `core/src/gpu/sm86`, `tools/nak-offline.c`, `tools/nak-compile.sh`.

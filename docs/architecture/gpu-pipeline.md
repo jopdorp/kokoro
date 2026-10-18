@@ -6,7 +6,7 @@ A game draws by writing a list of commands into memory and telling the GPU where
 
 ```mermaid
 sequenceDiagram
-    participant RAM as Guest RAM (console memory)
+    participant RAM as Emulated RAM
     participant P as Pusher (reads command lists)
     participant C as 3D class (drawing registers)
     participant E as Engine
@@ -24,14 +24,14 @@ sequenceDiagram
     E->>V: Build pipeline, draw
     V-->>E: Pixels
     E->>RAM: Write pixels back
-    Note over E,RAM: The display reads the finished image from guest RAM
+    Note over E,RAM: The display reads the finished image from emulated RAM
 ```
 
 *One draw, from the game's command list to pixels back in console memory.*
 
 The words on this path:
 
-- A **pushbuffer** is one command list in guest memory, and the **GPFIFO** is the queue of pointers to those lists.
+- A **pushbuffer** is one command list in emulated RAM, and the **GPFIFO** is the queue of pointers to those lists.
 - A **method** is one command: a write to a GPU engine's register.
 - The **3D class** is the drawing engine's register set.
 - **SASS** is NVIDIA's shader machine code, and **SPIR-V** is the shader format Vulkan accepts.
@@ -45,14 +45,14 @@ The words on this path:
 | Bind engines to slots, run channel commands | fifo.rs `channel` | Semaphore events, the GPU's "I got this far" signals |
 | Keep the drawing registers, freeze them at each draw | threed.rs `ThreeD::write` | `Event::Draw(DrawSnapshot)` |
 | Read the shader header (SPH) and code, translate | engine.rs `module`, sm86 `translate_program` | SPIR-V, cached by a hash of header and code |
-| Copy the buffers the draw reads | engine.rs `mirror` | Host buffers, keyed by where they sit in guest RAM |
-| Run compute launches | engine.rs `dispatch` | Guest memory pages the program changed |
+| Copy the buffers the draw reads | engine.rs `mirror` | PC-side buffers, keyed by where they sit in emulated RAM |
+| Run compute launches | engine.rs `dispatch` | Emulated RAM pages the program changed |
 | Draw and read back | graphics.rs `VkState::draw` | RGBA8 pixels |
-| Write back and show | engine.rs `draw`, `present` | Guest memory, then `display::present` |
+| Write back and show | engine.rs `draw`, `present` | Emulated RAM, then `display::present` |
 
 ## Why does submit wait for every draw?
 
-`Gpu::submit` returns only after every draw has landed in guest memory. So any later CPU read sees the result, with no extra waiting. See [ADR-0006](../adr/0006-synchronous-pusher-with-draw-snapshots.md).
+`Gpu::submit` returns only after every draw has landed in emulated RAM. So any later CPU read sees the result, with no extra waiting. See [ADR-0006](../adr/0006-synchronous-pusher-with-draw-snapshots.md).
 
 ## Why freeze the settings at each draw?
 
@@ -60,30 +60,8 @@ A draw must see the registers as they were when it was issued. The frozen copy, 
 
 ## Does compute work take the same road?
 
-Yes, through the compute class 0xC7C0. A QMD, the block in guest memory that describes one compute launch, becomes a dispatch snapshot (see [command processor](command-processor-and-memory.md)). The engine translates the program and runs it over a window onto all mapped guest memory. It then writes back the pages the program changed and releases the launch's semaphores.
-
-## Which branch holds what?
-
-```mermaid
-flowchart LR
-    main["main"] --> dev["gpu-dev<br/>Shader writer, Vulkan, harness; PR 79"]
-    dev --> instr["gpu-instructions<br/>All compute instructions; PR 80"]
-    instr --> gfx["gpu-graphics<br/>Drawing engine; no PR yet"]
-    fam["Instruction family branches<br/>gpu/w*, gpu/tex-*, gpu/div-*"] -->|"Merge commits"| instr
-    gfxb["Graphics branches<br/>gpu/guest-memory, gpu/fifo,<br/>gpu/graphics-*, gpu/texture-blocklinear"] -->|"Merge commits"| gfx
-    qmd["Engine branches<br/>gpu/qmd-dispatch, gpu/engine-hooks,<br/>gpu/demo-scenes-2"] -->|"Merge commits"| gfx
-```
-
-*Each branch stacks on the one to its left; side branches merge in with merge commits.*
-
-| Branch | Holds | PR |
-|---|---|---|
-| gpu-dev | The SPIR-V writer, the Vulkan device and compute dispatch, the display widget, the test harness, the perf example and profile script, CI tools | PR #79, which contains #69 to #78 |
-| gpu-instructions | Every compute instruction family, divergence, textures, tensor cores, silicon fixtures (recordings from a real card), the Julia demo, the CUDA runners | PR #80, stacked on #79 |
-| gpu-graphics | Guest memory, the command reader, the 3D and compute classes, the graphics backend and shader stages, the engine, tiled textures, demo assets and scenes | Not opened |
-
-Each level merges the one below whenever it moves, with merge commits and never a rebase. The gpu-graphics branch last merged gpu-instructions before the CUDA commits. So `cubin.rs` and `cuda.rs` are only on gpu-instructions for now.
+Yes, through the compute class 0xC7C0. A QMD, the block in emulated RAM that describes one compute launch, becomes a dispatch snapshot (see [command processor](command-processor-and-memory.md)). The engine translates the program, runs it over the mapped memory window, writes back changed pages and releases the launch's semaphores.
 
 Verified by: the engine tests in `core/src/tests/gpu/engine.rs` on Intel and lavapipe (Mesa's CPU-based Vulkan driver), with the Vulkan validation layer reporting no errors. They cover the pushbuffer triangle with a vertex remap and a QMD compute launch. They also cover indexed, instanced, depth-tested, blended and textured draws, render to texture, clears, reports, acquires and both y-flips.
 
-Sources: core/src/gpu/{fifo,threed,engine,graphics}.rs, core/src/tests/gpu/engine.rs, PR #79 and #80 bodies, git history.
+Sources: `core/src/gpu/{fifo,threed,engine,graphics}.rs`, `core/src/tests/gpu/engine.rs`.

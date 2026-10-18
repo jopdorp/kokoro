@@ -1,68 +1,42 @@
-# Roadmap
+# Current coverage and limits
 
-The compute side of the translator is done, and the drawing engine handles the core of a real frame: indexed and instanced draws, depth, blending, textures and compute launches. Around it, the CPU, kernel, services and audio are being built out on the foundations already in place. For example, a guest program of our own already runs on the emulated CPU, and the GPU driver services it calls are next.
+The included demos run through the loader, CPU, kernel, services, GPU and audio paths. Commercial games and firmware do not boot yet.
 
-"By design" below means left out on purpose, with a named panic, until something needs it.
-
-```mermaid
-flowchart LR
-    A["Compute instructions<br/>Done"] --> B["Drawing engine<br/>Core features done"]
-    B --> C["Six demo scenes<br/>Prepared, first being wired"]
-    D["Kernel and services<br/>In progress, see the guest path"] --> E["A real game's GPU commands"]
-    B --> E
-```
-
-*What has to land before a real game's commands can reach the GPU work.*
-
-## What is done and what is open?
-
-| Area | Item | Status |
-|---|---|---|
-| Translator | Every compute instruction family, including textures, tensors and divergence | Done |
-| Translator | Vertex and pixel shaders: ALD, AST, IPA, pixel outputs and depth | Done |
-| Translator | Geometry and tessellation data transport: ISBERD, ISBEWR, LDTRAM, OUT, PIXLD | By design |
-| Translator | Ray tracing TTU ops, sparse tensor ops, FOOTPRINT, SUQUERY, UCLEA | By design |
-| Translator | Float atomics (need VK_EXT_shader_atomic_float), texture reads with implicit detail level | To do |
-| Command processor | GPFIFO, SET_OBJECT, channel semaphores, 3D class and draw snapshots | Done |
-| Command processor | Compute launch blocks (QMDV02_03, QMDV03_00) for class 0xC7C0, report sizes, semaphore acquires that are already met | Done |
-| Command processor | MME64 macros, 2D, DMA and inline-to-memory classes, acquires that wait for a later release | To do |
-| Engine | Command-list draws with constant buffers, address remaps, compute launches, indexed and instanced draws, depth, blending, y-flip | Done |
-| Engine | Textures from the TIC and TSC pools in pixel shaders, drawing into a texture and sampling it, clears no draw used | Done |
-| Engine | Textures in vertex shaders and compute launches, depth kept in guest memory, vertex streams that step every few instances, u8 indices without the extension | To do |
-| Textures | Plain and tiled layouts, mip chains, sRGB, R8, RG8, RGBA16F, R32UI, BC1, BC3, BC7 | Done |
-| Textures | Other formats and channel orders, 3D, cube and array textures, texture arrays picked at run time | To do |
-| Tensors | HMMA, IMMA, DMMA, BMMA, LDSM, MOVM with the chip's exact sums | Done |
-| Verification | Session 6 recordings (TF32, IMMA saturation per k16 half, conversions, indexed MOV) | To do: not replayed yet |
-| CUDA | cubin runner, native path on libcuda, the three division fixes | Done |
-| CUDA | More cuda-samples kernels | To do |
-| Demos | post-effect, sprites2d | Run |
-| Demos | particles, pbr-boombox, pbr-flighthelmet | In progress |
-| Demos | raytraced | Prepared |
-| CPU | One RAM block shared with the GPU, write hooks, the turn lock | Done on the `guest-path` branch |
-| Guest path | Flat guest image, loader, shared scene crate | Done on `guest/scene-crate` |
-| Kernel | System calls, handle table, memory regions | In progress |
-| Services | IPC sessions, then nvdrv, nvmap, address space, channel and sync services | Planned; guest side written |
-| Services | Display services and the binder | Planned |
-| Audio | Audio renderer and raw output, output through Qt, demos | Designed, implementation next |
-| Loaders | Game file formats | Planned, after the guest path |
-| Merge | PR #79 and PR #80 | Open |
-| Merge | A PR for gpu-graphics | Not opened |
-
-## What are the honest limits?
-
-- Games do not boot yet. That needs the kernel layer, the services and the game loaders, which are in progress or planned. Until then, tests and our own guest program drive the GPU.
-- No code has been checked on a Switch 2 yet. Instructions are checked on desktop GA102 cards, the same Ampere core. The Switch 2's instruction table is identical, and its behaviour is assumed equal.
-- The engine reads the shader header in the layout NAK, Mesa's NVIDIA compiler, uses; no Switch 2 game's shader has confirmed it yet.
-- The GPU page size is Ryujinx's big page size; the Switch 2's value is unverified.
-- How the vertex id treats a base vertex, and the front-facing value, are unverified.
-- Graphics shaders so far were written by hand or by desktop compilers, never taken from a Switch 2 game.
-
-| Shader header fact | Value |
+| Area | Current state |
 |---|---|
-| Header version | 4 |
-| Header size | 32 words, so code starts at 0x80 |
-| End of code | The branch-to-self after the last EXIT |
+| CPU | Dynarmic by default; Unicorn for exact and comparison runs |
+| Kernel | Threads, scheduling, handles, memory, IPC and events used by the demos |
+| Services | GPU, display, audio, input, time, applet and filesystem paths used by the demos |
+| GPU commands | 3D and compute classes, draw state, textures, tensors, ray queries and presentation |
+| Translator | Broad compute and graphics coverage with structured control flow |
+| Audio | Renderer, raw output, DSP effects and measured-HRIR spatial extension |
+| Loader | Included NRO images; commercial game formats remain in progress |
 
-Verified by: each "done" row links to its tests on the subsystem page; "in progress" rows are unmerged branches.
+## Translator coverage
 
-Sources: core/src/gpu/sm86/*.rs (named todos), core/src/gpu/engine.rs (errors by name), core/src/gpu/memory.rs, demos/README, PR #79 and #80.
+| Corpus | Handled |
+|---|---:|
+| CUDA sample kernels | 768 / 818 |
+| GENGA instruction cases | 167 / 167 |
+
+The remaining CUDA cases include unsupported runtime facilities such as device-side formatted output. Named instruction gaps remain for sparse tensor operations, image-footprint results, some graphics transport forms and other hardware behaviour without a safe mapping.
+
+## Accuracy and speed
+
+Anything that is not bit-exact against the hardware oracle is a speed hack. Speed hacks are on by default. Exact mode is one opt-in.
+
+| Mode | Selection |
+|---|---|
+| Default | Dynarmic, fast tensor path, bounded ray work and non-blocking pipeline compilation |
+| Exact | `OBOROMI_EXACT=1` or `SpeedHacks::none()` |
+| CPU comparison | `OBOROMI_CPU=unicorn` |
+
+## Hardware-backed limits
+
+The translator is checked against desktop Ampere silicon. NVIDIA's SM86 and SM88 instruction tables are byte-identical, but no code here has been validated on a physical Switch 2.
+
+`FOOTPRINT` fields have been measured on SM86, while its complete raw result and portable Vulkan mapping remain open. `BAR.SCAN` runs only with a full-warp count in the tested forms, but its result was not observable through the documented barrier readers. Those instructions therefore remain named failures instead of guessed implementations.
+
+Verified by: the subsystem suites named on each architecture page, the CUDA corpus probe and the silicon fixture scoreboards.
+
+Sources: `core/src/cpu`, `core/src/kernel`, `core/src/nn`, `core/src/audio`, `core/src/gpu`, `guest`, `scene`.
