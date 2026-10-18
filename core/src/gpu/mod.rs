@@ -18,6 +18,8 @@ pub mod engine;
 pub mod fifo;
 pub mod frame;
 pub mod graphics;
+#[cfg(test)]
+pub(crate) mod guest_dungeon;
 pub mod memory;
 pub mod pipeline_cache;
 pub mod present;
