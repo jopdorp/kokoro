@@ -548,7 +548,7 @@ mod tests {
         let mut words = Vec::new();
         inc(SET_COLOR_TARGET_WIDTH, &[SIZE * 8, SIZE, 0xca], &mut words);
         inc(SET_SCISSOR_VERTICAL, &[SIZE << 16 | 32], &mut words);
-        inc(SET_BLEND_SEPARATE_FOR_ALPHA, &[0, 0x8006, 1, 1], &mut words);
+        inc(SET_BLEND_SEPARATE_FOR_ALPHA, &[0, 0x8006, 0x4001, 0x4001], &mut words);
         inc(SET_BLEND, &[1], &mut words);
         inc(DRAW_VERTEX_ARRAY_BEGIN_END_INSTANCE_FIRST, &[4 << 28 | 3 << 16], &mut words);
         inc(SET_OBJECT, &[0xc7c0], &mut words);
