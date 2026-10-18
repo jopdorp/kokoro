@@ -183,19 +183,22 @@ mod tests {
     }
 
     #[test]
-    fn call_returns_to_the_address_in_r20() {
+    fn predicated_call_returns_or_falls_through() {
         let program = [
             mov_imm(20, 0x20),
-            call_rel(0x20),
+            guard(call_rel(0x20), 0, false),
             iadd_imm(2, 0, 1),
             exit(),
             iadd_imm(0, 5, 0x10),
             ret_rel(20, -0x60),
         ];
-        let Some((regs, _)) = run_regs(&program, &[10, 11, 12, 13, 14, 7], &[], &[]) else {
-            return;
-        };
-        assert_eq!(regs[..3], [0x17, 11, 0x18]);
+        for (p0, expected) in [(0, [10, 11, 11]), (1, [0x17, 11, 0x18])] {
+            let mut seed = vec![10, 11, 12, 13, 14, 7];
+            seed.resize(PRED, 0);
+            seed.push(p0);
+            let Some((regs, _)) = run_regs(&program, &seed, &[], &[]) else { return };
+            assert_eq!(regs[..3], expected, "P0 = {p0}");
+        }
     }
 
     #[test]

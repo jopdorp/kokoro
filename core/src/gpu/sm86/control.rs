@@ -253,7 +253,12 @@ impl<'a> Decoder<'a> {
         self.ir.emit_store(self.var_pc, target);
     }
     pub fn break_(&mut self, inst: u128) {
-        self.store_barrier_token(inst, self.const_u32_0);
+        let ptr = self.barrier_token((inst >> 16 & 0xf) as u32);
+        let kept = self.ir.emit_load(self.type_u32[1], ptr);
+        let clear = self.pred_bit(false, (inst >> 87 & 7) as u32, inst >> 90 & 1 != 0);
+        let clear = self.ir.emit_inot_equal(self.type_bool[1], clear, self.const_u32_0);
+        let token = self.ir.emit_select(self.type_u32[1], clear, self.const_u32_0, kept);
+        self.ir.emit_store(ptr, token);
     }
     pub fn brx(&mut self, inst: u128) {
         self.jump_to_register(inst, true);
