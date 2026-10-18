@@ -121,8 +121,8 @@ pub extern "C" fn oboromi_set_raytracing_enabled(enabled: bool) {
 /// draws the pbr FlightHelmet demo like the BoomBox one, false too when
 /// demos/assets/fetch.sh has not fetched the asset.
 #[unsafe(no_mangle)]
-pub extern "C" fn oboromi_render_helmet_demo(seconds: f32) -> bool {
-    matches!(catch_unwind(|| crate::gpu::demo::render_helmet_frame(seconds)), Ok(Ok(())))
+pub extern "C" fn oboromi_render_helmet_demo(_seconds: f32) -> bool {
+    matches!(catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::Helmet)), Ok(Ok(())))
 }
 
 /// draws the post-effect demo at `seconds` and presents it, false if vulkan
