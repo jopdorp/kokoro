@@ -93,6 +93,7 @@ pub enum ResourceKind {
     GlobalVector(u32),
     Hints,
     Texture2D { cbuf_bank: u32, byte_offset: u32 },
+    Texture { key: u64, dimension: u32, shadow: bool },
     Surface2D { cbuf_bank: u32, byte_offset: u32, format: vk::Format },
     VertexInput { location: u32 },
     Varying { location: u32, flat: bool },
@@ -375,7 +376,7 @@ impl<'a> Decoder<'a> {
 
     pub fn emit_entry_point(&mut self, func: u32, device: Option<&VkState>) {
         if let Some(var) = self.resource(ResourceKind::Hints) {
-            let textures = self.resources.iter().filter(|r| matches!(r.kind, ResourceKind::Texture2D { .. } | ResourceKind::Surface2D { .. })).count() as u32;
+            let textures = self.resources.iter().filter(|r| matches!(r.kind, ResourceKind::Texture2D { .. } | ResourceKind::Texture { .. } | ResourceKind::Surface2D { .. })).count() as u32;
             self.ir.emit_decorate(var, spirv::decoration::BINDING, &[TEXTURE_BINDING + textures]);
         }
         // SPIR-V 1.4+ entry points must list every global variable they use, not just Input/Output.

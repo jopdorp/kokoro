@@ -67,6 +67,7 @@ pub mod capability {
     pub const FLOAT64: u32 = 10;
     pub const INT64: u32 = 11;
     pub const INT16: u32 = 22;
+    pub const IMAGE_GATHER_EXTENDED: u32 = 25;
     pub const INT8: u32 = 39;
     pub const SAMPLE_RATE_SHADING: u32 = 35;
     pub const MIN_LOD: u32 = 42;
@@ -829,8 +830,20 @@ impl Emitter {
         r
     }
 
-    pub fn emit_image_gather(&mut self, ty: u32, sampled_image: u32, coord: u32, component: u32) -> u32 {
-        self.typed_tri(96, ty, sampled_image, coord, component)
+    pub fn emit_image_gather(&mut self, ty: u32, sampled_image: u32, coord: u32, component: u32, operands: &[u32]) -> u32 {
+        let r = self.alloc_id();
+        let mut data = vec![ty, r, sampled_image, coord, component];
+        data.extend_from_slice(operands);
+        self.inst(96, &data);
+        r
+    }
+
+    pub fn emit_image_dref_gather(&mut self, ty: u32, sampled_image: u32, coord: u32, dref: u32, operands: &[u32]) -> u32 {
+        let r = self.alloc_id();
+        let mut data = vec![ty, r, sampled_image, coord, dref];
+        data.extend_from_slice(operands);
+        self.inst(97, &data);
+        r
     }
 
     pub fn emit_image_texel_pointer(&mut self, ty: u32, image: u32, coord: u32, sample: u32) -> u32 {

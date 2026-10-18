@@ -473,14 +473,16 @@ impl<'a> Decoder<'a> {
 
     // The texture unit reads a NaN operand as 0 (RTX 3090 fixtures).
     fn float_vec2(&mut self, regs: [u32; 2]) -> u32 {
-        let floats = regs.map(|r| {
-            let bits = self.load_register(r);
-            let value = self.bitcast_f32(bits);
-            let nan = self.ir.emit_is_nan(self.type_bool[1], value);
-            let bits = self.ir.emit_select(self.type_u32[1], nan, self.const_u32_0, bits);
-            self.bitcast_f32(bits)
-        });
+        let floats = regs.map(|r| self.texture_float(r));
         self.ir.emit_composite_construct(self.type_f32[2], &floats)
+    }
+
+    fn texture_float(&mut self, reg: u32) -> u32 {
+        let bits = self.load_register(reg);
+        let value = self.bitcast_f32(bits);
+        let nan = self.ir.emit_is_nan(self.type_bool[1], value);
+        let bits = self.ir.emit_select(self.type_u32[1], nan, self.const_u32_0, bits);
+        self.bitcast_f32(bits)
     }
 
     fn texture_2d(&mut self, inst: u128) -> u32 {
@@ -494,13 +496,49 @@ impl<'a> Decoder<'a> {
         self.ir.emit_load(self.type_sampled_texture_2d, var)
     }
 
+    fn gather_texture(&mut self, inst: u128, dimension: u32, shadow: bool) -> u32 {
+        let (dim, arrayed) = match dimension {
+            1 => (1, 0),
+            3 => (3, 0),
+            5 => (1, 1),
+            7 => (3, 1),
+            _ => unreachable!(),
+        };
+        let image = self.ir.emit_type_image(self.type_f32[1], dim, shadow as u32, arrayed, 0, 1, 0);
+        let sampled = self.ir.emit_type_sampled_image(image);
+        let op = opcode(inst);
+        let key = match op {
+            0xb63 if inst >> 59 & 1 == 0 => {
+                let (bank, offset) = bound_handle(inst);
+                u64::from(bank) << 32 | u64::from(offset)
+            }
+            0xb63 => 1 << 63 | ((inst >> 32 & 0xff) as u64),
+            0x364 => 1 << 62 | ((inst >> 32 & 0xff) as u64),
+            0xb65 => 1 << 61 | ((inst >> 40 & 0x3fff) as u64),
+            0x1f63 => 1 << 60 | ((inst >> 40 & 0x3fff) as u64),
+            _ => panic!("TLD4 opcode {op:#x}"),
+        };
+        let var = self.image_variable(ResourceKind::Texture { key, dimension, shadow }, sampled);
+        self.ir.emit_load(sampled, var)
+    }
+
+    fn gather_offset(&mut self, x: u32, y: u32, bytes: [u32; 2]) -> u32 {
+        let width = self.cached_const_u32(6);
+        let values = [x, y].into_iter().zip(bytes).map(|(word, byte)| {
+            let word = self.ir.emit_bitcast(self.type_s32[1], word);
+            let offset = self.cached_const_u32(8 * byte);
+            self.ir.emit_bit_field_s_extract(self.type_s32[1], word, offset, width)
+        }).collect::<Vec<_>>();
+        self.ir.emit_composite_construct(self.type_s32[2], &values)
+    }
+
     // A bound texture or surface is keyed by the cbuf word holding its handle, so the host picks the image from that handle at dispatch.
     fn image_variable(&mut self, kind: ResourceKind, ty: u32) -> u32 {
         use spirv::{decoration as deco, storage_class::UNIFORM_CONSTANT};
         if let Some(var) = self.resource(kind) {
             return var;
         }
-        let images = self.resources.iter().filter(|r| matches!(r.kind, ResourceKind::Texture2D { .. } | ResourceKind::Surface2D { .. }));
+        let images = self.resources.iter().filter(|r| matches!(r.kind, ResourceKind::Texture2D { .. } | ResourceKind::Texture { .. } | ResourceKind::Surface2D { .. }));
         let binding = TEXTURE_BINDING + images.count() as u32;
         let ptr = self.ir.emit_type_pointer(UNIFORM_CONSTANT, ty);
         let var = self.ir.emit_variable(ptr, UNIFORM_CONSTANT);
@@ -510,19 +548,87 @@ impl<'a> Decoder<'a> {
         var
     }
     pub fn tld4(&mut self, inst: u128) {
-        assert!(opcode(inst) == 0xb63 && inst >> 59 & 3 == 0, "TLD4 only in the bound cbuf form: {inst:#034x}");
-        for (bit, modifier) in [(76, "AOFFI"), (77, "PTP"), (78, "DC"), (79, "F16.RN"), (80, "F16.RZ")] {
-            assert!(inst >> bit & 1 == 0, "TLD4.{modifier}");
-        }
-        assert!(inst >> 61 & 7 == 1, "TLD4 dimension {} is not 2D", inst >> 61 & 7);
-        assert!(inst >> 81 & 7 == PT as u128, "TLD4 sparse residency predicate");
+        let dimension = (inst >> 61 & 7) as u32;
+        assert!(matches!(dimension, 1 | 3 | 5 | 7), "TLD4 dimension {dimension}");
         let ra = (inst >> 24 & 0xff) as u32;
-        let coord = self.float_vec2([ra, ra + 1]);
-        let sampled = self.texture_2d(inst);
+        let (coord_regs, array) = match dimension {
+            1 => (vec![ra, ra + 1], None),
+            3 => (vec![ra, ra + 1, ra + 2], None),
+            5 => (vec![ra + 1, ra + 2], Some(ra)),
+            7 => (vec![ra + 1, ra + 2, ra + 3], Some(ra)),
+            _ => unreachable!(),
+        };
+        let mut coords: Vec<u32> = coord_regs.into_iter().map(|r| self.texture_float(r)).collect();
+        if let Some(reg) = array {
+            let layer = self.load_register(reg);
+            coords.push(self.ir.emit_convert_u_to_f(self.type_f32[1], layer));
+        }
+        let coord = self.ir.emit_composite_construct(self.type_f32[coords.len()], &coords);
+        let shadow = inst >> 78 & 1 != 0;
+        let base_bound_2d = opcode(inst) == 0xb63 && inst >> 59 & 3 == 0 && dimension == 1 && !shadow;
+        let sampled = if base_bound_2d { self.texture_2d(inst) } else { self.gather_texture(inst, dimension, shadow) };
+        let mut rb = (inst >> 32 & 0xff) as u32;
+        if inst >> 59 & 1 != 0 || opcode(inst) == 0x364 {
+            rb = nth_reg(rb, RZ, 1);
+        }
+        if inst >> 60 & 1 != 0 {
+            rb = nth_reg(ra, RZ, coords.len() as u32);
+        }
+        let offset = (inst >> 76 & 3) as u32;
+        assert!(offset != 3, "TLD4 offset mode 3");
+        let mut offsets = Vec::new();
+        if offset != 0 {
+            self.ir.emit_capability(spirv::capability::IMAGE_GATHER_EXTENDED);
+            let x = self.load_register(rb);
+            let y = if offset == 2 { self.load_register(nth_reg(rb, RZ, 1)) } else { x };
+            offsets = (0..if offset == 2 { 4 } else { 1 })
+                .map(|i| self.gather_offset(x, y, if offset == 2 { [i, i] } else { [0, 1] }))
+                .collect();
+            rb = nth_reg(rb, RZ, if offset == 2 { 2 } else { 1 });
+        }
+        let dref = shadow.then(|| {
+            let value = self.load_register(rb);
+            self.bitcast_f32(value)
+        });
         let component = self.cached_const_u32((inst >> 87 & 3) as u32);
-        let texels = self.ir.emit_image_gather(self.type_f32[4], sampled, coord, component);
-        let bits = self.ir.emit_bitcast(self.type_u32[4], texels);
-        self.store_texel(inst, bits);
+        let gather = |this: &mut Self, offset: Option<u32>| {
+            let operands = offset.map_or_else(Vec::new, |offset| vec![16, offset]);
+            if let Some(dref) = dref {
+                this.ir.emit_image_dref_gather(this.type_f32[4], sampled, coord, dref, &operands)
+            } else {
+                this.ir.emit_image_gather(this.type_f32[4], sampled, coord, component, &operands)
+            }
+        };
+        let texels = if offsets.len() == 4 {
+            let values: Vec<u32> = offsets.into_iter().enumerate().map(|(i, offset)| {
+                let gathered = gather(self, Some(offset));
+                self.ir.emit_composite_extract(self.type_f32[1], gathered, &[i as u32])
+            }).collect();
+            self.ir.emit_composite_construct(self.type_f32[4], &values)
+        } else {
+            gather(self, offsets.first().copied())
+        };
+        let f16 = (inst >> 79 & 3) as u32;
+        assert!(f16 != 3, "TLD4 F16 mode 3");
+        if f16 == 0 {
+            let bits = self.ir.emit_bitcast(self.type_u32[4], texels);
+            self.store_texel(inst, bits);
+        } else {
+            let mut values: Vec<u32> = (0..4)
+                .filter(|c| inst >> (72 + c) & 1 != 0)
+                .map(|c| self.ir.emit_composite_extract(self.type_f32[1], texels, &[c as u32]))
+                .collect();
+            let mut values = values.drain(..);
+            let zero = self.ir.emit_constant_typed(self.type_f32[1], 0.0f32);
+            for reg in [(inst >> 16 & 0xff) as u32, (inst >> 64 & 0xff) as u32] {
+                let Some(first) = values.next() else { break };
+                let packed = self.pack_half2_round([first, values.next().unwrap_or(zero)], f16 == 2);
+                self.store_register(reg, packed);
+            }
+        }
+        if inst >> 81 & 7 != PT as u128 {
+            self.store_pred_bit(false, (inst >> 81 & 7) as u32, self.const_u32_1);
+        }
     }
     pub fn tmml(&mut self, inst: u128) {
         assert!(opcode(inst) == 0xb69 && inst >> 59 & 1 == 0, "TMML only in the bound cbuf form: {inst:#034x}");

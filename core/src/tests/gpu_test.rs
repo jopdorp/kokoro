@@ -174,6 +174,16 @@ pub mod inst {
     pub const SUATOM_CAS: u128 = 0x595;
     pub const TLD4_R_2D: u128 = 0xb63 | TEX_2D;
     pub const TLD4_G_2D: u128 = TLD4_R_2D | 1 << 87;
+    pub const TLD4_AOFFI: u128 = 1 << 76;
+    pub const TLD4_PTP: u128 = 2 << 76;
+    pub const TLD4_DC: u128 = 1 << 78;
+    pub const TLD4_F16_RN: u128 = 1 << 79;
+    pub const TLD4_F16_RZ: u128 = 2 << 79;
+    pub const TLD4_BINDLESS: u128 = 1 << 59;
+    pub const TLD4_SCR: u128 = 1 << 60;
+    pub const TLD4_NO_CONST: u128 = 0x364 | TLD4_BINDLESS;
+    pub const TLD4_TID: u128 = 0xb65 | TLD4_BINDLESS;
+    pub const TLD4_UR: u128 = 0xf63 | 1 << 91;
     const FOOTPRINT: u128 = 0xb72;
     pub const TXD_2D: u128 = 0xb6c | TEX_2D;
     pub const TMML_LOD_2D: u128 = 0xb69 | TEX_2D;
@@ -1172,6 +1182,12 @@ fn fixtures_match_nvdisasm() {
         (inst::out_imm(4, 2, 3, 1), "OUT.EMIT R4, R2, 0x3 ;"),
         (inst::out_imm(6, 4, 2, 3), "OUT.EMIT_THEN_CUT R6, R4, 0x2 ;"),
         (inst::footprint(4, 8, 12, 0), "FOOTPRINT.TEX P0, R8, R4, R12, 0x0, 0x0, 2D ;"),
+        (inst::with_rb(inst::texture(inst::TLD4_R_2D | inst::TLD4_AOFFI, 4, 8, 12, 3, 0, 0xf), 16), "TLD4.R.AOFFI R8, R4, R12, R16, 0x3, 0x0, 2D ;"),
+        (inst::with_rb(inst::texture(inst::TLD4_R_2D | inst::TLD4_PTP, 4, 8, 12, 3, 0, 0xf), 16), "TLD4.R.PTP R8, R4, R12, R16, 0x3, 0x0, 2D ;"),
+        (inst::with_rb(inst::texture(inst::TLD4_R_2D | inst::TLD4_DC, 4, 8, 12, 3, 0, 0xf), 16), "TLD4.R.DC R8, R4, R12, R16, 0x3, 0x0, 2D ;"),
+        (inst::texture(inst::TLD4_R_2D | inst::TLD4_F16_RN, 4, 8, 12, 3, 0, 0xf), "TLD4.R.F16.RN R8, R4, R12, 0x3, 0x0, 2D ;"),
+        (inst::with_rb(inst::texture(inst::TLD4_R_2D | inst::TLD4_BINDLESS, 4, 8, 12, 3, 0, 0xf), 16), "TLD4.R.B R8, R4, R12, R16, 0x3, 0x0, 2D ;"),
+        (inst::texture(inst::TLD4_UR | 1 << 61, 4, 8, 12, 0, 0, 0xf), "TLD4.R R8, R4, R12, UR0, 0x0, 2D ;"),
     ];
     use crate::tests::gpu::fp::fp16::tests as fp16;
     for (word, expected) in fixtures.iter().copied().chain(fp16::arith()).chain(fp16::compare()).chain(fp16::convert()) {
