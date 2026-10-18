@@ -104,7 +104,7 @@ pub fn triangle_frame(gpu: &mut Gpu, width: u32, height: u32, matrix: [f32; 4], 
 mod tests {
     use super::*;
     use crate::tests::gpu::harness::{sha256, shared_device};
-    use crate::tests::gpu_test::inst::{ald, ast, mov_imm, cvt, fadd, fmul_imm, i2f, stg};
+    use crate::tests::gpu_test::inst::{ald, ast, ldg, mov_imm, cvt, fadd, fmul_imm, i2f, stg};
     use crate::cpu::UnicornCPU;
     use crate::tests::run::arm64;
     use crate::gpu::compute_class::{SEND_PCAS_A, SEND_SIGNALING_PCAS2_B};
@@ -495,17 +495,66 @@ mod tests {
     fn a_clear_no_draw_consumes_lands_in_guest_memory_and_the_next_draw_loads_it() {
         let Some(state) = shared_device() else { return };
         let mut gpu = triangle_guest(state, None, SIZE, SIZE, &[(CORNERS[0], GREEN), (CORNERS[1], GREEN), (CORNERS[2], GREEN)]).unwrap();
+        for (format, texel, green) in [
+            (0xd5, BLUE.to_vec(), GREEN.to_vec()),
+            (0xca, [0xc000u16, 0x3800, 0x4400, 0x3c00].into_iter().flat_map(u16::to_le_bytes).collect(),
+                [0u16, 0x3c00, 0, 0x3c00].into_iter().flat_map(u16::to_le_bytes).collect()),
+        ] {
+            let stride = texel.len() as u32;
+            let mut words = Vec::new();
+            frame_state(SIZE, SIZE, &ADDRESSES, IDENTITY, &mut words);
+            inc(SET_COLOR_TARGET_WIDTH, &[SIZE * stride, SIZE, format], &mut words);
+            let colour: [f32; 4] = if format == 0xca { [-2.0, 0.5, 4.0, 1.0] } else { [0.0, 0.0, 1.0, 1.0] };
+            inc(SET_COLOR_CLEAR_VALUE, &colour.map(f32::to_bits), &mut words);
+            inc(CLEAR_SURFACE, &[0x3c], &mut words);
+            run(&mut gpu, &words).unwrap();
+            let mut pixels = vec![0; (SIZE * SIZE * stride) as usize];
+            gpu.read(TARGET, &mut pixels).unwrap();
+            assert!(pixels.chunks_exact(stride as usize).all(|pixel| pixel == texel));
+            words.clear();
+            inc(DRAW_VERTEX_ARRAY_BEGIN_END_INSTANCE_FIRST, &[4 << 28 | 3 << 16], &mut words);
+            run(&mut gpu, &words).unwrap();
+            gpu.read(TARGET, &mut pixels).unwrap();
+            for (x, y, want) in [(20, 20, green), (40, 40, texel)] {
+                assert_eq!(&pixels[((y * SIZE + x) * stride) as usize..][..stride as usize], want);
+            }
+        }
+    }
+
+    #[test]
+    fn hdr_draws_reach_qmd_buffers_after_partial_row_updates() {
+        let Some(state) = shared_device() else { return };
+        let mut gpu = triangle_guest(state, None, SIZE, SIZE, &[(CORNERS[0], GREEN), (CORNERS[1], GREEN), (CORNERS[2], GREEN)]).unwrap();
+        triangle_frame(&mut gpu, SIZE, SIZE, IDENTITY, 0).unwrap();
+        let hdr = [0x4000u16, 0xb800, 0x4400, 0x3c00].into_iter().flat_map(u16::to_le_bytes).collect::<Vec<_>>();
+        gpu.write(TARGET, &hdr.repeat((SIZE * SIZE) as usize)).unwrap();
+        let program = TEXTURES + 0x1000;
+        let qmd_va = TEXTURES + 0x2000;
+        let sample = TARGET + u64::from((48 * SIZE + 10) * 8);
+        let code = [mov_imm(0, sample as u32), mov_imm(1, (sample >> 32) as u32), ldg(2, 0, 0), ldg(3, 0, 4),
+            mov_imm(4, REPORT as u32), mov_imm(5, (REPORT >> 32) as u32), stg(4, 0, 2), stg(4, 4, 3), exit(), bra(-16)];
+        super::super::harness::spirv_val(&super::super::harness::translate_module(&code, false, Some(state), false));
+        gpu.write(program, &code.into_iter().flat_map(u128::to_le_bytes).collect::<Vec<_>>()).unwrap();
+        let mut qmd = [0; 64];
+        [qmd[12], qmd[13], qmd[14]] = [1; 3];
+        [qmd[18], qmd[19]] = [1 << 16 | 3 << 4, 1 << 16 | 1];
+        [qmd[48], qmd[49]] = [program as u32, (program >> 32) as u32];
+        gpu.write(qmd_va, &bytes(&qmd)).unwrap();
         let mut words = Vec::new();
-        frame_state(SIZE, SIZE, &ADDRESSES, IDENTITY, &mut words);
-        inc(SET_COLOR_CLEAR_VALUE, &[0.0, 0.0, 1.0, 1.0].map(f32::to_bits), &mut words);
-        inc(CLEAR_SURFACE, &[0x3c], &mut words);
-        run(&mut gpu, &words).unwrap();
-        assert_eq!([pixel(&mut gpu, TARGET, 20, 20), pixel(&mut gpu, TARGET, 40, 40)], [BLUE; 2]);
-        words.clear();
-        frame_state(SIZE, SIZE, &ADDRESSES, IDENTITY, &mut words);
+        inc(SET_COLOR_TARGET_WIDTH, &[SIZE * 8, SIZE, 0xca], &mut words);
+        inc(SET_SCISSOR_VERTICAL, &[SIZE << 16 | 32], &mut words);
+        inc(SET_BLEND_SEPARATE_FOR_ALPHA, &[0, 0x8006, 1, 1], &mut words);
+        inc(SET_BLEND, &[1], &mut words);
         inc(DRAW_VERTEX_ARRAY_BEGIN_END_INSTANCE_FIRST, &[4 << 28 | 3 << 16], &mut words);
+        inc(SET_OBJECT, &[0xc7c0], &mut words);
+        inc(SEND_PCAS_A, &[(qmd_va >> 8) as u32], &mut words);
+        inc(SEND_SIGNALING_PCAS2_B, &[2], &mut words);
         run(&mut gpu, &words).unwrap();
-        assert_eq!([pixel(&mut gpu, TARGET, 20, 20), pixel(&mut gpu, TARGET, 40, 40)], [GREEN, BLUE]);
+        let mut result = [0; 8];
+        gpu.read(REPORT, &mut result).unwrap();
+        assert_eq!(result, [0x4000u16, 0x3800, 0x4400, 0x4000].into_iter().flat_map(u16::to_le_bytes).collect::<Vec<_>>().as_slice());
+        gpu.read(TARGET + u64::from((20 * SIZE + 20) * 8), &mut result).unwrap();
+        assert_eq!(result.as_slice(), hdr);
     }
 
     #[test]
