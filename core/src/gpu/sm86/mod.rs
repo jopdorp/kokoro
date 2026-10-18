@@ -643,7 +643,7 @@ impl<'a> Decoder<'a> {
         }
         let val = self.ir.emit_select(ty, self.active, val, self.const_u32_0);
         let flag = self.bool_bit(self.active);
-        if self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle) {
+        if self.tensor == TensorMode::Fast && self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle) {
             self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM_SHUFFLE);
             let scope = self.cached_const_u32(spirv::scope::SUBGROUP);
             return lanes.iter().map(|&lane| [val, flag].map(|word| self.ir.emit_group_non_uniform_shuffle(ty, scope, word, lane))).collect();
@@ -723,7 +723,8 @@ impl<'a> Decoder<'a> {
             if reg != RZ { self.nan_flag(reg); }
         }
         if self.translation != Translation::ForceDispatcher {
-            let collectives = self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle);
+            let collectives = self.tensor == TensorMode::Fast && words.iter().any(|&inst| matches!(opcode(inst), 0x23c | 0x83b))
+                && self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle);
             match plan_with_collectives(words, collectives) {
                 Ok(plan) => return self.translate_structured(words, &plan),
                 Err(reason) => assert!(self.translation == Translation::Auto, "no structured translation: {reason}"),

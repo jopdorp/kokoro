@@ -86,7 +86,7 @@ impl<'a> Decoder<'a> {
             assert!(bars.is_empty(), "workgroup barrier in a fragment shader");
             self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM);
         }
-        if fragment || warp_only && bars.is_empty() && self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle) {
+        if fragment || self.tensor == TensorMode::Fast && warp_only && bars.is_empty() && self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle) {
             self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM_ARITHMETIC);
             let scope = self.cached_const_u32(spirv::scope::SUBGROUP);
             let scheduled = self.ir.emit_group_non_uniform_umin(ty, scope, 0, candidate);
