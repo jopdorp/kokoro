@@ -151,11 +151,10 @@ pub extern "C" fn oboromi_render_music_demo(seconds: f32) -> bool {
     catch_unwind(|| crate::audio::demo_music::play_music(seconds)).is_ok()
 }
 
-/// steps the bounce demo to `seconds`, plays its knocks and presents the frame, false if vulkan
-/// is missing or a draw fails. blocks, so call it from a worker thread.
+/// Runs the bounce guest to its next present; call from a worker thread.
 #[unsafe(no_mangle)]
-pub extern "C" fn oboromi_render_bounce_demo(seconds: f32) -> bool {
-    matches!(catch_unwind(|| crate::gpu::demo_bounce::render_bounce_frame(seconds)), Ok(Ok(())))
+pub extern "C" fn oboromi_render_bounce_demo(_seconds: f32) -> bool {
+    matches!(catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::Bounce)), Ok(Ok(())))
 }
 
 /// draws a frame of the particles demo at `seconds` and presents it, false if

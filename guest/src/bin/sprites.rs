@@ -20,7 +20,7 @@ core::arch::global_asm!(
 fn draw() -> svc::Result<()> {
     let size = [1920, 1080];
     let heap = svc::set_heap_size(0x200_0000)?;
-    let channel = nv::Channel::new(heap)?;
+    let channel = nv::Channel::new()?;
     let memory = heap + 0x10_0000;
     let len = (TARGET as u32 + size[0] * size[1] * 4).next_multiple_of(0x1_0000);
     let (base, handle) = channel.buffer(memory, len)?;
