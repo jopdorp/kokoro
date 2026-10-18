@@ -140,6 +140,7 @@ pub struct Kernel {
     pub debug_output: Vec<String>,
     pub hid: Rc<RefCell<hid::State>>,
     pub sm: Rc<RefCell<Sm>>,
+    devices: Vec<std::rc::Weak<RefCell<dyn Service>>>,
 }
 
 impl Default for Kernel {
@@ -149,6 +150,7 @@ impl Default for Kernel {
         let time = Rc::new(RefCell::new(time::State));
         let services: HashMap<String, Rc<RefCell<dyn Service>>> = HashMap::from([
             ("hid".into(), hid.clone() as _),
+            ("audren:u".into(), Rc::new(RefCell::new(crate::nn::audren::Manager)) as _),
             ("appletOE".into(), applet.clone() as _),
             ("appletAE".into(), applet as _),
             ("time:u".into(), time.clone() as _),
@@ -157,7 +159,7 @@ impl Default for Kernel {
         ]);
         let sm = Rc::new(RefCell::new(Sm(services)));
         let ports = HashMap::from([("sm:".into(), sm.clone() as _)]);
-        Self { scheduler: Scheduler::default(), process: Process::default(), ports, debug_output: vec![], hid, sm }
+        Self { scheduler: Scheduler::default(), process: Process::default(), ports, debug_output: vec![], hid, sm, devices: Vec::new() }
     }
 }
 
@@ -365,6 +367,18 @@ impl Kernel {
         Some(x)
     }
 
+    fn device_deadline(&mut self, cpu: &UnicornCPU) -> Option<u64> {
+        let mut deadline = None;
+        self.devices.retain(|device| {
+            let Some(device) = device.upgrade() else { return false };
+            let mut device = device.borrow_mut();
+            device.advance(cpu);
+            deadline = deadline.into_iter().chain(device.deadline()).min();
+            true
+        });
+        deadline
+    }
+
     fn connect_to_named_port(&mut self, cpu: &UnicornCPU, addr: u64) -> Result<u32, Error> {
         let mut name = [0; 12];
         cpu.read_mem(addr, &mut name).map_err(|_| Error::InvalidPointer)?;
@@ -419,8 +433,15 @@ impl Kernel {
                     None => Some(session.service.clone()),
                 };
                 service.map_or_else(|| hipc::Response::error(hipc::SfError::InvalidInHeader.code()), |service| {
+                    request.transfers = request.copy_handles.iter().filter_map(|handle| match self.process.handles.get(*handle) {
+                        Some(Object::TransferMemory { addr, size, perm }) => Some((*addr, *size, *perm)),
+                        _ => None,
+                    }).collect();
                     let mut service = service.borrow_mut();
                     let reply = service.dispatch(command, &mut request);
+                    for object in &reply.objects {
+                        if object.borrow().deadline().is_some() { self.devices.push(Rc::downgrade(object)); }
+                    }
                     for object in reply.copy_handles.iter().chain(&reply.move_handles) {
                         if let Object::Event(event) = object
                             && let Some(period) = service.event_period(event)

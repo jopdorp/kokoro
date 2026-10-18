@@ -145,10 +145,10 @@ pub extern "C" fn oboromi_render_sprites_frame(_seconds: f32) -> bool {
     )
 }
 
-/// plays the music demo up to `seconds` through the audio renderer, false if it panicked.
+/// Runs the music guest to its next present; call from a worker thread.
 #[unsafe(no_mangle)]
-pub extern "C" fn oboromi_render_music_demo(seconds: f32) -> bool {
-    catch_unwind(|| crate::audio::demo_music::play_music(seconds)).is_ok()
+pub extern "C" fn oboromi_render_music_demo(_seconds: f32) -> bool {
+    catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::Music)).is_ok_and(|r| r.is_ok())
 }
 
 /// Runs the bounce guest to its next present; call from a worker thread.

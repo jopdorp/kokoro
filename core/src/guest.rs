@@ -20,7 +20,7 @@ pub fn load_segments(ram: &GuestRam, base: u64, segments: &[(u64, &[u8])]) -> Op
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet , Post , Particles , Julia }
+pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet , Post , Particles , Julia, Music }
 
 pub struct Machine {
     cpus: crate::cpu::cpu_manager::CpuManager,
@@ -37,6 +37,7 @@ impl Machine {
             Demo::Helmet => ("helmet.nro", include_bytes!("../tests/fixtures/guest/helmet.nro")),
             Demo::Post => ("post.nro", include_bytes!("../tests/fixtures/guest/post.nro")),
             Demo::Particles => ("particles.nro", include_bytes!("../tests/fixtures/guest/particles.nro")),
+            Demo::Music => ("music.nro", include_bytes!("../tests/fixtures/guest/music.nro")),
             Demo::Julia => ("julia.nro", include_bytes!("../tests/fixtures/guest/julia.nro")),
             Demo::Bounce => ("bounce.nro", include_bytes!("../tests/fixtures/guest/bounce.nro")),
             Demo::Triangle => ("triangle.nro", include_bytes!("../tests/fixtures/guest/triangle.nro")),
@@ -44,6 +45,9 @@ impl Machine {
         };
         let cpus = crate::cpu::cpu_manager::CpuManager::new();
         let mut kernel = crate::kernel::Kernel::default();
+        kernel.scheduler.virtual_time = true;
+        // One virtual tick per block keeps demo updates inside the audio period; this is an execution budget, not hardware timing.
+        cpus.get_core(0).unwrap().set_block_ticks(1);
         let gpu = crate::gpu::engine::Gpu::with_ram(crate::gpu::device().map_err(|e| format!("{e:?}"))?, cpus.ram.clone(), None, Default::default()).map_err(|e| format!("{e:?}"))?;
         let nvdrv = Rc::new(RefCell::new(Nvdrv::new(gpu)));
         kernel.sm.borrow_mut().0.insert("nvdrv".into(), nvdrv.clone() as Rc<RefCell<dyn Service>>);
@@ -54,9 +58,12 @@ impl Machine {
         Ok(Self { cpus, kernel, vsync })
     }
 
-    pub fn frame(&mut self) -> Result<(), String> {
+    pub fn frame(&mut self) -> Result<(), String> { self.frame_with(|| {}) }
+
+    /// Polls between CPU slices so offline audio consumers can drain before the live sink ring fills.
+    pub fn frame_with(&mut self, mut poll: impl FnMut()) -> Result<(), String> {
         self.vsync.set(false);
-        self.kernel.run_until(self.cpus.get_core(0).unwrap(), || self.vsync.get());
+        self.kernel.run_until(self.cpus.get_core(0).unwrap(), || { poll(); self.vsync.get() });
         if !self.vsync.get() {
             return Err(format!("guest stopped before present: {:?}", self.kernel.debug_output));
         }
@@ -159,6 +166,43 @@ mod tests {
         }
         assert!(kernel.debug_output.is_empty(), "{:?}", kernel.debug_output);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn guest_music_matches_host_audio() {
+        let _display = DISPLAY_TEST.lock().unwrap();
+        let mut discard = vec![0; crate::audio::queued() * 2];
+        crate::audio::pull(&mut discard);
+        let mut guest = Machine::demo(Demo::Music).unwrap();
+        let (mut actual, mut count) = (0xcbf29ce484222325u64, 0usize);
+        let hash = |hash: &mut u64, samples: &[i16]| { for byte in samples.iter().flat_map(|s| s.to_le_bytes()) { *hash = (*hash ^ u64::from(byte)).wrapping_mul(0x100000001b3); } };
+        for _ in 0..360 {
+            guest.frame_with(|| {
+                let mut samples = [0; 480];
+                let frames = crate::audio::pull(&mut samples);
+                hash(&mut actual, &samples[..frames * 2]);
+                count += frames * 2;
+            }).unwrap();
+        }
+        let mut host = crate::audio::demo_music::music();
+        let mut expected = 0xcbf29ce484222325u64;
+        let periods = (f64::from(359f32 / 60.0) * 200.0) as usize + 10;
+        for _ in 0..periods {
+            crate::audio::demo_music::sequence(&mut host);
+            hash(&mut expected, host.period());
+        }
+        assert_eq!(count, periods * 480);
+        assert_eq!(actual, expected);
+        println!("guest and host music PCM FNV-1a: {actual:016x}, {periods} periods");
+        let cpu = guest.cpus.get_core(0).unwrap();
+        cpu.idle_until(cpu.ticks() + crate::cpu::unicorn_interface::TICK_HZ * 3 / 200);
+        let mut first = true;
+        guest.kernel.run_until(cpu, || { let stop = !first; first = false; stop });
+        let mut autonomous = [0; 1440];
+        assert_eq!(crate::audio::pull(&mut autonomous), 720);
+        let expected: Vec<_> = (0..3).flat_map(|_| host.period().to_vec()).collect();
+        assert_eq!(autonomous.as_slice(), expected);
+
     }
 
     #[test]

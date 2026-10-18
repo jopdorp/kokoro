@@ -83,6 +83,8 @@ pub fn work_buffer_size(p: &AudioRendererParameter) -> Result<u64, Error> {
     reserve(samples * (6 + buffers), 4, 0x10);
     reserve(240 * (6 + buffers) * (sinks + mixes - 1), 4, 0x10);
     reserve(buffers.next_multiple_of(0x40), 4, 0x40);
+    // SwitchBrew documents an extra 0x80 bytes before VoiceInfo in Switch 2 work memory.
+    if p.revision & 0xFF_FFFF == 0x76_4552 { reserve(1, 0x80, 0x10); }
     reserve(voices, 0x200, 0x10);
     reserve(voices, 4, 0x10);
     reserve(voices, 0xD0, 0x10);

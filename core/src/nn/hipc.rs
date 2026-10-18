@@ -40,6 +40,7 @@ pub struct Request<'a> {
     pub mem: &'a UnicornCPU,
     pub send_pid: bool,
     pub copy_handles: Vec<u32>,
+    pub transfers: Vec<(u64, u64, u32)>,
     pub move_handles: Vec<u32>,
     pub x: Vec<Buffer>,
     pub a: Vec<Buffer>,
@@ -81,6 +82,8 @@ impl Response {
 
 pub trait Service {
     fn dispatch(&mut self, cmd: u32, request: &mut Request) -> Response;
+    fn deadline(&self) -> Option<u64> { None }
+    fn advance(&mut self, _cpu: &UnicornCPU) {}
     /// Periodic device signals use guest ticks, so waits can shorten CPU slices.
     fn event_period(&self, _event: &Rc<Cell<bool>>) -> Option<u64> { None }
 }
@@ -176,7 +179,7 @@ impl<'a> Request<'a> {
             return Err(SfError::InvalidInHeader);
         }
         let args = cmif[4..].iter().flat_map(|w| w.to_le_bytes()).collect();
-        Ok(ParsedRequest::Invoke { command: cmif[2], object, request: Self { mem, send_pid, copy_handles, move_handles, x, a, b, w, c, objects, args } })
+        Ok(ParsedRequest::Invoke { command: cmif[2], object, request: Self { mem, send_pid, transfers: Vec::new(), copy_handles, move_handles, x, a, b, w, c, objects, args } })
     }
 }
 
