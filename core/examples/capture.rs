@@ -24,6 +24,7 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
         "guest-post" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Post),
         "guest-particles" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Particles),
         "guest-julia" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Julia),
+        "guest-mandelbrot" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Mandelbrot),
         "guest-triangle" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Triangle),
         "guest-sprites" => {
             oboromi_core::input::set_override(Some(oboromi_core::input::InputState { left: guest_sprites_stick(seconds), buttons: u64::from((2.75..3.25).contains(&seconds)), connected: true, ..Default::default() }));
