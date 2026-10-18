@@ -25,7 +25,7 @@ Columns: words = 128-bit instructions; regs = highest R referenced + 1 (64/128-b
 | fire_confine.comp | 334 | 24 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | ae2af333516fc737253a8a409238d5fbc4956faa165122c90f4a6903a10af889 |
 | fire_div.comp | 219 | 19 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | 4d9f0e7162697f541236885dd48ac00012a907358acd99fe4619814487d833f4 |
 | fire_jacobi.comp | 251 | 20 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | 70b28e4ad71907e59e2c743de2f54afff621e810001b0cc4fd9eb7a424efa354 |
-| fire_project.comp | 229 | 20 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | 10754437614a22be5a860d8aa952d13f61493577d6b988e71c9957508d6ea9e9 |
+| fire_project.comp | 224 | 20 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | 5f2daa825f1b37689dfbf2ff602f17d177c03f2d7bdf08f2135abba07b82e3c4 |
 | fire_advect.comp | 1211 | 46 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x64 0x68 | - | e53d69a48534748fb0422309edab38137e367fdf31c372d1a93c8fe38e7a8b04 |
 | smoke_light.comp | 230 | 35 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 | - | 18204eafd2c87ca34c3f7e6293ef7916be0db2d282596bb4ec58fd488122353e |
 | volume_march.comp | 555 | 62 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 0x80 0x88 0x90 0x98 | - | 2eb974161ed886c1877a5f913efa175e1aa38e0aed133d200b73d4dce3974c02 |
