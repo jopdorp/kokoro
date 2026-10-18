@@ -15,6 +15,8 @@ flowchart TB
 
 A handler, the code that translates one instruction family, is not done until it passes every check that applies. It must pass on Intel and on lavapipe, Mesa's CPU-based Vulkan driver.
 
+Oracle and digest tests select exact mode explicitly. The normal emulator defaults to speed hacks; `OBOROMI_EXACT=1` or `SpeedHacks::none()` disables them.
+
 | Check | How | Where |
 |---|---|---|
 | spirv-val, the Khronos SPIR-V checker | The harness pipes each module through it, skipped when it is not installed | core/src/tests/gpu/harness.rs |
@@ -24,7 +26,7 @@ A handler, the code that translates one instruction family, is not done until it
 
 ## How are silicon captures made?
 
-A capture patches one instruction word into a small compiled CUDA program, the seed kernel. It runs that program on a rented card through the CUDA driver and reads the registers and memory back. The word is built from the instruction table and checked with nvdisasm before the run.
+A capture patches one instruction word into a small compiled CUDA program, the seed kernel. It runs that program on an NVIDIA Ampere card through the CUDA driver and reads the registers and memory back. The capture machine uses the NVIDIA driver for exact SASS. The word is built from the instruction table and checked with nvdisasm before the run.
 
 The result is stored as a fixture: the word, the inputs, the outputs, and whether the result was really observed. Observed results are never typed in by hand.
 

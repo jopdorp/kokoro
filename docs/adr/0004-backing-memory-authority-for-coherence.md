@@ -16,11 +16,11 @@ The engine keeps host copies of game data: buffer copies, the images draws paint
 
 ## Decision Outcome
 
-Guest RAM is the one source of truth. Every host copy is keyed by guest-physical ranges, where the bytes really sit in emulated RAM. It is not keyed by GPU virtual address, which the game can point elsewhere.
+Emulated RAM is the one source of truth. Every PC-side copy is keyed by physical ranges, where the bytes really sit. It is not keyed by GPU virtual address, which the game can point elsewhere.
 
 A `MemoryTracker` stamps each page write with a global counter, the generation, and who wrote it, CPU or GPU. A copy refreshes when the counter on its pages moved.
 
-Every draw writes its render target, the image it painted, back to guest RAM before `submit` returns. It also records the counter it left. If the target's pages changed since, by the CPU or a clear, the next draw loads it from guest RAM first. Textures follow the same rule, so a texture that was drawn into shows its latest draw.
+Every draw writes its render target, the image it painted, back to emulated RAM before `submit` returns. It also records the counter it left. If the target's pages changed since, by the CPU or a clear, the next draw loads it from RAM first. Textures follow the same rule, so a texture that was drawn into shows its latest draw.
 
 ### What this makes easy
 

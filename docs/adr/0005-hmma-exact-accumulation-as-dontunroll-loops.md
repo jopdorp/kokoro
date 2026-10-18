@@ -6,6 +6,8 @@ component: [oboromi-gpu]
 ---
 # Matrix sums copy the chip exactly, written as small loops
 
+Exact mode uses this decision. The default selects the cooperative tensor speed hack.
+
 ## In plain words
 
 Tensor cores multiply small matrices in one instruction. The real chip adds up the products its own way: in groups, with the lowest bits cut off instead of rounded. Normal float maths gives slightly different last bits, so we copied the chip's method exactly. Written out naively, that makes shaders so big that drivers take seconds to compile them. So we wrote it as small loops and told the driver not to unroll them.

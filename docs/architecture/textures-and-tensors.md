@@ -1,14 +1,14 @@
 # Textures and tensors
 
-Some instructions need more than a direct rewrite. Texture reads need the game's own image descriptions turned into Vulkan images. Tensor core instructions, which multiply small matrices in one go, need Ampere's exact way of adding numbers, which no Vulkan float operation copies. For example, adding the same products in a different order can change the last bit, and the tests compare every bit.
+Some instructions need more than a direct rewrite. Texture reads need the game's own image descriptions turned into Vulkan images. Tensor core instructions, which multiply small matrices in one go, need Ampere's own way of adding numbers for bit-exact results. Exact mode uses that method; the default uses the faster cooperative path.
 
 ## Textures
 
 ### How does a shader find its texture?
 
-A texture is an image a shader reads with filtering, and a sampler holds the reading settings, such as edge wrapping. A game describes both in tables in guest memory, called pools. The TIC pool holds texture headers (format, size, layout, address) and the TSC pool holds sampler entries.
+A texture is an image a shader reads with filtering, and a sampler holds the reading settings, such as edge wrapping. A game describes both in tables in emulated RAM, called pools. The TIC pool holds texture headers (format, size, layout, address) and the TSC pool holds sampler entries.
 
-The shader picks one entry from each pool with a handle, one word stored in a constant buffer (cbuf). The translator records where each handle comes from, as a cbuf bank and byte offset. Each distinct source gets its own Vulkan slot, a binding, numbered upwards from 36. Before the run, the host reads the handle, decodes both pool entries, and plugs in a Vulkan image with its sampler. The image is uploaded again whenever its guest pages change, so a texture that was drawn into shows its latest draw. In draws, textures are read by pixel shaders today.
+The shader picks one entry from each pool with a handle, one word stored in a constant buffer (cbuf). The translator records where each handle comes from, as a cbuf bank and byte offset. Each distinct source gets its own Vulkan slot, a binding, numbered upwards from 36. Before the run, the PC reads the handle, decodes both pool entries, and plugs in a Vulkan image with its sampler. The image is uploaded again whenever its emulated pages change, so a texture that was drawn into shows its latest draw. In draws, textures are read by pixel shaders today.
 
 | Handle bits | Picks |
 |---|---|
@@ -78,7 +78,7 @@ Tensor core instructions (HMMA, IMMA, DMMA, BMMA, LDSM and MOVM) compute `D = A 
 
 ### How does the chip add the products?
 
-Standard float maths adds one number at a time and rounds after each step. The real chip does not sum HMMA products that way. The translator reproduces its method bit for bit:
+Standard float maths adds one number at a time and rounds after each step. The real chip does not sum HMMA products that way. Exact mode reproduces its method bit for bit:
 
 | Step | Rule |
 |---|---|
@@ -91,7 +91,7 @@ Standard float maths adds one number at a time and rounds after each step. The r
 
 ### Why is the sum written as loops?
 
-Written straight out, the exact method makes a huge shader that drivers take long to compile. Putting it in one SPIR-V function did not help, because both drivers pasted it back into every caller. So the inputs are loaded once into a per-thread array. The sum runs in loops marked `DontUnroll`, a hint that tells the driver to keep each loop as a loop. See [ADR-0005](../adr/0005-hmma-exact-accumulation-as-dontunroll-loops.md).
+Written straight out, the exact method makes a huge shader that drivers take long to compile. Putting it in one SPIR-V function did not help, because both drivers pasted it back into every caller. So the inputs are loaded once into a per-thread array. The sum runs in loops marked `DontUnroll`, a hint that tells the driver to keep each loop as a loop. `OBOROMI_EXACT=1` selects this path. See [ADR-0005](../adr/0005-hmma-exact-accumulation-as-dontunroll-loops.md).
 
 Per HMMA.16816.F32, cold pipeline compile:
 
