@@ -525,6 +525,11 @@ mod tests {
     fn hdr_draws_reach_qmd_buffers_after_partial_row_updates() {
         let Some(state) = shared_device() else { return };
         let mut gpu = triangle_guest(state, None, SIZE, SIZE, &[(CORNERS[0], GREEN), (CORNERS[1], GREEN), (CORNERS[2], GREEN)]).unwrap();
+        for va in (PUSHBUFFER..TARGET).step_by(PAGE as usize) {
+            if gpu.space.resolve(va, 1).is_err() {
+                map(&mut gpu, va, PAGE);
+            }
+        }
         triangle_frame(&mut gpu, SIZE, SIZE, IDENTITY, 0).unwrap();
         let hdr = [0x4000u16, 0xb800, 0x4400, 0x3c00].into_iter().flat_map(u16::to_le_bytes).collect::<Vec<_>>();
         gpu.write(TARGET, &hdr.repeat((SIZE * SIZE) as usize)).unwrap();
