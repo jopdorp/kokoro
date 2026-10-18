@@ -178,6 +178,12 @@ pub extern "C" fn oboromi_render_particles_frame(_seconds: f32) -> bool {
     )
 }
 
+#[unsafe(no_mangle)]
+pub extern "C" fn oboromi_render_solar_frame(showcase: bool) -> bool {
+    let demo = if showcase { crate::guest::Demo::SolarShowcase } else { crate::guest::Demo::Solar };
+    matches!(catch_unwind(|| crate::guest::render_demo(demo)), Ok(Ok(())))
+}
+
 /// generation of the last presented frame, 0 until the guest presents one.
 #[unsafe(no_mangle)]
 pub extern "C" fn oboromi_frame_generation() -> u64 {

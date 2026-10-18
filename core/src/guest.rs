@@ -20,7 +20,7 @@ pub fn load_segments(ram: &GuestRam, base: u64, segments: &[(u64, &[u8])]) -> Op
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet, Raytraced, RaytracedShowcase, Post, Particles, Julia, Mandelbrot, Music, TensorUpscale }
+pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet, Raytraced, RaytracedShowcase, Post, Particles, Solar, SolarShowcase, Julia, Mandelbrot, Music, TensorUpscale }
 
 pub struct Machine {
     cpus: crate::cpu::cpu_manager::CpuManager,
@@ -37,6 +37,8 @@ impl Machine {
             Demo::RaytracedShowcase => ("raytraced-showcase.nro", include_bytes!("../tests/fixtures/guest/raytraced.nro")),
             Demo::Post => ("post.nro", include_bytes!("../tests/fixtures/guest/post.nro")),
             Demo::Particles => ("particles.nro", include_bytes!("../tests/fixtures/guest/particles.nro")),
+            Demo::Solar => ("solar.nro", include_bytes!("../tests/fixtures/guest/solar.nro")),
+            Demo::SolarShowcase => ("solar-showcase.nro", include_bytes!("../tests/fixtures/guest/solar.nro")),
             Demo::Music => ("music.nro", include_bytes!("../tests/fixtures/guest/music.nro")),
             Demo::Julia => ("julia.nro", include_bytes!("../tests/fixtures/guest/julia.nro")),
             Demo::Mandelbrot => ("mandelbrot.nro", include_bytes!("../tests/fixtures/guest/mandelbrot.nro")),

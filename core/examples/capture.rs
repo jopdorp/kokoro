@@ -23,6 +23,8 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
         "guest-helmet" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Helmet),
         "guest-post" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Post),
         "guest-particles" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Particles),
+        "guest-solar" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Solar),
+        "guest-solar-showcase" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::SolarShowcase),
         "guest-julia" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Julia),
         "guest-raytraced" => oboromi_core::guest::render_demo(if demo::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) { oboromi_core::guest::Demo::RaytracedShowcase } else { oboromi_core::guest::Demo::Raytraced }),
         "guest-mandelbrot" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Mandelbrot),
