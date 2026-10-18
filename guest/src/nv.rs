@@ -82,45 +82,91 @@ fn buffer(nv: &Nv, [nvmap, space]: [u32; 2], address: u64, size: u32) -> svc::Re
     Ok((map.offset, create.handle))
 }
 
-fn guest_slice<T>(address: u64, len: usize) -> &'static mut [T] {
+pub fn guest_slice<T>(address: u64, len: usize) -> &'static mut [T] {
     unsafe { core::slice::from_raw_parts_mut(address as *mut T, len) }
 }
 
-pub fn triangle(heap: u64, size: [u32; 2], vertices: &[scene::Vertex; 3], matrix: [f32; 4]) -> svc::Result<(Nv, u32, u32, u64)> {
-    let nv = Nv::initialize(heap, 0x10_0000)?;
-    let mut fds = [0; 5];
-    for (fd, path) in fds.iter_mut().zip(["/dev/nvmap", "/dev/nvhost-as-gpu", "/dev/nvhost-ctrl", "/dev/nvhost-ctrl-gpu", "/dev/nvhost-gpu"]) {
-        *fd = nv.open(path)?;
-    }
-    let [nvmap, space, ctrl, ctrl_gpu, channel] = fds;
-    let (mut characteristics, mut gpu) = ([0; 28], [0; 0xd0]);
-    characteristics[0] = gpu.len() as u64;
-    nv.ioctl3(ctrl_gpu, CTRL_GPU_GET_CHARACTERISTICS, &mut characteristics, &mut gpu)?;
-    nv.ioctl(space, AS_INITIALIZE_EX, &mut AsInitializeEx { flags: 0, as_fd: 0, big_page_size: 0, reserved: 0, unknown: [0; 3] })?;
-    nv.ioctl(space, AS_BIND_CHANNEL, &mut AsBindChannel { channel_fd: channel })?;
-    nv.ioctl(channel, CHANNEL_SET_NVMAP_FD, &mut ChannelFd { fd: nvmap })?;
-    let fence = Fence { id: 0, value: 0 };
-    nv.ioctl(channel, CHANNEL_ALLOC_GPFIFO_EX2, &mut ChannelAllocGpfifoEx2 { entries: 0x800, flags: 0, unknown0: 0, fence, unknown: [0; 3] })?;
-    let threed = u32::from_le_bytes(gpu[92..96].try_into().unwrap());
-    nv.ioctl(channel, CHANNEL_ALLOC_OBJ_CTX, &mut ChannelAllocObjCtx { class: threed, flags: 0, object_id: 0 })?;
-    nv.query_event(channel, 3)?;
-    nv.ioctl(channel, CHANNEL_SET_PRIORITY, &mut ChannelPriority { priority: 0x64 })?;
+pub struct Channel {
+    pub nv: Nv,
+    pub nvmap: u32,
+    space: u32,
+    ctrl: u32,
+    channel: u32,
+}
 
-    let (scene, target) = (heap + 0x10_0000, heap + 0x20_0000);
-    let (scene_va, _) = buffer(&nv, [nvmap, space], scene, BUFFER as u32)?;
-    let (target_va, target_handle) = buffer(&nv, [nvmap, space], target, (size[0] * size[1] * 4).next_multiple_of(BUFFER as u32))?;
-    let at = |offset: u64| scene_va + offset;
-    let addresses = Addresses { vertex_program: at(0x1000), pixel_program: at(0x2000), vertices: at(0x3000), cbuf: at(0x4000), report: at(0x5000), target: target_va };
-    let mut out = Scene {
-        pushbuffer: guest_slice(scene, 0x400),
-        vertex_program: guest_slice(scene + 0x1000, scene::VERTEX_PROGRAM_BYTES),
-        pixel_program: guest_slice(scene + 0x2000, scene::PIXEL_PROGRAM_BYTES),
-        vertices: guest_slice(scene + 0x3000, 36),
-    };
-    let words = scene::triangle_scene(&mut out, &addresses, size, vertices, matrix, 1);
-    let mut submit = ChannelSubmitGpfifo { gpfifo: 0, entries: 1, flags: 2, fence: Fence { id: 0, value: 0 } };
-    nv.ioctl2(channel, CHANNEL_KICKOFF_PB, &mut submit, &scene::entry(scene_va, words))?;
-    let (id, threshold) = (submit.fence.id, submit.fence.value);
-    nv.ioctl(ctrl, CTRL_SYNCPT_WAIT_EVENT, &mut CtrlSyncptWaitEvent { id, threshold, timeout: u32::MAX, value: 0 })?;
-    Ok((nv, nvmap, target_handle, target))
+impl Channel {
+    pub fn new(heap: u64) -> svc::Result<Self> {
+        let nv = Nv::initialize(heap, 0x10_0000)?;
+        let mut fds = [0; 5];
+        for (fd, path) in fds.iter_mut().zip(["/dev/nvmap", "/dev/nvhost-as-gpu", "/dev/nvhost-ctrl", "/dev/nvhost-ctrl-gpu", "/dev/nvhost-gpu"]) {
+            *fd = nv.open(path)?;
+        }
+        let [nvmap, space, ctrl, ctrl_gpu, channel] = fds;
+        let (mut characteristics, mut gpu) = ([0; 28], [0; 0xd0]);
+        characteristics[0] = gpu.len() as u64;
+        nv.ioctl3(ctrl_gpu, CTRL_GPU_GET_CHARACTERISTICS, &mut characteristics, &mut gpu)?;
+        nv.ioctl(space, AS_INITIALIZE_EX, &mut AsInitializeEx { flags: 0, as_fd: 0, big_page_size: 0, reserved: 0, unknown: [0; 3] })?;
+        nv.ioctl(space, AS_BIND_CHANNEL, &mut AsBindChannel { channel_fd: channel })?;
+        nv.ioctl(channel, CHANNEL_SET_NVMAP_FD, &mut ChannelFd { fd: nvmap })?;
+        let fence = Fence { id: 0, value: 0 };
+        nv.ioctl(channel, CHANNEL_ALLOC_GPFIFO_EX2, &mut ChannelAllocGpfifoEx2 { entries: 0x800, flags: 0, unknown0: 0, fence, unknown: [0; 3] })?;
+        let threed = u32::from_le_bytes(gpu[92..96].try_into().unwrap());
+        nv.ioctl(channel, CHANNEL_ALLOC_OBJ_CTX, &mut ChannelAllocObjCtx { class: threed, flags: 0, object_id: 0 })?;
+        nv.query_event(channel, 3)?;
+        nv.ioctl(channel, CHANNEL_SET_PRIORITY, &mut ChannelPriority { priority: 0x64 })?;
+
+        Ok(Self { nv, nvmap, space, ctrl, channel })
+    }
+
+    pub fn buffer(&self, address: u64, size: u32) -> svc::Result<(u64, u32)> {
+        buffer(&self.nv, [self.nvmap, self.space], address, size)
+    }
+
+    pub fn submit(&self, address: u64, words: usize) -> svc::Result<()> {
+        let mut submit = ChannelSubmitGpfifo { gpfifo: 0, entries: 1, flags: 2, fence: Fence { id: 0, value: 0 } };
+        self.nv.ioctl2(self.channel, CHANNEL_KICKOFF_PB, &mut submit, &scene::entry(address, words))?;
+        let (id, threshold) = (submit.fence.id, submit.fence.value);
+        self.nv.ioctl(self.ctrl, CTRL_SYNCPT_WAIT_EVENT, &mut CtrlSyncptWaitEvent { id, threshold, timeout: u32::MAX, value: 0 })
+    }
+}
+
+pub struct Triangle {
+    pub channel: Channel,
+    pub target_handle: u32,
+    pub target: u64,
+    scene: u64,
+    scene_va: u64,
+    addresses: Addresses,
+    size: [u32; 2],
+}
+
+impl Triangle {
+    pub fn new(heap: u64, size: [u32; 2], vertices: &[scene::Vertex; 3]) -> svc::Result<Self> {
+        let channel = Channel::new(heap)?;
+        let (scene, target) = (heap + 0x10_0000, heap + 0x20_0000);
+        let (scene_va, _) = channel.buffer(scene, BUFFER as u32)?;
+        let (target_va, target_handle) = channel.buffer(target, (size[0] * size[1] * 4).next_multiple_of(BUFFER as u32))?;
+        let at = |offset: u64| scene_va + offset;
+        let addresses = Addresses { vertex_program: at(0x1000), pixel_program: at(0x2000), vertices: at(0x3000), cbuf: at(0x4000), report: at(0x5000), target: target_va };
+        let mut out = Scene {
+            pushbuffer: guest_slice(scene, 0x400),
+            vertex_program: guest_slice(scene + 0x1000, scene::VERTEX_PROGRAM_BYTES),
+            pixel_program: guest_slice(scene + 0x2000, scene::PIXEL_PROGRAM_BYTES),
+            vertices: guest_slice(scene + 0x3000, 36),
+        };
+        scene::triangle_scene(&mut out, &addresses, size, vertices, [1.0, 0.0, 0.0, 1.0], 1);
+        Ok(Self { channel, target_handle, target, scene, scene_va, addresses, size })
+    }
+
+    pub fn draw(&self, matrix: [f32; 4]) -> svc::Result<()> {
+        let mut words = scene::Words { storage: guest_slice(self.scene, 0x400), len: 0 };
+        scene::triangle_frame(self.size[0], self.size[1], &self.addresses, matrix, 1, &mut words);
+        self.channel.submit(self.scene_va, words.len)
+    }
+}
+
+pub fn triangle(heap: u64, size: [u32; 2], vertices: &[scene::Vertex; 3], matrix: [f32; 4]) -> svc::Result<(Nv, u32, u32, u64)> {
+    let triangle = Triangle::new(heap, size, vertices)?;
+    triangle.draw(matrix)?;
+    Ok((triangle.channel.nv, triangle.channel.nvmap, triangle.target_handle, triangle.target))
 }

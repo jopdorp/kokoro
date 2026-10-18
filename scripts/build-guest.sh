@@ -1,5 +1,5 @@
 #!/bin/sh
-# Rebuilds core/tests/fixtures/guest/guest.bin, the flat AArch64 image of guest/, homebrew.nro and triangle.nro, and prints their sha256.
+# Rebuilds core/tests/fixtures/guest/guest.bin, the flat AArch64 image of guest/, homebrew.nro, triangle.nro and sprites.nro, and prints their sha256.
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 rustup target list --installed | grep -qx aarch64-unknown-none || rustup target add aarch64-unknown-none
@@ -10,4 +10,5 @@ mkdir -p "$root/core/tests/fixtures/guest"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/guest" "$root/core/tests/fixtures/guest/guest.bin"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/homebrew" "$root/core/tests/fixtures/guest/homebrew.nro"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/triangle" "$root/core/tests/fixtures/guest/triangle.nro"
-sha256sum "$root/core/tests/fixtures/guest/guest.bin" "$root/core/tests/fixtures/guest/homebrew.nro" "$root/core/tests/fixtures/guest/triangle.nro"
+"$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/sprites" "$root/core/tests/fixtures/guest/sprites.nro"
+sha256sum "$root/core/tests/fixtures/guest/guest.bin" "$root/core/tests/fixtures/guest/homebrew.nro" "$root/core/tests/fixtures/guest/triangle.nro" "$root/core/tests/fixtures/guest/sprites.nro"

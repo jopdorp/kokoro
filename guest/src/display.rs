@@ -23,7 +23,7 @@ fn buffer<T>(value: &mut T) -> Buffer {
     Buffer { address: core::ptr::from_mut(value) as u64, size: size_of::<T>() as u64 }
 }
 
-struct Window {
+pub struct Window {
     relay: u32,
     binder: u32,
 }
@@ -133,16 +133,28 @@ pub fn show(nv: &Nv, nvmap: u32, memory: u64) -> Result<[u32; 3]> {
     Ok(slots)
 }
 
+impl Window {
+    pub fn target(nv: &Nv, nvmap: u32, handle: u32, size: [u32; 2], offset: u32) -> Result<Self> {
+        let window = Self::open()?;
+        let mut id = NvmapGetId { id: 0, handle };
+        nv.ioctl(nvmap, NVMAP_GET_ID, &mut id)?;
+        for slot in 0..2 {
+            window.set_buffer(slot, id.id, size, size[0] * size[1] * 4, offset, 1, 0)?;
+        }
+        Ok(window)
+    }
+
+    pub fn present(&self, size: [u32; 2]) -> Result<()> {
+        let slot = self.transact(3, &[1, size[0], size[1], RGBA_8888, USAGE])?;
+        self.transact(1, &[slot])?;
+        let mut input = [0; 24];
+        input[..3].copy_from_slice(&[slot, 84, 0]);
+        input[3 + 11] = 1;
+        self.transact(7, &input).map(drop)
+    }
+}
+
 /// Queues the pitch-linear render target without copying or rewriting its pixels.
 pub fn present(nv: &Nv, nvmap: u32, handle: u32, size: [u32; 2]) -> Result<()> {
-    let window = Window::open()?;
-    let mut id = NvmapGetId { id: 0, handle };
-    nv.ioctl(nvmap, NVMAP_GET_ID, &mut id)?;
-    window.set_buffer(0, id.id, size, size[0] * size[1] * 4, 0, 1, 0)?;
-    let slot = window.transact(3, &[1, size[0], size[1], RGBA_8888, USAGE])?;
-    window.transact(1, &[slot])?;
-    let mut input = [0; 24];
-    input[..3].copy_from_slice(&[slot, 84, 0]);
-    input[3 + 11] = 1;
-    window.transact(7, &input).map(drop)
+    Window::target(nv, nvmap, handle, size, 0)?.present(size)
 }

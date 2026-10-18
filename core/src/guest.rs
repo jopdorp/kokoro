@@ -19,6 +19,69 @@ pub fn load_segments(ram: &GuestRam, base: u64, segments: &[(u64, &[u8])]) -> Op
     })
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum Demo { Triangle, Sprites }
+
+pub struct Machine {
+    cpus: crate::cpu::cpu_manager::CpuManager,
+    kernel: crate::kernel::Kernel,
+    vsync: std::rc::Rc<std::cell::Cell<bool>>,
+}
+
+impl Machine {
+    pub fn demo(demo: Demo) -> Result<Self, String> {
+        use crate::nn::{hipc::Service, nvdrv::Nvdrv, vi};
+        use std::{cell::RefCell, rc::Rc};
+        let (name, image): (_, &[u8]) = match demo {
+            Demo::Triangle => ("triangle.nro", include_bytes!("../tests/fixtures/guest/triangle.nro")),
+            Demo::Sprites => ("sprites.nro", include_bytes!("../tests/fixtures/guest/sprites.nro")),
+        };
+        let cpus = crate::cpu::cpu_manager::CpuManager::new();
+        let mut kernel = crate::kernel::Kernel::default();
+        let gpu = crate::gpu::engine::Gpu::with_ram(crate::gpu::device().map_err(|e| format!("{e:?}"))?, cpus.ram.clone(), None, Default::default()).map_err(|e| format!("{e:?}"))?;
+        let nvdrv = Rc::new(RefCell::new(Nvdrv::new(gpu)));
+        kernel.sm.borrow_mut().0.insert("nvdrv".into(), nvdrv.clone() as Rc<RefCell<dyn Service>>);
+        let (display, vsync) = vi::services(nvdrv);
+        kernel.sm.borrow_mut().0.extend(display);
+        let path = crate::gpu::frame::cache_root().join("guests").join(name);
+        crate::loader::nro::load_bytes(&cpus.ram, cpus.get_core(0).unwrap(), &mut kernel, &path, image).map_err(|e| e.to_string())?;
+        Ok(Self { cpus, kernel, vsync })
+    }
+
+    pub fn frame(&mut self) -> Result<(), String> {
+        self.vsync.set(false);
+        self.kernel.run_until(self.cpus.get_core(0).unwrap(), || self.vsync.get());
+        if !self.vsync.get() {
+            return Err(format!("guest stopped before present: {:?}", self.kernel.debug_output));
+        }
+        Ok(())
+    }
+}
+
+// The kernel's Rc service graph stays on one thread even when Qt changes render workers.
+pub fn render_demo(demo: Demo) -> Result<(), String> {
+    use std::sync::{Mutex, mpsc::{self, Sender, SyncSender}};
+    static RUNNER: Mutex<Option<(Demo, SyncSender<Sender<Result<(), String>>>)>> = Mutex::new(None);
+    let mut runner = RUNNER.lock().unwrap();
+    if runner.as_ref().is_none_or(|(current, _)| *current != demo) {
+        let (tx, rx) = mpsc::sync_channel::<Sender<Result<(), String>>>(0);
+        std::thread::spawn(move || {
+            let mut machine = Machine::demo(demo);
+            for reply in rx {
+                let result = machine.as_mut().map_err(|e| e.clone()).and_then(Machine::frame);
+                let _ = reply.send(result);
+            }
+        });
+        *runner = Some((demo, tx));
+    }
+    let (tx, rx) = mpsc::channel();
+    runner.as_ref().unwrap().1.send(tx).map_err(|e| e.to_string())?;
+    rx.recv().map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+pub(crate) static DISPLAY_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -31,8 +94,6 @@ mod tests {
     use std::cell::RefCell;
     use std::rc::Rc;
 
-    static DISPLAY_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
     // guest.bin is what scripts/build-guest.sh builds from guest/. nvdrv needs a GPU, which the kernel's own sm: lacks.
     #[test]
     fn the_guest_image_initializes_services_draws_and_presents() {
@@ -44,9 +105,9 @@ mod tests {
         let core = cpu.get_core(0).unwrap();
         let mut kernel = Kernel::default();
         kernel.hid.borrow_mut().input = || InputState { buttons: 1, left: [0.5, -0.5], right: [0.0; 2], connected: true };
-        let nvdrv = Rc::new(RefCell::new(Nvdrv::new(Gpu::new(Box::leak(Box::new(state)), cpu.ram.clone()))));
+        let nvdrv = Rc::new(RefCell::new(Nvdrv::new(Gpu::with_ram(Box::leak(Box::new(state)), cpu.ram.clone(), None, Default::default()).unwrap())));
         kernel.sm.borrow_mut().0.insert("nvdrv".into(), nvdrv.clone() as Rc<RefCell<dyn Service>>);
-        kernel.sm.borrow_mut().0.extend(vi::services(nvdrv));
+        kernel.sm.borrow_mut().0.extend(vi::services(nvdrv).0);
         kernel.start(core, entry, image.len() as u64);
         assert!(kernel.run(core));
         assert_eq!(kernel.debug_output[0], "hello from guest");
@@ -54,9 +115,9 @@ mod tests {
         assert!((time - std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64).abs() < 5);
         println!("{}", kernel.debug_output[1]);
         assert_eq!(&kernel.debug_output[2..], ["buttons 0x1 left 16383 -16383", "pixel ff8000ff", "slots 0 1 0"]);
-        let frame = crate::display::DISPLAY.lock().unwrap();
+        let mut frame = crate::display::DISPLAY.lock().unwrap();
         assert_eq!((frame.width, frame.height), (128, 64));
-        assert_eq!(&frame.pixels[(20 * 128 + 20) * 4..][..4], &[40, 80, 192, 255]);
+        assert_eq!(&frame.pixels()[(20 * 128 + 20) * 4..][..4], &[40, 80, 192, 255]);
     }
 
     #[test]
@@ -65,9 +126,9 @@ mod tests {
         let state = crate::gpu::device().expect("guest triangle requires Vulkan");
         crate::gpu::frame::render_triangle_demo(0.0).unwrap();
         let (generation, expected) = {
-            let frame = crate::display::DISPLAY.lock().unwrap();
+            let mut frame = crate::display::DISPLAY.lock().unwrap();
             assert_eq!((frame.width, frame.height), (1920, 1080));
-            (frame.generation, frame.pixels.clone())
+            (frame.generation, frame.pixels().to_vec())
         };
         let dir = std::env::temp_dir().join(format!("oboromi-triangle-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -76,23 +137,66 @@ mod tests {
         let cpus = CpuManager::new();
         let cpu = cpus.get_core(0).unwrap();
         let mut kernel = Kernel::default();
-        let nvdrv = Rc::new(RefCell::new(Nvdrv::new(Gpu::new(state, cpus.ram.clone()))));
+        let nvdrv = Rc::new(RefCell::new(Nvdrv::new(Gpu::with_ram(state, cpus.ram.clone(), None, Default::default()).unwrap())));
         kernel.sm.borrow_mut().0.insert("nvdrv".into(), nvdrv.clone() as Rc<RefCell<dyn Service>>);
-        kernel.sm.borrow_mut().0.extend(vi::services(nvdrv));
+        kernel.sm.borrow_mut().0.extend(vi::services(nvdrv).0);
         crate::loader::nro::load(&cpus.ram, cpu, &mut kernel, &path).unwrap();
         assert!(!kernel.run_until(cpu, || crate::display::DISPLAY.lock().unwrap().generation > generation), "{:?}", kernel.debug_output);
         {
-            let frame = crate::display::DISPLAY.lock().unwrap();
+            let mut frame = crate::display::DISPLAY.lock().unwrap();
             assert_eq!(frame.generation, generation + 1);
             assert_eq!((frame.width, frame.height), (1920, 1080));
             let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
-            assert_eq!(digest(&frame.pixels), digest(&expected));
-            assert!(frame.pixels == expected);
-            println!("guest and host triangle FNV-1a: {:016x}", digest(&frame.pixels));
+            assert_eq!(digest(frame.pixels()), digest(&expected));
+            assert!(frame.pixels() == expected);
+            println!("guest and host triangle FNV-1a: {:016x}", digest(frame.pixels()));
         }
-        assert!(kernel.run(cpu));
         assert!(kernel.debug_output.is_empty(), "{:?}", kernel.debug_output);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn host_stick_moves_the_guest_sprites_at_the_second_present() {
+        let _display = DISPLAY_TEST.lock().unwrap();
+        let snapshot = || crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
+        let sun = |pixels: &[u8]| {
+            let (mut x, mut y, mut count) = (0.0, 0.0, 0.0);
+            for row in 60..210 {
+                for col in 1500..1750 {
+                    let p = &pixels[(row * 1920 + col) * 4..][..4];
+                    if p[0] > 200 && p[1] > 170 && p[2] < 150 {
+                        x += col as f64; y += row as f64; count += 1.0;
+                    }
+                }
+            }
+            assert!(count > 2000.0);
+            [x / count, y / count]
+        };
+        crate::input::set_override(Some(InputState::default()));
+        crate::gpu::demo_sprites::render_sprites_frame(0.0).unwrap();
+        let expected = snapshot();
+        let mut centered = Machine::demo(Demo::Sprites).unwrap();
+        centered.frame().unwrap();
+        centered.frame().unwrap();
+        let baseline = snapshot();
+        assert!(baseline == expected);
+        drop(centered);
+        let mut controlled = Machine::demo(Demo::Sprites).unwrap();
+        controlled.frame().unwrap();
+        crate::input::set_override(Some(InputState { left: [0.5, 0.5], connected: true, ..Default::default() }));
+        controlled.frame().unwrap();
+        let moved = snapshot();
+        for ((before, after), expected) in sun(&baseline).into_iter().zip(sun(&moved)).zip([3.0, -3.0]) {
+            assert!((after - before - expected).abs() < 0.1, "sun moved {} instead of {expected}", after - before);
+        }
+        crate::input::set_override(Some(InputState { buttons: crate::input::A, connected: true, ..Default::default() }));
+        controlled.frame().unwrap();
+        let tinted = snapshot();
+        let center = (132 * 1920 + 1623) * 4;
+        assert!(tinted[center] < moved[center] && tinted[center + 2] > moved[center + 2]);
+        controlled.frame().unwrap();
+        assert!(snapshot() == tinted);
+        crate::input::set_override(None);
     }
 
 }
