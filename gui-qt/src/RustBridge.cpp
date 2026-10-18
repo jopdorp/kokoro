@@ -36,6 +36,10 @@ bool renderDemoFrame(float seconds) {
     return oboromi_render_demo_frame(seconds);
 }
 
+bool renderMandelbrotFrame(float seconds) {
+    return oboromi_render_mandelbrot_frame(seconds);
+}
+
 bool renderTriangleDemo(float seconds) {
     return oboromi_render_triangle_demo(seconds);
 }
@@ -66,6 +70,10 @@ bool renderPostFrame(float seconds) {
 
 bool renderSpritesFrame(float seconds) {
     return oboromi_render_sprites_frame(seconds);
+}
+
+bool renderTensorUpscaleFrame(float seconds) {
+    return oboromi_render_tensor_upscale_frame(seconds);
 }
 
 bool renderMusicDemo(float seconds) {

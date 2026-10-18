@@ -1,8 +1,8 @@
 //! Renders a demo offline at fixed time steps, frame i at i / fps seconds, as `frame_%04d.ppm` in a directory:
-//! `cargo run --release -p oboromi-core --example capture -- <demo> [--seconds 8] [--fps 60] [--showcase] --out <dir>`, then
+//! `cargo run --release -p oboromi-core --example capture -- <demo> [--seconds 8] [--fps 60] [--showcase] [--ray-budget] --out <dir>`, then
 //! `ffmpeg -framerate 60 -i <dir>/frame_%04d.ppm -c:v libx264 -crf 20 -pix_fmt yuv420p -movflags +faststart demo.mp4`.
 use oboromi_core::audio::{CHANNELS, PERIOD, RATE, demo_music, pull, queued};
-use oboromi_core::ffi::oboromi_frame_read;
+use oboromi_core::ffi::{oboromi_frame_read, oboromi_set_ray_budget};
 use oboromi_core::gpu::{demo, demo_bounce, demo_dungeon, demo_particles, demo_post, demo_sprites, frame};
 use std::io::{Seek, Write};
 
@@ -25,10 +25,15 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
         "guest-particles" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Particles),
         "guest-julia" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Julia),
         "guest-raytraced" => oboromi_core::guest::render_demo(if demo::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) { oboromi_core::guest::Demo::RaytracedShowcase } else { oboromi_core::guest::Demo::Raytraced }),
+        "guest-mandelbrot" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Mandelbrot),
         "guest-triangle" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Triangle),
         "guest-sprites" => {
             oboromi_core::input::set_override(Some(oboromi_core::input::InputState { left: guest_sprites_stick(seconds), buttons: u64::from((2.75..3.25).contains(&seconds)), connected: true, ..Default::default() }));
             oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Sprites)
+        }
+        "guest-tensor" => {
+            oboromi_core::gpu::SPEED_HACKS.lock().unwrap().fast_tensor = true;
+            oboromi_core::guest::render_demo(oboromi_core::guest::Demo::TensorUpscale)
         }
         "triangle" => frame::render_triangle_demo(seconds),
         "sprites" => demo_sprites::render_sprites_frame(seconds),
@@ -94,6 +99,7 @@ impl Wav {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.iter().any(|arg| arg == "--ray-budget") { oboromi_set_ray_budget(1); }
     let flag = |name: &str| {
         args.iter()
             .position(|arg| arg == name)

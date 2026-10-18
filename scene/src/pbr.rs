@@ -13,7 +13,7 @@ pub const MATERIAL_UNIFORMS: u64 = 0x80;
 pub const TIC: u64 = BASE + 0x3_0000;
 pub const TSC: u64 = BASE + 0x3_8000;
 pub const REPORT: u64 = BASE + 0x3_f000;
-pub const VERTICES: u64 = BASE + 0x6_0000;
+pub const VERTICES: u64 = PIXEL_PROGRAM + 0x2_0000;
 // The depth target lives on the host only, so its VA needs no pages.
 pub const DEPTH: u64 = 0x2000_0000;
 pub const ALIGN: u64 = 0x1_0000;

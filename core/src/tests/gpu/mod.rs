@@ -9,6 +9,7 @@ mod convert;
 mod demos_particles;
 mod demos_post;
 mod demos_sprites;
+mod dungeon;
 mod fifo;
 mod fixtures;
 pub mod fp;
@@ -26,6 +27,8 @@ pub mod silicon;
 mod special;
 mod stages;
 mod tensor;
+#[cfg(test)]
+mod tensor_upscale;
 mod texture;
 mod uniform;
 mod warp;

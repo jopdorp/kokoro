@@ -35,6 +35,7 @@ pub struct RasterState {
     pub blend: vk::PipelineColorBlendAttachmentState,
 }
 
+#[derive(Clone, Copy)]
 pub struct DrawState<'a> {
     /// Each with its SET_VERTEX_STREAM_A_FORMAT stride.
     pub vertex_buffers: &'a [(&'a HostBuffer<'a>, u32)],
@@ -285,6 +286,25 @@ impl<'a> RenderTarget<'a> {
             staging: staging.map_or_else(|| HostBuffer::new(state, u64::from(width * height * pixel_bytes)), Ok)?,
             pixel_bytes,
         })
+    }
+
+    pub fn clear(&self, colour: [f32; 4]) -> Result<(), VkError> {
+        use vk::{AccessFlags as Access, ImageLayout as Layout, PipelineStageFlags as Stage};
+        self.state.submit_and_wait(|cmd| unsafe {
+            let d = &self.state.device;
+            let range = vk::ImageSubresourceRange::default().aspect_mask(vk::ImageAspectFlags::COLOR).level_count(1).layer_count(1);
+            let barrier = vk::ImageMemoryBarrier::default().image(self.color.image).subresource_range(range);
+            d.cmd_pipeline_barrier(cmd, Stage::TOP_OF_PIPE, Stage::TRANSFER, vk::DependencyFlags::empty(), &[], &[], &[
+                barrier.new_layout(Layout::TRANSFER_DST_OPTIMAL).dst_access_mask(Access::TRANSFER_WRITE),
+            ]);
+            d.cmd_clear_color_image(cmd, self.color.image, Layout::TRANSFER_DST_OPTIMAL, &vk::ClearColorValue { float32: colour }, &[range]);
+            d.cmd_pipeline_barrier(cmd, Stage::TRANSFER, Stage::TRANSFER, vk::DependencyFlags::empty(), &[], &[], &[
+                barrier.old_layout(Layout::TRANSFER_DST_OPTIMAL).new_layout(Layout::TRANSFER_SRC_OPTIMAL)
+                    .src_access_mask(Access::TRANSFER_WRITE).dst_access_mask(Access::TRANSFER_READ),
+            ]);
+        })?;
+        self.pending_rows.set(Some((0, self.extent.height)));
+        Ok(())
     }
 
     pub fn color_image(&self) -> vk::Image {
