@@ -134,8 +134,6 @@ fn unsupported(pc: usize, inst: u128, collectives: bool) -> Option<String> {
         "dynamic branch target"
     } else if matches!(op, 0x1478 | 0x1878 | 0x1a78 | 0x1c78) {
         "indexed register"
-    } else if op == KILL {
-        "KILL"
     } else {
         return None;
     };
