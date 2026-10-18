@@ -183,6 +183,25 @@ mod tests {
     }
 
     #[test]
+    fn join_into_both_arms_of_a_branch_is_structured() {
+        let program = [
+            guard(bra(0x20), 0, false),
+            mov_imm(0, 1),
+            guard(bra(0x20), 1, false),
+            mov_imm(1, 2),
+            guard(bra(0x20), 2, false),
+            mov_imm(2, 3),
+            mov_imm(3, 4),
+        ];
+        assert!(plan(&program).is_ok());
+        for preds in 0..8 {
+            let mut seed = vec![0; PRED + 1];
+            seed[PRED] = preds;
+            run_structured(&program, &seed);
+        }
+    }
+
+    #[test]
     fn irreducible_loop_stays_on_the_dispatcher() {
         let program = [guard(bra(0x10), 0, false), iadd_imm(0, 0, 1), iadd_imm(1, 1, 1), guard(bra(-0x30), 1, false), exit()];
         assert_eq!(plan(&program).unwrap_err(), "irreducible loop into pc 2");
