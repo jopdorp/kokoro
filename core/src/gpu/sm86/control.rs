@@ -365,11 +365,12 @@ impl<'a> Decoder<'a> {
     }
     pub fn kill(&mut self, inst: u128) {
         if matches!(self.stage, Stage::Fragment { .. }) {
-            self.ir.emit_kill();
-            self.ir.emit_label();
-        } else {
-            self.exit(inst);
+            self.ir.emit_capability(spirv::capability::DEMOTE_TO_HELPER_INVOCATION);
+            self.ir.emit_extension("SPV_EXT_demote_to_helper_invocation");
+            return self.ir.emit_demote_to_helper_invocation();
         }
+        // KILL is pixel-only on hardware, so a compute invocation that reaches one just ends like at EXIT.
+        self.exit(inst);
     }
     pub fn lepc(&mut self, inst: u128) {
         let rd = (((inst >> 16) & 0xff) << 0) as u32;
