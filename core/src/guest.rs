@@ -276,6 +276,7 @@ mod tests {
         let actual = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
         let error: u64 = actual.chunks_exact(4).zip(expected.chunks_exact(4)).flat_map(|(a, b)| a[..3].iter().zip(&b[..3])).map(|(&a, &b)| u64::from(a.abs_diff(b))).sum();
         let mae = error as f64 / (actual.len() / 4 * 3) as f64;
+        println!("dungeon frame MAE {mae}");
         assert!(mae <= 255.0 * 0.08, "frame MAE {mae}");
         let digest = pcm.iter().flat_map(|sample| sample.to_le_bytes()).fold(0xcbf29ce484222325u64, |hash, byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
         assert_eq!((pcm.len(), digest), (2880, 0x2854_1d0f_201c_3524));
