@@ -1847,7 +1847,7 @@
         /*7360*/                   FMUL.FTZ R8, R1, R14.reuse ;
         /*7370*/                   FFMA.FTZ R4, R5, R13, R0 ;
         /*7380*/                   MOV R16, 0x3f800000 ;
-        /*7390*/                   FMUL.FTZ R9, R9, R14 ;
+        /*7390*/                   FMUL.FTZ.D2 R9, R9, R14 ;
         /*73a0*/                   MOV R18, 0x3c9374bc ;
         /*73b0*/                   FSEL R15, R15, 0.12999999523162841797, !P0 ;
         /*73c0*/                   FADD.FTZ R5, R20, R9 ;
