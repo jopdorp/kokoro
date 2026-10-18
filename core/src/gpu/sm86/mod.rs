@@ -633,10 +633,15 @@ impl<'a> Decoder<'a> {
                 })
             }).collect();
         }
-        let invocation = self.builtin(spirv::BuiltIn::LocalInvocationIndex);
-        let flags = self.cached_const_u32(MAX_INVOCATIONS);
         let val = self.ir.emit_select(ty, self.active, val, self.const_u32_0);
         let flag = self.bool_bit(self.active);
+        if self.tensor == TensorMode::Fast && self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle) {
+            self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM_SHUFFLE);
+            let scope = self.cached_const_u32(spirv::scope::SUBGROUP);
+            return lanes.iter().map(|&lane| [val, flag].map(|word| self.ir.emit_group_non_uniform_shuffle(ty, scope, word, lane))).collect();
+        }
+        let invocation = self.builtin(spirv::BuiltIn::LocalInvocationIndex);
+        let flags = self.cached_const_u32(MAX_INVOCATIONS);
         for (word, offset) in [(val, self.const_u32_0), (flag, flags)] {
             let index = self.ir.emit_iadd(ty, invocation, offset);
             let own = self.workgroup_word(ResourceKind::Warp, 2 * MAX_INVOCATIONS, index);
