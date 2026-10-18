@@ -16,10 +16,10 @@ Columns: words = 128-bit instructions; regs = highest R referenced + 1 (64/128-b
 | dungeon_cones_rt.vert | 215 | 23 | 0/0 | 0x1d: 0x28 0xa0 0xa8 | 0x0 0x1 | a54633dc25851d3c75652fb4e8d129b78c682f3c31c11735fe10f453c811872c |
 | dungeon_cones_rt.frag | 9504 | 70 | 0/0 | 0x1d: 0x28 0x30 0x38 0x40 0x44 0x50 0x58 0x60 0x68 0x70 0x78 0x80 0x88 0x90 0x98 | 0x1 | 54c59446a640e6b41d4c2a83133bd8c9f6e593c9b0ec11e968f9200728acbe8b |
 | dungeon_sprite.vert | 190 | 30 | 0/0 | 0x1d: 0x8 0x30 0x38 | 0x0 0x1 | edfaadf23d7db44f32b2a3496fd7bad5d653227368ef8f4aec0091ca878662c9 |
-| dungeon_sprite.frag | 1097 | 38 | 0/0 | 0x1d: 0x8 0x10 0x18 0x20 0x28 | - | 25ab3391968bbb456bc7841cf5936202a550154487d7155d4ed7ee0e97048fc1 |
+| dungeon_sprite.frag | 1097 | 38 | 0/0 | 0x1d: 0x8 0x10 0x18 0x20 0x28 | - | 862409ca3ab36ceda979039c2a041bb6dfca78753b1d579d3fd1c594e9461ed6 |
 | dungeon_water.comp | 160 | 24 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 | - | 876230f1259de6e63451428321184579205d76cdc4c21781c191d2af98df12a8 |
 | dungeon_light.comp | 80 | 10 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | b210ef77cd81aec36690528bd79122dc978509f473ff57ff3c84c08e688c7fb5 |
-| dungeon_particles.comp | 1872 | 62 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | b80c2e4ea101e61918b31f4ad23f2d5287ddedf84d289b6e48c28c95dd27cd53 |
+| dungeon_particles.comp | 1872 | 62 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | a2936a12913d4e9c2490de715c32c0f97efb1e1cf0b0af3b564b4e718c06664b |
 | dungeon_fog.comp | 598 | 43 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 | - | 1316c063061a3c21f1b16e0f7883c0ec0ea77171a7030d972a46fd24cba9ecd3 |
 | dungeon_post.comp | 841 | 70 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 0x80 0x88 | - | 1380632ffe4e70b5a095ffb2c588a4c51d58c5dadcd9fdc5030d793cea4c64fd |
 
