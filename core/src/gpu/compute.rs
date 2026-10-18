@@ -616,7 +616,11 @@ impl VkState {
             d.queue_submit(self.queue, &submit_info, fence)?;
             submitted = start.elapsed().as_secs_f64() * 1000.;
             d.wait_for_fences(&[fence], true, u64::MAX)?;
-            d.get_query_pool_results(queries, 0, &mut ticks, vk::QueryResultFlags::TYPE_64)?;
+            if let Err(error) = d.get_query_pool_results(queries, 0, &mut ticks, vk::QueryResultFlags::TYPE_64)
+                && error != vk::Result::NOT_READY
+            {
+                return Err(error.into());
+            }
         }
         HOST_TIMINGS.with(|t| { let mut v=t.get(); v[0]+=encoded; v[1]+=submitted-encoded; v[2]+=start.elapsed().as_secs_f64()*1000.-submitted; v[3]+=1.; t.set(v); });
         submit.gpu_time_ns = (ticks[1].wrapping_sub(ticks[0]) as f64 * f64::from(self.timestamp_period)) as u64;
