@@ -62,7 +62,7 @@ fn guest_dungeon_spatializer_matches_host_pcm() {
         guest.finish_block(&mut guest_out);
         for (sample, (host, guest)) in host_out.iter().flatten().zip(guest_out.iter().flatten()).enumerate() {
             let pcm = |sample: f32| (sample.clamp(-1.0, 1.0) * 32767.0) as i16;
-            assert!(pcm(*host).abs_diff(pcm(*guest)) <= 1, "block {block} sample {sample}: {host} != {guest}");
+            assert_eq!(pcm(*host), pcm(*guest), "block {block} sample {sample}: {host} != {guest}");
         }
     }
 }
@@ -147,7 +147,7 @@ fn guest_dungeon_events_match_round_five_pcm() {
             (limited * 32767.0) as i16
         }));
         for (sample, (expected, actual)) in expected.iter().flatten().zip(actual.iter().flatten()).enumerate() {
-            assert!(expected.abs_diff(*actual) <= 1, "block {block} sample {sample}: {expected} != {actual}");
+            assert_eq!(expected, actual, "block {block} sample {sample}: {expected} != {actual}");
         }
     }
 }
