@@ -94,7 +94,7 @@ impl<'a> Scene<'a> {
 
     /// Turns the model to `seconds` at 0.8 rad/s, draws every primitive and waits for the frame's report.
     pub fn frame(&mut self, seconds: f32) -> Result<(), String> {
-        let model = if self.boombox { scene::pbr::boombox_model(self.fit, seconds) } else { scene::pbr::model(self.fit, scene::pbr::sin_cos(seconds * 0.8 + if self.room { std::f32::consts::PI } else { 0.0 })) };
+        let model = if self.boombox { scene::pbr::boombox_model(self.fit, seconds) } else if self.room { scene::pbr::room_model(self.fit, seconds) } else { scene::pbr::model(self.fit, scene::pbr::sin_cos(seconds * 0.8)) };
         if self.traced {
             self.geometry[0].transform = std::array::from_fn(|row| std::array::from_fn(|col| model[col][row]));
             self.gpu.register_acceleration_structure(TLAS, self.geometry.clone()).map_err(|e| format!("{e:?}"))?;
@@ -151,10 +151,6 @@ fn render(asset: &'static str, seconds: f32) -> Result<(), String> {
     let (_, scene) = slot.as_mut().unwrap();
     scene.frame(seconds)?;
     scene.gpu.present(scene.target, WIDTH, HEIGHT).map_err(|e| format!("{e:?}"))
-}
-
-pub fn render_boombox_frame(seconds: f32) -> Result<(), String> {
-    render("boombox", seconds)
 }
 
 pub fn render_raytraced_frame(seconds: f32) -> Result<(), String> {

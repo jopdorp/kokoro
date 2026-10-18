@@ -143,15 +143,19 @@ pub fn load(read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: 
         let mut room_draws = Vec::new();
         if room {
             let mut room_indices = Vec::new();
+            let ([width, height, depth], floor) = (ROOM_SIZE, -1.0);
+            let (x, y, z) = (width * 0.5, floor + height, depth * 0.5);
             for (corners, normal) in [
-                ([[-3.0, -1.0, -3.0], [3.0, -1.0, -3.0], [3.0, -1.0, 3.0], [-3.0, -1.0, 3.0]], [0.0, 1.0, 0.0]),
-                ([[-3.0, -1.0, 3.0], [-3.0, -1.0, -3.0], [-3.0, 3.0, -3.0], [-3.0, 3.0, 3.0]], [1.0, 0.0, 0.0]),
-                ([[3.0, -1.0, -3.0], [3.0, -1.0, 3.0], [3.0, 3.0, 3.0], [3.0, 3.0, -3.0]], [-1.0, 0.0, 0.0]),
-                ([[-3.0, -1.0, -3.0], [3.0, -1.0, -3.0], [3.0, 3.0, -3.0], [-3.0, 3.0, -3.0]], [0.0, 0.0, 1.0]),
-                ([[-3.0, 3.0, -3.0], [3.0, 3.0, -3.0], [3.0, 3.0, 3.0], [-3.0, 3.0, 3.0]], [0.0, -1.0, 0.0]),
+                ([[-x, floor, -z], [x, floor, -z], [x, floor, z], [-x, floor, z]], [0.0, 1.0, 0.0]),
+                ([[-x, floor, z], [-x, floor, -z], [-x, y, -z], [-x, y, z]], [1.0, 0.0, 0.0]),
+                ([[x, floor, -z], [x, floor, z], [x, y, z], [x, y, -z]], [-1.0, 0.0, 0.0]),
+                ([[-x, floor, -z], [x, floor, -z], [x, y, -z], [-x, y, -z]], [0.0, 0.0, 1.0]),
+                ([[-x, y, -z], [x, y, -z], [x, y, z], [-x, y, z]], [0.0, -1.0, 0.0]),
             ] { room_draws.push(quad(&mut vertices, &mut room_indices, corners, normal)); }
-            room_draws.push(sphere(&mut vertices, &mut room_indices, [-1.65, -0.35, -0.55], 0.65));
-            room_draws.push(sphere(&mut vertices, &mut room_indices, [1.65, -0.35, -0.45], 0.65));
+            let [rug_x, rug_z] = ROOM_RUG.map(|v| v * 0.5);
+            room_draws.push(quad(&mut vertices, &mut room_indices, [[-rug_x, floor + 0.01, -rug_z], [rug_x, floor + 0.01, -rug_z], [rug_x, floor + 0.01, rug_z], [-rug_x, floor + 0.01, rug_z]], [0.0, 1.0, 0.0]));
+            room_draws.push(sphere(&mut vertices, &mut room_indices, [-1.35, -0.5, -0.55], 0.5));
+            room_draws.push(sphere(&mut vertices, &mut room_indices, [1.35, -0.5, -0.45], 0.5));
             room_draws.push(sphere(&mut vertices, &mut room_indices, [0.0; 3], 0.12));
             indices.extend(bytes(&room_indices));
         }
