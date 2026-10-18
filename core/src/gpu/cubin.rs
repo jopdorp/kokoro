@@ -1,7 +1,5 @@
 //! Kernels of nvcc-built sm_8x cubins, read from the ELF64 sections `.text.<kernel>`, `.nv.info.<kernel>`,
 //! `.nv.constant<bank>[.<kernel>]` and `.nv.shared.<kernel>`, and the constant banks the CUDA driver launches them with.
-use super::sm86::SHARED_WORDS;
-
 const SHT_NOBITS: usize = 8;
 const EIFMT_SVAL: usize = 4;
 const EIATTR_PARAM_CBANK: usize = 0x0a;
@@ -10,6 +8,7 @@ const LOCAL_BYTES: u32 = 0x1000;
 
 pub struct Kernel {
     pub words: Vec<u128>,
+    pub shared_bytes: u32,
     /// Every constant bank the cubin initialises for the kernel in bank order, bank 0 first and ending in the parameter area.
     pub banks: Vec<(u32, Vec<u8>)>,
     /// Offset in bank 0 and size of each parameter, in parameter order.
@@ -50,8 +49,7 @@ impl Kernel {
             let kernels: Vec<_> = sections.iter().filter_map(|s| s.0.strip_prefix(".text.")).collect();
             return Err(format!("no kernel {name} in the cubin, it has {kernels:?}"));
         };
-        let shared = section(".nv.shared").map_or(0, |s| s.2);
-        assert!(shared <= 4 * SHARED_WORDS as usize, "{name} declares {shared} bytes of shared memory, the translator has {}", 4 * SHARED_WORDS);
+        let shared_bytes = section(".nv.shared").map_or(0, |s| s.2).try_into().map_err(|_| "shared memory size does not fit u32")?;
         let info = section(".nv.info").ok_or(format!("{name} has no .nv.info"))?.1;
         let (mut base, mut params, mut at) = (0, Vec::new(), 0);
         while at < info.len() {
@@ -77,6 +75,7 @@ impl Kernel {
         }
         Ok(Self {
             words: text.chunks_exact(16).map(|word| u128::from_le_bytes(word.try_into().unwrap())).collect(),
+            shared_bytes,
             banks,
             params: params.into_iter().map(|(_, offset, size)| (base + offset, size)).collect(),
         })

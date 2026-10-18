@@ -520,10 +520,14 @@ impl<'a> ComputePipeline<'a> {
         let set_layouts = [p.descriptors.set_layout];
         let layout_info = vk::PipelineLayoutCreateInfo::default().set_layouts(&set_layouts);
         p.layout = unsafe { d.create_pipeline_layout(&layout_info, None)? };
-        let stage = vk::PipelineShaderStageCreateInfo::default()
+        let mut stage = vk::PipelineShaderStageCreateInfo::default()
             .stage(vk::ShaderStageFlags::COMPUTE)
             .module(p.shader)
             .name(c"main");
+        let mut subgroup = vk::PipelineShaderStageRequiredSubgroupSizeCreateInfo::default().required_subgroup_size(32);
+        if state.subgroup_size_control_32 && spirv[5..].windows(2).any(|words| words == [2 << 16 | 17, crate::gpu::spirv::capability::GROUP_NON_UNIFORM_SHUFFLE]) {
+            stage = stage.push_next(&mut subgroup);
+        }
         let info = [vk::ComputePipelineCreateInfo::default()
             .stage(stage)
             .layout(p.layout)];

@@ -85,8 +85,10 @@ mod tests {
         gpu.write(INDICES, &bytes(&(0..9).collect::<Vec<_>>())).unwrap();
         let identity = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]];
         for (tlas, tris) in [(TLAS_ONE, 1), (TLAS_THREE, 3)] {
-            let geometry = Geometry { vertices: VERTICES, stride: 12, vertex_count: 3 * tris, indices: INDICES, index_count: 3 * tris, transform: identity, opaque: false };
-            gpu.register_acceleration_structure(tlas, vec![geometry]).unwrap();
+            let geometry = scene::pbr::AccelerationStructureGeometry { vertices: VERTICES, stride: 12, vertex_count: 3 * tris, indices: INDICES, index_count: 3 * tris, transform: identity, opaque: false };
+            let mut registry = Vec::new();
+            scene::pbr::acceleration_structure_registry(&[geometry], &mut registry);
+            gpu.write(tlas, &bytes(&registry)).unwrap();
             // The captured driver reads the guest instance's world-to-object rows after traversal.
             gpu.write(tlas + 0x190, &identity.as_flattened().iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<_>>()).unwrap();
         }

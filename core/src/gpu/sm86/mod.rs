@@ -12,6 +12,7 @@ mod access;
 mod atomics;
 mod cfg;
 pub use cfg::{plan, Translation};
+use cfg::plan_with_collectives;
 mod compare;
 mod control;
 mod convert;
@@ -195,6 +196,7 @@ pub struct Decoder<'a> {
     type_ptr_local: u32,
     locals: Option<Locals>,
     pending_nan: BTreeMap<u32, u32>,
+    shared_words: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -203,11 +205,12 @@ pub struct Hints {
     pub translation: Translation,
     pub tensor: TensorMode,
     pub ray_budget: u32,
+    pub shared_words: u32,
 }
 
 impl Default for Hints {
     fn default() -> Self {
-        Self { timing: false, translation: Translation::default(), tensor: TensorMode::default(), ray_budget: crate::gpu::SPEED_HACKS.lock().unwrap().ray_budget }
+        Self { timing: false, translation: Translation::default(), tensor: TensorMode::default(), ray_budget: crate::gpu::SPEED_HACKS.lock().unwrap().ray_budget, shared_words: 0 }
     }
 }
 
@@ -278,6 +281,10 @@ fn access_words(sz: u32) -> u32 {
 fn assert_round_to_nearest(inst: u128) {
     let mode = (inst >> 78 & 3) as usize;
     assert!(mode == 0, "{} rounding mode is not implemented", ["RN", "RM", "RP", "RZ"][mode]);
+}
+
+fn accept_nearest_for_directed_rounding() {
+    // Vulkan SPIR-V cannot select rounding per arithmetic operation, so directed forms use round-to-nearest.
 }
 
 fn deferred_nan(inst: u128) -> bool {
@@ -418,6 +425,7 @@ impl<'a> Decoder<'a> {
             type_ptr_local: 0,
             locals: None,
             pending_nan: BTreeMap::new(),
+            shared_words: hints.shared_words.max(SHARED_WORDS),
             timing: if !hints.timing { Timing::Off } else if let Some(device) = device.filter(|d| d.shader_device_clock) {
                 Timing::Clock { period: device.timestamp_period, emitted: false }
             } else {
@@ -633,10 +641,15 @@ impl<'a> Decoder<'a> {
                 })
             }).collect();
         }
-        let invocation = self.builtin(spirv::BuiltIn::LocalInvocationIndex);
-        let flags = self.cached_const_u32(MAX_INVOCATIONS);
         let val = self.ir.emit_select(ty, self.active, val, self.const_u32_0);
         let flag = self.bool_bit(self.active);
+        if self.tensor == TensorMode::Fast && self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle) {
+            self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM_SHUFFLE);
+            let scope = self.cached_const_u32(spirv::scope::SUBGROUP);
+            return lanes.iter().map(|&lane| [val, flag].map(|word| self.ir.emit_group_non_uniform_shuffle(ty, scope, word, lane))).collect();
+        }
+        let invocation = self.builtin(spirv::BuiltIn::LocalInvocationIndex);
+        let flags = self.cached_const_u32(MAX_INVOCATIONS);
         for (word, offset) in [(val, self.const_u32_0), (flag, flags)] {
             let index = self.ir.emit_iadd(ty, invocation, offset);
             let own = self.workgroup_word(ResourceKind::Warp, 2 * MAX_INVOCATIONS, index);
@@ -710,7 +723,9 @@ impl<'a> Decoder<'a> {
             if reg != RZ { self.nan_flag(reg); }
         }
         if self.translation != Translation::ForceDispatcher {
-            match plan(words) {
+            let collectives = self.tensor == TensorMode::Fast && words.iter().any(|&inst| matches!(opcode(inst), 0x23c | 0x83b))
+                && self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle);
+            match plan_with_collectives(words, collectives) {
                 Ok(plan) => return self.translate_structured(words, &plan),
                 Err(reason) => assert!(self.translation == Translation::Auto, "no structured translation: {reason}"),
             }

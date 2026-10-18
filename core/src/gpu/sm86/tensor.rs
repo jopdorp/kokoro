@@ -350,6 +350,7 @@ impl<'a> Decoder<'a> {
             const VULKAN: u32 = 3;
             self.ir.emit_capability(spirv::capability::COOPERATIVE_MATRIX);
             self.ir.emit_capability(spirv::capability::VULKAN_MEMORY_MODEL);
+            self.ir.emit_capability(spirv::capability::VULKAN_MEMORY_MODEL_DEVICE_SCOPE);
             self.ir.emit_extension("SPV_KHR_cooperative_matrix");
             self.ir.emit_memory_model(0, VULKAN);
         }

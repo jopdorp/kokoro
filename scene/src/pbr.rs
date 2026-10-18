@@ -23,6 +23,16 @@ pub const RAY_CONSTANTS: u64 = TLAS + 0x800;
 pub const ACCELERATION_STRUCTURE_MAGIC: u32 = u32::from_le_bytes(*b"OAS1");
 pub const GEOMETRY_WORDS: usize = 20;
 #[derive(Clone, Copy)]
+pub struct AccelerationStructureGeometry {
+    pub vertices: u64,
+    pub stride: u32,
+    pub vertex_count: u32,
+    pub indices: u64,
+    pub index_count: u32,
+    pub opaque: bool,
+    pub transform: [[f32; 4]; 3],
+}
+#[derive(Clone, Copy)]
 pub struct RayGeometry {
     pub model_vertices: u32,
     pub model_indices: u32,
@@ -37,7 +47,7 @@ pub const ROOM_MATERIALS: [([u8; 3], f32, f32); 8] = [
     ([28, 31, 38], 0.75, 0.18), ([150, 18, 24], 0.0, 0.72), ([20, 112, 52], 0.0, 0.72),
     ([218, 205, 174], 0.0, 0.72), ([226, 215, 188], 0.0, 0.8), ([205, 218, 232], 1.0, 0.06),
     ([120, 195, 220], 0.2, 0.42),
-    ([80, 190, 255], 0.0, 0.25),
+    ([255, 190, 96], 0.0, 0.25),
 ];
 
 // The driver's bank 0x1d: TEX handle k at +4k in GLSL declaration order, the binding 1 block's address at +0x18
@@ -98,34 +108,39 @@ pub fn view_projection(width: u32, height: u32, eye: [f32; 3], sqrt: impl Fn(f32
     multiply(projection, view)
 }
 
-pub fn room_frame(seconds: f32, traced: bool, sqrt: impl Fn(f32) -> f32) -> ([f32; 3], [f32; 16], f32) {
+pub fn room_frame(seconds: f32, traced: bool, sqrt: impl Fn(f32) -> f32) -> ([f32; 3], [f32; 16], [f32; 3]) {
     let (camera, _) = sin_cos(seconds * 0.18);
     let (orbit, orbit_cos) = sin_cos(seconds * 0.45);
     let (bob, _) = sin_cos(seconds * 1.4);
     let eye = [camera * 0.55, ROOM_EYE[1], ROOM_EYE[2]];
-    let key = [orbit * 1.8, 2.15 + bob * 0.12, 0.4 + 1.25 * orbit_cos];
+    let key = [orbit * 2.4, 0.05 + bob * 0.16, 0.4 + 1.25 * orbit_cos];
     let length = sqrt(key.iter().map(|v| v * v).sum());
     let cool = [-1.65, 0.7 + 0.25 * bob, -0.55, 0.12];
     let light = if traced { [key[0], key[1], key[2], 0.32] } else { [key[0] / length, key[1] / length, key[2] / length, 0.0] };
     let mut head = [0.0; 16];
     head[..4].copy_from_slice(&light);
-    head[4..8].copy_from_slice(&[4.1, 3.5, 3.0, 0.0]);
+    head[4..8].copy_from_slice(&[10.5, 8.2, 5.6, 0.0]);
     head[8..12].copy_from_slice(if traced { &cool } else { &[0.17, 0.18, 0.22, 0.0] });
     head[12..].copy_from_slice(&[eye[0], eye[1], eye[2], 1.0]);
-    (eye, head, cool[1])
+    (eye, head, key)
 }
 
 pub fn acceleration_structure(model: Matrix, layout: RayGeometry, words: &mut impl Extend<u32>) {
-    words.extend([ACCELERATION_STRUCTURE_MAGIC, 2]);
-    let mut geometry = |vertex_count, indices, index_count, transform: [[f32; 4]; 3]| {
-        words.extend(split(VERTICES));
-        words.extend([48, vertex_count]);
-        words.extend(split(indices));
-        words.extend([index_count, 1]);
-        words.extend(transform.into_iter().flatten().map(f32::to_bits));
-    };
-    geometry(layout.model_vertices, layout.indices_va, layout.model_indices, core::array::from_fn(|row| core::array::from_fn(|column| model[column][row])));
-    geometry(layout.vertex_count, layout.indices_va + (u64::from(layout.model_indices) + 30) * 4, layout.index_count - layout.model_indices - 30 - layout.light_count, [IDENTITY[0], IDENTITY[1], IDENTITY[2]]);
+    acceleration_structure_registry(&[
+        AccelerationStructureGeometry { vertices: VERTICES, stride: 48, vertex_count: layout.model_vertices, indices: layout.indices_va, index_count: layout.model_indices, opaque: true, transform: core::array::from_fn(|row| core::array::from_fn(|column| model[column][row])) },
+        AccelerationStructureGeometry { vertices: VERTICES, stride: 48, vertex_count: layout.vertex_count, indices: layout.indices_va + (u64::from(layout.model_indices) + 30) * 4, index_count: layout.index_count - layout.model_indices - 30 - layout.light_count, opaque: true, transform: [IDENTITY[0], IDENTITY[1], IDENTITY[2]] },
+    ], words);
+}
+
+pub fn acceleration_structure_registry(geometry: &[AccelerationStructureGeometry], words: &mut impl Extend<u32>) {
+    words.extend([ACCELERATION_STRUCTURE_MAGIC, geometry.len() as u32]);
+    for geometry in geometry {
+        words.extend(split(geometry.vertices));
+        words.extend([geometry.stride, geometry.vertex_count]);
+        words.extend(split(geometry.indices));
+        words.extend([geometry.index_count, u32::from(geometry.opaque)]);
+        words.extend(geometry.transform.into_iter().flatten().map(f32::to_bits));
+    }
 }
 
 pub fn init(width: u32, height: u32, target: u64, vertex_bytes: u64, indices_va: u64, textures: u32, words: &mut impl Extend<u32>) {
@@ -164,7 +179,7 @@ pub fn init(width: u32, height: u32, target: u64, vertex_bytes: u64, indices_va:
     inc(SET_TEX_HEADER_POOL_A, &[tic_pool[0], tic_pool[1], textures - 1], words);
     inc(SET_TEX_SAMPLER_POOL_A, &[tsc_pool[0], tsc_pool[1], 0], words);
 }
-pub fn draw<'a>(uniforms: &[u32; 32], view_proj: Matrix, draws: &[[u32; 3]], blends: impl Fn(usize) -> Option<&'a [u32]>, room: bool, traced: bool, model_indices: u32, light_first: u32, light_y: f32, payload: u32, words: &mut impl Extend<u32>) {
+pub fn draw<'a>(uniforms: &[u32; 32], view_proj: Matrix, draws: &[[u32; 3]], blends: impl Fn(usize) -> Option<&'a [u32]>, room: bool, traced: bool, model_indices: u32, light_first: u32, light_position: [f32; 3], payload: u32, words: &mut impl Extend<u32>) {
     const CLEAR_Z_AND_RGBA: u32 = 0x3d;
     const TRIANGLES: u32 = 4;
     const ONE_WORD: u32 = 1 << 28;
@@ -192,7 +207,7 @@ pub fn draw<'a>(uniforms: &[u32; 32], view_proj: Matrix, draws: &[[u32; 3]], ble
         }
         if room && first >= model_indices {
             let mut object = IDENTITY;
-            if first == light_first { object[3] = [-1.65, light_y, -0.55, 1.0]; }
+            if first == light_first { object[3] = [light_position[0], light_position[1], light_position[2], 1.0]; }
             let uniforms = core::array::from_fn::<_, 32, _>(|i| [object, view_proj].as_flattened().as_flattened()[i].to_bits());
             inc(SET_CONSTANT_BUFFER_SELECTOR_A, &[128, split(VERTEX_UNIFORMS)[0], split(VERTEX_UNIFORMS)[1], 0], words);
             non_inc(LOAD_CONSTANT_BUFFER, &uniforms, words);

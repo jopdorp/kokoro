@@ -85,7 +85,9 @@ pub mod capability {
     pub const RAY_QUERY: u32 = 4472;
     pub const COOPERATIVE_MATRIX: u32 = 6022;
     pub const VULKAN_MEMORY_MODEL: u32 = 5345;
+    pub const VULKAN_MEMORY_MODEL_DEVICE_SCOPE: u32 = 5346;
     pub const SHADER_CLOCK: u32 = 5055;
+    pub const DEMOTE_TO_HELPER_INVOCATION: u32 = 5379;
 }
 
 pub mod storage_class {
@@ -1136,6 +1138,10 @@ impl Emitter {
 
     pub fn emit_kill(&mut self) {
         self.inst(252, &[]);
+    }
+
+    pub fn emit_demote_to_helper_invocation(&mut self) {
+        self.inst(5380, &[]);
     }
 
     pub fn validate(&self) {
