@@ -20,7 +20,7 @@ pub fn load_segments(ram: &GuestRam, base: u64, segments: &[(u64, &[u8])]) -> Op
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet }
+pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet , Post }
 
 pub struct Machine {
     cpus: crate::cpu::cpu_manager::CpuManager,
@@ -35,6 +35,7 @@ impl Machine {
         let (name, image): (_, &[u8]) = match demo {
             Demo::BoomBox => ("boombox.nro", include_bytes!("../tests/fixtures/guest/boombox.nro")),
             Demo::Helmet => ("helmet.nro", include_bytes!("../tests/fixtures/guest/helmet.nro")),
+            Demo::Post => ("post.nro", include_bytes!("../tests/fixtures/guest/post.nro")),
             Demo::Bounce => ("bounce.nro", include_bytes!("../tests/fixtures/guest/bounce.nro")),
             Demo::Triangle => ("triangle.nro", include_bytes!("../tests/fixtures/guest/triangle.nro")),
             Demo::Sprites => ("sprites.nro", include_bytes!("../tests/fixtures/guest/sprites.nro")),
@@ -169,6 +170,19 @@ mod tests {
         let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
         assert_eq!(digest(frame.pixels()), digest(&expected));
         println!("guest and host helmet FNV-1a: {:016x}", digest(&expected));
+    }
+
+    #[test]
+    fn guest_post_matches_host_frame() {
+        let _display = DISPLAY_TEST.lock().unwrap();
+        crate::gpu::demo_post::render_post_frame(1.0).unwrap();
+        let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
+        let mut guest = Machine::demo(Demo::Post).unwrap();
+        for _ in 0..=60 { guest.frame().unwrap(); }
+        let mut frame = crate::display::DISPLAY.lock().unwrap();
+        let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
+        assert_eq!(digest(frame.pixels()), digest(&expected));
+        println!("guest and host post FNV-1a: {:016x}", digest(&expected));
     }
 
     #[test]
