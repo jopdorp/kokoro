@@ -121,6 +121,10 @@ pub fn instruments() -> Vec<Vec<i16>> {
 }
 
 
+pub fn knock() -> Vec<i16> {
+    let time = (0..6000).map(|n| n as f32 / 48000.0);
+    pcm(time.map(|t| 0.7 * (TAU * 520.0 * t).sin() * (-45.0 * t).exp() + 0.3 * (TAU * 1390.0 * t).sin() * (-70.0 * t).exp()))
+}
 pub fn biquad() -> [u8; 10] {
     let omega = TAU * 7000.0 / 48000.0;
     let (alpha, cos) = (omega.sin() * FRAC_1_SQRT_2, omega.cos());
