@@ -213,6 +213,8 @@ bool oboromi_render_test_frame();
 /// is missing or the dispatch fails. blocks, so call it from a worker thread.
 bool oboromi_render_demo_frame(float seconds);
 
+bool oboromi_render_mandelbrot_frame(float seconds);
+
 /// draws the pushbuffer triangle demo at `seconds` and presents it, false if
 /// vulkan is missing or the draw fails. blocks, so call it from a worker thread.
 bool oboromi_render_triangle_demo(float seconds);
@@ -284,6 +286,12 @@ void *oboromi_vk_instance();
 /// pixels. call it again on resize and expose, and with a null surface before destroying it.
 /// false if the device cannot present to it.
 bool oboromi_display_surface(uint64_t surface, uint32_t width, uint32_t height);
+
+/// `fast` trades exact HMMA accumulation for speed in every translation from now on.
+void oboromi_set_tensor_mode(bool fast);
+
+/// keeps at most `sites` ray-query sites per shader in engines created from now on.
+void oboromi_set_ray_budget(uint32_t sites);
 
 /// skips draws while their pipelines compile in engines created from now on.
 void oboromi_set_skip_draw_while_compiling(bool skip);
