@@ -468,6 +468,7 @@ impl<'a> Decoder<'a> {
             0 | 17 if matches!(self.stage, Stage::TessControl { .. }) => self.builtin(BuiltIn::InvocationId),
             17 if matches!(self.stage, Stage::Geometry { .. }) => self.builtin(BuiltIn::InvocationId),
             0 if matches!(self.stage, Stage::TessEval { .. }) => self.const_u32_0,
+            0 if matches!(self.stage, Stage::Fragment { .. }) => self.builtin(BuiltIn::SubgroupLocalInvocationId),
             16 | 29 if matches!(self.stage, Stage::TessControl { .. } | Stage::TessEval { .. }) || index == 29 && matches!(self.stage, Stage::Geometry { .. }) => {
                 let vertices = match self.stage {
                     Stage::Geometry { input, .. } => self.cached_const_u32(geometry_input(input).1),

@@ -9,6 +9,7 @@ mod convert;
 mod demos_particles;
 mod demos_post;
 mod demos_sprites;
+mod dungeon;
 mod fifo;
 mod fixtures;
 pub mod fp;
