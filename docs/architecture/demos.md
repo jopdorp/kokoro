@@ -100,7 +100,7 @@ flowchart LR
 | particles | Particles moved by a compute shader, drawn as glowing instanced squares | particles_update.comp, particles.vert, particles.frag |
 | sprites2d | Scrolling hill layers and floating sprites, blended over a sky | sprite2d.vert, sprite2d.frag |
 | pbr-flighthelmet | The FlightHelmet model through the same PBR shaders, one draw per material | pbr.vert, pbr.frag |
-| raytraced | BoomBox in a red and green room with moving light, ray-query shadows, reflections and ambient occlusion | pbr.vert, rt.frag |
+| raytraced | BoomBox in a red and green room with soft ray-query shadows, mirror, glass, glossy floor reflections, ambient occlusion and bounced wall colour | pbr.vert, rt.frag |
 
 The ray-traced scene runs through `demo::render_raytraced_frame` or the `capture` example with `raytraced`. It requires ray queries and fragment subgroup operations.
 
@@ -120,7 +120,7 @@ The ray-traced scene runs through `demo::render_raytraced_frame` or the `capture
 
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced.mp4" type="video/mp4"></video>
 
-*Ray-traced BoomBox: Red and green walls frame glossy floor reflections while warm and cool moving lights sweep shadows across the room.*
+*Ray-traced BoomBox: The shaders are Switch 2 shader machine code from the NVIDIA driver, run through our translator. The chrome sphere mirrors the room. The glass sphere bends the wall. Soft shadows cross the scene, and the floor is glossy. We rendered this offline on an RTX 3090 because the Intel laptop GPU cannot run this shader at full resolution yet. This demo still builds its command stream on the host. The translator bug found this round made a compare instruction write a mask instead of 1.0. It is fixed on both branches.*
 
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-helmet-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-helmet.mp4" type="video/mp4"></video>
 
