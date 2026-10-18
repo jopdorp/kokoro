@@ -57,7 +57,7 @@ pub fn scale(a: V3, s: f32) -> V3 {
 pub fn dot(a: V3, b: V3) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
-fn cross(a: V3, b: V3) -> V3 {
+pub fn cross(a: V3, b: V3) -> V3 {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -78,7 +78,7 @@ fn smooth(e0: f32, e1: f32, x: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
-fn smoother(t: f32) -> f32 {
+pub fn smoother(t: f32) -> f32 {
     let t = t.clamp(0.0, 1.0);
     t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
 }
@@ -154,115 +154,85 @@ pub struct TourPose {
 }
 
 pub fn tour_pose(world: &World, seconds: f32) -> TourPose {
-    let start = world.path[3];
     let doorway = [
         world.zones[world.cave].space.lo[0] - 0.4,
         0.0,
         world.path[5][2],
     ];
-    let inside = add(doorway, [3.0, 0.0, -0.3]);
+    let start = add(doorway, [-14.7, 0.0, 0.0]);
     let bridge = world.bridge.centre();
     let bridge_start = [bridge[0], 0.0, world.bridge.lo[2] - 0.35];
-    let bank = add(bridge_start, [2.0, 0.0, 0.0]);
-    let far_bank = [bridge[0], 0.0, world.bridge.hi[2] + 0.35];
-    let (eye, travelled, pace) = if seconds < 6.0 {
+    let entrance = [doorway, doorway, bridge_start, bridge_start];
+    let far_bank = add(bridge_start, [0.0, 0.0, 4.5]);
+    let (eye, travelled, pace) = if seconds < 8.0 {
         (start, 0.0, 0.0)
-    } else if seconds < 18.0 {
-        let curve = [
-            start,
-            [start[0] + 3.7, 0.0, start[2] - 0.3],
-            [doorway[0] - 4.0, 0.0, doorway[2]],
-            doorway,
-        ];
-        let (t, speed) = motion(seconds, 6.0, 18.0, 0.75);
-        let (eye, distance) = bezier_distance(curve, t);
+    } else if seconds < 30.0 {
+        let (t, speed) = motion(seconds, 8.0, 30.0, 1.0);
+        let (eye, distance) = bezier_distance([start, start, doorway, doorway], t);
         (eye, t * distance, speed * distance)
-    } else if seconds < 21.0 {
-        (doorway, 11.2, 0.0)
-    } else if seconds < 26.0 {
-        let (t, speed) = motion(seconds, 21.0, 26.0, 0.8);
-        (mix3(doorway, inside, t), 11.2 + t * 3.0, speed * 3.0)
-    } else if seconds < 40.0 {
-        let cave = world.zones[world.cave].space;
-        let curve = [
-            inside,
-            [cave.hi[0] - 8.5, 0.0, cave.lo[2] + 3.0],
-            [cave.hi[0] - 8.0, 0.0, bank[2]],
-            bank,
-        ];
-        let (t, speed) = motion(seconds, 26.0, 40.0, 1.0);
-        let (eye, distance) = bezier_distance(curve, t);
-        (eye, 14.2 + t * distance, speed * distance)
-    } else if seconds < 54.0 {
-        (bank, 24.7, 0.0)
-    } else if seconds < 56.0 {
-        let (t, speed) = motion(seconds, 54.0, 56.0, 0.18);
-        (mix3(bank, bridge_start, t), 24.7 + t * 2.0, speed * 2.0)
+    } else if seconds < 36.0 {
+        (doorway, 14.7, 0.0)
+    } else if seconds < 46.0 {
+        let (t, speed) = motion(seconds, 36.0, 46.0, 0.8);
+        let (eye, distance) = bezier_distance(entrance, t);
+        (eye, 14.7 + t * distance, speed * distance)
+    } else if seconds < 64.0 {
+        (bridge_start, 20.2, 0.0)
     } else {
-        let distance = length(sub(far_bank, bridge_start));
-        let (t, speed) = motion(seconds, 56.0, 62.0, 0.8);
-        (
-            mix3(bridge_start, far_bank, t),
-            26.7 + t * distance,
-            speed * distance,
-        )
+        let (t, speed) = motion(seconds, 64.0, 72.0, 0.5);
+        (mix3(bridge_start, far_bank, t), 20.2 + t * 4.5, speed * 4.5)
     };
     let bob = if pace > 0.01 {
-        0.02 * (pace / 0.8).min(1.0) * (travelled * TAU / 0.75).sin()
+        0.02 * (travelled * TAU / 0.54).sin()
     } else {
         0.0
     };
     let eye = add(eye, [0.0, EYE + bob, 0.0]);
-    let room_look = smoother(seconds / 6.0);
-    let mut yaw = (10.0 + 50.0 * room_look).to_radians();
-    let mut pitch = (-2.0 + 4.0 * (PI * room_look).sin()).to_radians();
-    if seconds >= 6.0 {
-        yaw = (60.0 + 30.0 * smoother((seconds - 6.0) / 3.0)).to_radians();
-        pitch *= 1.0 - smoother((seconds - 6.0) / 2.0);
-    }
-    if (11.25..12.75).contains(&seconds) {
-        let torch = world
-            .sources
-            .iter()
-            .filter(|source| source.0 == Sfx::Torch)
-            .min_by(|a, b| length(sub(a.1, eye)).total_cmp(&length(sub(b.1, eye))))
-            .unwrap()
-            .1;
-        let glance = (PI * (seconds - 11.25) / 1.5).sin().powi(2);
-        let look = sub(torch, eye);
-        let torch_yaw = look[0].atan2(-look[2]);
-        let delta = (torch_yaw - yaw + PI).rem_euclid(TAU) - PI;
-        yaw += delta.clamp(-0.18, 0.18) * glance;
-        let torch_pitch = look[1]
-            .atan2((look[0] * look[0] + look[2] * look[2]).sqrt())
-            .clamp(-0.15, 0.18);
-        pitch += (torch_pitch - pitch).clamp(-0.07, 0.07) * glance;
-    }
-    if seconds >= 18.0 {
+    let mut yaw = (82.0 + 8.0 * smoother(seconds / 8.0)).to_radians();
+    let mut pitch = (2.0 * (PI * (seconds / 8.0).clamp(0.0, 1.0)).sin()).to_radians();
+    if seconds >= 8.0 {
         yaw = PI / 2.0;
         pitch = 0.0;
     }
-    if seconds >= 26.0 {
-        let reveal = smoother((seconds - 26.0) / 6.0);
-        pitch = (18.0 * reveal).to_radians();
-        yaw = (90.0 + 22.0 * smoother((seconds - 28.0) / 4.0)).to_radians();
+    for (centre, torch) in [
+        (12.0, [doorway[0] - 12.25, 2.3, doorway[2] - 0.72]),
+        (24.0, [doorway[0] - 3.85, 2.3, doorway[2] + 0.72]),
+    ] {
+        if ((centre - 1.5)..(centre + 1.5)).contains(&seconds) {
+            let glance = (PI * (seconds - centre + 1.5) / 3.0).sin().powi(2);
+            let look = sub(torch, eye);
+            let torch_yaw = look[0].atan2(-look[2]);
+            let delta = (torch_yaw - yaw + PI).rem_euclid(TAU) - PI;
+            yaw += delta.clamp(-18.0f32.to_radians(), 18.0f32.to_radians()) * glance;
+            let torch_pitch = look[1]
+                .atan2((look[0] * look[0] + look[2] * look[2]).sqrt())
+                .clamp(-0.15, 0.18);
+            pitch += (torch_pitch - pitch).clamp(-0.07, 0.07) * glance;
+        }
     }
-    if seconds >= 32.0 {
-        yaw = (112.0 + 68.0 * smoother((seconds - 32.0) / 8.0)).to_radians();
-        pitch = (18.0 * (1.0 - smoother((seconds - 34.0) / 6.0))).to_radians();
+    if seconds >= 36.0 {
+        yaw = (90.0 + 35.0 * smoother((seconds - 36.0) / 14.0)).to_radians();
     }
-    if seconds >= 40.0 {
-        yaw = (180.0 - 42.0 * smoother((seconds - 45.0) / 9.0)).to_radians();
-        pitch = (-25.0 * smoother((seconds - 40.0) / 5.0)
-            + 17.0 * smoother((seconds - 46.0) / 8.0))
+    if (36.0..43.0).contains(&seconds) {
+        pitch = (18.0 * smoother((seconds - 36.0) / 7.0)).to_radians();
+    }
+    if seconds >= 43.0 {
+        pitch = (18.0 - 28.0 * smoother((seconds - 43.0) / 7.0)).to_radians();
+    }
+    if seconds >= 50.0 {
+        yaw = (125.0 + 55.0 * smoother((seconds - 50.0) / 14.0)).to_radians();
+        pitch = (-10.0 - 15.0 * smoother((seconds - 50.0) / 4.0)
+            + 19.0 * smoother((seconds - 55.0) / 9.0))
         .to_radians();
     }
-    if seconds >= 54.0 {
-        yaw = (138.0 + 132.0 * smoother((seconds - 54.0) / 10.0)).to_radians();
-        pitch = (-8.0 + 5.0 * smoother((seconds - 54.0) / 8.0)).to_radians();
+    if seconds >= 63.0 {
+        yaw = (180.0 - 90.0 * smoother((seconds - 63.0) / 9.0)).to_radians();
+    }
+    if seconds >= 64.0 {
+        pitch = (-6.0 + 3.0 * smoother((seconds - 64.0) / 8.0)).to_radians();
     }
     let fade = (PI * 0.5 * (seconds / 2.5).clamp(0.0, 1.0)).sin()
-        * (PI * 0.5 * ((64.0 - seconds) / 2.5).clamp(0.0, 1.0)).sin();
+        * (PI * 0.5 * ((72.0 - seconds) / 2.5).clamp(0.0, 1.0)).sin();
     TourPose {
         eye,
         yaw,
@@ -336,7 +306,7 @@ impl Box3 {
     pub fn contains(&self, p: V3) -> bool {
         (0..3).all(|i| p[i] >= self.lo[i] && p[i] <= self.hi[i])
     }
-    fn centre(&self) -> V3 {
+    pub fn centre(&self) -> V3 {
         scale(add(self.lo, self.hi), 0.5)
     }
     fn shrink(&self, by: f32) -> Box3 {
@@ -440,10 +410,10 @@ impl World {
             .iter()
             .enumerate()
             .map(|(zone, room)| {
-                let stone = if room.kind == Kind::Cave {
-                    AcousticMaterial::WET_STONE
-                } else {
+                let stone = if room.kind == Kind::Room {
                     AcousticMaterial::DRY_STONE
+                } else {
+                    AcousticMaterial::WET_STONE
                 };
                 let mut walls = [stone; 6];
                 if room.kind == Kind::Cave {
@@ -580,7 +550,10 @@ impl World {
             let p: Box3 = zones[prev].space;
             let axis = if dir[0] != 0 { 0 } else { 2 };
             let across = 2 - axis;
-            let gap = snap(r.range(4.5, 6.5));
+            let mut gap = snap(r.range(4.5, 6.5));
+            if kind == Kind::Cave {
+                gap = 16.0;
+            }
             let sign = (dir[0] + dir[1]) as f32;
             let mut centre = p.centre();
             centre[axis] += sign * (p.hi[axis] - p.lo[axis] + size[axis]) / 2.0 + sign * gap;
@@ -716,29 +689,89 @@ impl World {
         );
         world.river.lo[0] -= 4.;
         world.river.hi[0] += 4.;
-        for i in 0..4 {
-            let x = cs.lo[0] + 2.0 + i as f32 * (cs.hi[0] - cs.lo[0] - 4.) / 3.;
-            let z = world.river_bank(x, i % 2) + if i % 2 == 0 { -0.8 } else { 0.8 };
+        world.lights.clear();
+        world.sources.clear();
+        world.drips.retain(|&(tip, _)| cs.contains(tip));
+        let hallway = corridors[1].0;
+        for (p, normal) in [
+            (
+                [hallway.lo[0] + 3.5, 2.3, hallway.lo[2] + 0.28],
+                [0.0, 0.0, 1.0],
+            ),
+            (
+                [hallway.hi[0] - 4.25, 2.3, hallway.hi[2] - 0.28],
+                [0.0, 0.0, -1.0],
+            ),
+        ] {
             world.lights.push(Light {
-                pos: [x, 1.8, z],
+                pos: add(p, [0.0, 0.12, 0.0]),
+                colour: scale([1.0, 0.42, 0.13], 3.2),
+                flicker: 1.0,
+                flame: 0.42,
+            });
+            world
+                .props
+                .push(Prop::Bracket(add(p, [0.0, -0.05, 0.0]), normal));
+            world.sources.push((Sfx::Torch, p, 0.55));
+        }
+        let cave_torches = [
+            ([cs.lo[0] + 0.28, 2.4, cs.lo[2] + 2.4], [1.0, 0.0, 0.0]),
+            ([cs.lo[0] + 0.28, 2.4, cs.hi[2] - 2.4], [1.0, 0.0, 0.0]),
+            ([cs.hi[0] - 0.28, 2.4, cs.lo[2] + 2.4], [-1.0, 0.0, 0.0]),
+            ([cs.hi[0] - 0.28, 2.4, cs.hi[2] - 2.4], [-1.0, 0.0, 0.0]),
+            ([cs.lo[0] + 4.0, 2.4, cs.lo[2] + 0.28], [0.0, 0.0, 1.0]),
+            ([cs.hi[0] - 4.0, 2.4, cs.lo[2] + 0.28], [0.0, 0.0, 1.0]),
+            ([cs.lo[0] + 4.0, 2.4, cs.hi[2] - 0.28], [0.0, 0.0, -1.0]),
+            ([cs.hi[0] - 4.0, 2.4, cs.hi[2] - 0.28], [0.0, 0.0, -1.0]),
+        ];
+        for (p, normal) in cave_torches {
+            world.lights.push(Light {
+                pos: add(p, [0.0, 0.12, 0.0]),
                 colour: [6.8, 2.9, 0.85],
-                flicker: 1.,
+                flicker: 1.0,
                 flame: 0.58,
             });
+            world
+                .props
+                .push(Prop::Bracket(add(p, [0.0, -0.05, 0.0]), normal));
+            world.sources.push((Sfx::Torch, p, 0.55));
         }
-        world.lights.retain(|l| l.flame != 0.32);
-        for i in 0..3 {
-            world.lights.push(Light {
-                pos: [
-                    cs.lo[0] + 2. + i as f32 * (cs.hi[0] - cs.lo[0] - 4.) / 2.,
-                    2.4,
-                    river.centre()[2],
-                ],
-                colour: [2.4, 4.2, 6.8],
-                flicker: 0.,
-                flame: 0.,
-            });
+        let pit = [cs.hi[0] - 4.0, 0.0, cs.hi[2] - 2.0];
+        for i in 0..11 {
+            let a = i as f32 / 11.0 * TAU;
+            world.props.push(Prop::Rock(
+                add(pit, [0.75 * a.cos(), 0.0, 0.75 * a.sin()]),
+                r.range(0.16, 0.24),
+            ));
         }
+        for i in 0..4 {
+            world.props.push(Prop::Log(
+                add(pit, [0.0, 0.1 + 0.05 * i as f32, 0.0]),
+                i as f32 * 0.8 + 0.3,
+            ));
+        }
+        world.lights.push(Light {
+            pos: add(pit, [0.0, 0.8, 0.0]),
+            colour: [7.5, 3.1, 0.9],
+            flicker: 1.0,
+            flame: 1.4,
+        });
+        world
+            .sources
+            .push((Sfx::Fire, add(pit, [0.0, 0.6, 0.0]), 2.2));
+        for i in 0..4 {
+            let x = cs.lo[0] + (cs.hi[0] - cs.lo[0]) * (0.12 + 0.25 * i as f32);
+            world
+                .sources
+                .push((Sfx::River, [x, WATER, world.river.centre()[2]], 1.3));
+        }
+        let doorway = [cs.lo[0] + 0.2, 1.0, corridors[1].2];
+        world.sources.extend([
+            (Sfx::Wind, doorway, 0.9),
+            (Sfx::Creak, doorway, 0.9),
+            (Sfx::Heart, doorway, 1.4),
+            (Sfx::Bats, doorway, 0.0),
+        ]);
         let mut formations = Rng(9173);
         for i in 0..9 {
             let x = cs.lo[0]
@@ -1111,15 +1144,15 @@ impl World {
 }
 
 #[derive(Clone, Copy, Default)]
-struct Vertex {
-    pos: V3,
-    normal: V3,
-    uv: [f32; 2],
-    tint: V3,
-    material: f32,
+pub struct Vertex {
+    pub pos: V3,
+    pub normal: V3,
+    pub uv: [f32; 2],
+    pub tint: V3,
+    pub material: f32,
 }
 
-const UP: V3 = [0.0, 1.0, 0.0];
+pub const UP: V3 = [0.0, 1.0, 0.0];
 const STONE: V3 = [1.0, 1.0, 1.0];
 const BONE: V3 = [1.25, 1.1, 0.85];
 const IRON: V3 = [0.35, 0.33, 0.33];
@@ -1129,9 +1162,9 @@ const PUMPKIN: V3 = [2.2, 0.9, 0.12];
 const LIMESTONE: V3 = [1.25, 1.15, 0.95];
 
 #[derive(Default)]
-struct Builder {
-    vertices: Vec<Vertex>,
-    indices: Vec<u32>,
+pub struct Builder {
+    pub vertices: Vec<Vertex>,
+    pub indices: Vec<u32>,
 }
 
 impl Builder {
@@ -1276,7 +1309,7 @@ impl Builder {
 }
 
 /// The surface normal and tangent of `f` at (s, t) by central differences.
-fn frame(f: &dyn Fn(f32, f32) -> V3, s: f32, t: f32) -> (V3, V3) {
+pub fn frame(f: &dyn Fn(f32, f32) -> V3, s: f32, t: f32) -> (V3, V3) {
     let e = 1e-3;
     let ds = sub(f((s + e).min(1.0), t), f((s - e).max(0.0), t));
     let dt = sub(f(s, (t + e).min(1.0)), f(s, (t - e).max(0.0)));
@@ -1300,7 +1333,7 @@ fn frame(f: &dyn Fn(f32, f32) -> V3, s: f32, t: f32) -> (V3, V3) {
 
 impl World {
     /// Every wall, floor and ceiling, the river bed and the props.
-    fn build(&self, b: &mut Builder) {
+    pub fn build(&self, b: &mut Builder) {
         for (z, zone) in self.zones.iter().enumerate() {
             let s = zone.space;
             let cave = zone.kind == Kind::Cave;
@@ -1717,7 +1750,7 @@ impl World {
         self.bridge_and_props(b);
     }
 
-    fn river_bank(&self, x: f32, side: usize) -> f32 {
+    pub fn river_bank(&self, x: f32, side: usize) -> f32 {
         let base = if side == 0 {
             self.river.lo[2]
         } else {
@@ -1738,7 +1771,7 @@ impl World {
     }
 }
 
-fn turn(yaw: f32, v: V3) -> V3 {
+pub fn turn(yaw: f32, v: V3) -> V3 {
     let (sin, cos) = yaw.sin_cos();
     [v[0] * cos + v[2] * sin, v[1], v[2] * cos - v[0] * sin]
 }
@@ -2058,7 +2091,7 @@ impl World {
     }
 }
 
-fn floats(values: &[f32]) -> Vec<u8> {
+pub fn floats(values: &[f32]) -> Vec<u8> {
     values.iter().flat_map(|v| v.to_le_bytes()).collect()
 }
 
@@ -2202,7 +2235,8 @@ mod tests {
     use super::*;
 
     fn digest(assets: &Assets) -> u64 {
-        [
+        let mut hash = 0xcbf2_9ce4_8422_2325;
+        for bytes in [
             &assets.vertices,
             &assets.indices,
             &assets.lights,
@@ -2210,18 +2244,18 @@ mod tests {
             &assets.props,
             &assets.tour,
             &assets.acoustic_rooms,
-        ]
-        .into_iter()
-        .flatten()
-        .fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
-            (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3)
-        })
+        ] {
+            for byte in (bytes.len() as u64).to_le_bytes().iter().chain(bytes) {
+                hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);
+            }
+        }
+        hash
     }
 
     #[test]
     fn assets_match_pinned_native_generator() {
         let assets = assets();
         assert_eq!(assets, super::assets());
-        assert_eq!(digest(&assets), 0x93e6_561a_7472_fe55);
+        assert_eq!(digest(&assets), 0x3e8b_42fe_9056_7e1a);
     }
 }
