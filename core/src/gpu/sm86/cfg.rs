@@ -132,9 +132,9 @@ fn exits(inst: u128) -> bool {
     matches!(opcode(inst), EXIT | KILL | 0x95a | 0xb5a | 0x35a | 0x1b5a | 0x1d5a)
 }
 
-fn unsupported(pc: usize, inst: u128) -> Option<String> {
+fn unsupported(pc: usize, inst: u128, collectives: bool) -> Option<String> {
     let op = opcode(inst);
-    let reason = if exchanges(inst) || partial_warpsync(inst) || matches!(op, 0x198c | 0x1f8c | 0x38c | 0x38d) {
+    let reason = if !collectives && exchanges(inst) || partial_warpsync(inst) || matches!(op, 0x198c | 0x1f8c | 0x38c | 0x38d) {
         "collective"
     } else if dynamic_target(inst) || matches!(op, RET | 0x1950) {
         "dynamic branch target"
@@ -149,7 +149,11 @@ fn unsupported(pc: usize, inst: u128) -> Option<String> {
 }
 
 pub fn plan(words: &[u128]) -> Result<Vec<Ast>, String> {
-    if let Some(reason) = (0..).zip(words).find_map(|(pc, &inst)| unsupported(pc, inst)) {
+    plan_with_collectives(words, false)
+}
+
+pub(super) fn plan_with_collectives(words: &[u128], collectives: bool) -> Result<Vec<Ast>, String> {
+    if let Some(reason) = (0..).zip(words).find_map(|(pc, &inst)| unsupported(pc, inst, collectives)) {
         return Err(reason);
     }
     let len = words.len() as u32;
