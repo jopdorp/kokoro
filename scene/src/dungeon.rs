@@ -9,3 +9,4 @@ pub mod sound;
 #[cfg(feature = "std")]
 pub mod data;
 pub mod compute;
+pub mod render;
