@@ -42,6 +42,8 @@ pub struct VkState {
     pub shader_buffer_float32_atomic_add: bool,
     pub shader_shared_float32_atomic_add: bool,
     pub subgroup_size: u32,
+    pub subgroup_shuffle: bool,
+    pub subgroup_size_control_32: bool,
     /// The (M, N, K) subgroup tiles VK_KHR_cooperative_matrix multiplies f16 A and B in, and whether C is f32 rather than f16.
     pub cooperative_f16_tiles: Vec<([u32; 3], bool)>,
     pub exact_cooperative_hmma: std::sync::OnceLock<Vec<(u32, bool)>>,
@@ -110,12 +112,13 @@ impl VkState {
                 vk::Result::ERROR_INCOMPATIBLE_DRIVER => VkError::NoDevice,
                 e => VkError::Vk(e),
             })?;
-        let (physical_device, queue_family, device, command_pool, shader_float16, shader_float64, shader_buffer_int64_atomics, shader_shared_int64_atomics, shader_buffer_float32_atomic_add, shader_shared_float32_atomic_add, shader_device_clock, cooperative_matrix) =
+        let (physical_device, queue_family, device, command_pool, shader_float16, shader_float64, shader_buffer_int64_atomics, shader_shared_int64_atomics, shader_buffer_float32_atomic_add, shader_shared_float32_atomic_add, shader_device_clock, cooperative_matrix, subgroup_size_control) =
             Self::open_device(&instance, surfaces)
                 .inspect_err(|_| unsafe { instance.destroy_instance(None) })?;
         let mut float_controls = vk::PhysicalDeviceFloatControlsProperties::default();
         let mut subgroup = vk::PhysicalDeviceSubgroupProperties::default();
-        let mut props = vk::PhysicalDeviceProperties2::default().push_next(&mut float_controls).push_next(&mut subgroup);
+        let mut subgroup_sizes = vk::PhysicalDeviceSubgroupSizeControlProperties::default();
+        let mut props = vk::PhysicalDeviceProperties2::default().push_next(&mut float_controls).push_next(&mut subgroup).push_next(&mut subgroup_sizes);
         unsafe { instance.get_physical_device_properties2(physical_device, &mut props) };
         let cooperative_f16_tiles = if cooperative_matrix {
             let extension = ash::khr::cooperative_matrix::Instance::new(&entry, &instance);
@@ -164,6 +167,9 @@ impl VkState {
             shader_buffer_float32_atomic_add,
             shader_shared_float32_atomic_add,
             subgroup_size: subgroup.subgroup_size,
+            subgroup_shuffle: subgroup.supported_operations.contains(vk::SubgroupFeatureFlags::SHUFFLE),
+            subgroup_size_control_32: subgroup_size_control && subgroup_sizes.min_subgroup_size <= 32 && subgroup_sizes.max_subgroup_size >= 32
+                && subgroup_sizes.required_subgroup_size_stages.contains(vk::ShaderStageFlags::COMPUTE),
             cooperative_f16_tiles,
             exact_cooperative_hmma: Default::default(),
             shader_device_clock,
@@ -183,7 +189,7 @@ impl VkState {
     fn open_device(
         instance: &ash::Instance,
         surfaces: bool,
-    ) -> Result<(vk::PhysicalDevice, u32, ash::Device, vk::CommandPool, bool, bool, bool, bool, bool, bool, bool, bool), VkError> {
+    ) -> Result<(vk::PhysicalDevice, u32, ash::Device, vk::CommandPool, bool, bool, bool, bool, bool, bool, bool, bool, bool), VkError> {
         // Blits into swapchain images need a graphics queue.
         let queue_flags = if surfaces {
             vk::QueueFlags::COMPUTE | vk::QueueFlags::GRAPHICS
@@ -214,6 +220,7 @@ impl VkState {
         let mut cooperative = vk::PhysicalDeviceCooperativeMatrixFeaturesKHR::default();
         let mut memory_model = vk::PhysicalDeviceVulkanMemoryModelFeatures::default();
         let mut shader_clock = vk::PhysicalDeviceShaderClockFeaturesKHR::default();
+        let mut subgroup_size_control = vk::PhysicalDeviceSubgroupSizeControlFeatures::default();
         let mut features = vk::PhysicalDeviceFeatures2::default()
             .push_next(&mut cooperative)
             .push_next(&mut memory_model)
@@ -221,7 +228,8 @@ impl VkState {
             .push_next(&mut atomic_int64)
             .push_next(&mut atomic_float)
             .push_next(&mut derivatives)
-            .push_next(&mut shader_clock);
+            .push_next(&mut shader_clock)
+            .push_next(&mut subgroup_size_control);
         unsafe { instance.get_physical_device_features2(physical_device, &mut features) };
         let shader_float64 = features.features.shader_float64 == vk::TRUE;
         let shader_int64 = features.features.shader_int64 == vk::TRUE;
@@ -241,11 +249,14 @@ impl VkState {
             && extensions.iter().any(|e| e.extension_name_as_c_str() == Ok(vk::KHR_COOPERATIVE_MATRIX_NAME));
         let shader_device_clock = shader_clock.shader_device_clock == vk::TRUE
             && extensions.iter().any(|e| e.extension_name_as_c_str() == Ok(vk::KHR_SHADER_CLOCK_NAME));
+        let subgroup_size_control = subgroup_size_control.subgroup_size_control == vk::TRUE
+            && extensions.iter().any(|e| e.extension_name_as_c_str() == Ok(vk::EXT_SUBGROUP_SIZE_CONTROL_NAME));
         let enabled_extensions: Vec<_> = [
             linear_derivatives.then_some(derivatives_extension.as_ptr()),
             atomic_float_extension.then_some(vk::EXT_SHADER_ATOMIC_FLOAT_NAME.as_ptr()),
             shader_device_clock.then_some(vk::KHR_SHADER_CLOCK_NAME.as_ptr()),
             cooperative_matrix.then_some(vk::KHR_COOPERATIVE_MATRIX_NAME.as_ptr()),
+            subgroup_size_control.then_some(vk::EXT_SUBGROUP_SIZE_CONTROL_NAME.as_ptr()),
             surfaces.then_some(ash::khr::swapchain::NAME.as_ptr()),
         ].into_iter().flatten().collect();
         let device_features = vk::PhysicalDeviceFeatures::default()
@@ -265,6 +276,8 @@ impl VkState {
         let mut enabled_memory_model = vk::PhysicalDeviceVulkanMemoryModelFeatures::default().vulkan_memory_model(cooperative_matrix);
         let mut enabled_shader_clock = vk::PhysicalDeviceShaderClockFeaturesKHR::default()
             .shader_device_clock(shader_device_clock);
+        let mut enabled_subgroup_size_control = vk::PhysicalDeviceSubgroupSizeControlFeatures::default()
+            .subgroup_size_control(subgroup_size_control);
         let device_info = vk::DeviceCreateInfo::default()
             .queue_create_infos(&queue_info)
             .enabled_extension_names(&enabled_extensions)
@@ -275,13 +288,14 @@ impl VkState {
             .push_next(&mut enabled_derivatives)
             .push_next(&mut enabled_shader_clock)
             .push_next(&mut enabled_cooperative)
-            .push_next(&mut enabled_memory_model);
+            .push_next(&mut enabled_memory_model)
+            .push_next(&mut enabled_subgroup_size_control);
         let device = unsafe { instance.create_device(physical_device, &device_info, None)? };
         let pool_info = vk::CommandPoolCreateInfo::default()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
             .queue_family_index(queue_family);
         match unsafe { device.create_command_pool(&pool_info, None) } {
-            Ok(pool) => Ok((physical_device, queue_family, device, pool, shader_float16, shader_float64, shader_buffer_int64_atomics, shader_shared_int64_atomics, shader_buffer_float32_atomic_add, shader_shared_float32_atomic_add, shader_device_clock, cooperative_matrix)),
+            Ok(pool) => Ok((physical_device, queue_family, device, pool, shader_float16, shader_float64, shader_buffer_int64_atomics, shader_shared_int64_atomics, shader_buffer_float32_atomic_add, shader_shared_float32_atomic_add, shader_device_clock, cooperative_matrix, subgroup_size_control)),
             Err(e) => {
                 unsafe { device.destroy_device(None) };
                 Err(e.into())
