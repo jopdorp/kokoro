@@ -137,6 +137,7 @@ fn main() {
     }
     let mut guest = match args[0].as_str() {
         "guest-music" => Some(oboromi_core::guest::Demo::Music),
+        "guest-boombox" => Some(oboromi_core::guest::Demo::BoomBox),
         "guest-bounce" => Some(oboromi_core::guest::Demo::Bounce),
         _ => None,
     }.map(|demo| oboromi_core::guest::Machine::demo(demo).unwrap());

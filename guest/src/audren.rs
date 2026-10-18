@@ -96,3 +96,25 @@ impl<'a> Sound<'a> {
         Ok(core::array::from_fn(|channel| ring[channel * 240..][..240].iter().map(|s| f32::from(s.unsigned_abs()) / 32768.0).fold(0.0, f32::max)))
     }
 }
+
+pub struct Loop<'a> {
+    renderer: Renderer, input: &'a mut [u8], output: &'a mut [u8],
+    sample: (u64, u32), pool: (u64, u64), ring: u64, pub periods: u64,
+}
+impl Loop<'_> {
+    pub fn new(memory: u64, bytes: &[u8]) -> svc::Result<Self> {
+        crate::nv::guest_slice(memory, bytes.len()).copy_from_slice(bytes);
+        let ring = memory + bytes.len() as u64;
+        let end = (ring + 960).next_multiple_of(0x1000);
+        let size = scene::sound::spatial_parcel_size(2);
+        let output = (end + size as u64).next_multiple_of(0x1000);
+        let renderer = Renderer::open(&scene::sound::spatial_parameter(2), output + 0x4000)?;
+        Ok(Self { renderer, input: crate::nv::guest_slice(end, size), output: crate::nv::guest_slice(output, 0x4000), sample: (memory, (bytes.len() / 2) as u32), pool: (memory, end - memory), ring, periods: 0 })
+    }
+    pub fn period(&mut self, spatial: scene::sound::Spatial) -> svc::Result<()> {
+        scene::sound::spatial_parcel(self.input, self.sample, self.pool, self.periods == 0, spatial, Some(self.ring));
+        self.renderer.update(self.input, self.output)?;
+        self.periods += 1;
+        Ok(())
+    }
+}

@@ -233,6 +233,20 @@ pub fn model(([cx, cy, cz], scale): ([f32; 3], f32), (sin, cos): (f32, f32)) -> 
     model
 }
 
+pub fn boombox_pose(seconds: f32) -> ([f32; 3], (f32, f32)) {
+    let phase = sin_cos(seconds * 0.4);
+    let radius = 3.5 + 0.9 * phase.0;
+    let orbit = sin_cos(0.28 * phase.0);
+    ([radius * orbit.0, 0.0, EYE[2] - radius * orbit.1], sin_cos(seconds * 0.8))
+}
+
+pub fn boombox_model(fit: ([f32; 3], f32), seconds: f32) -> Matrix {
+    let (position, rotation) = boombox_pose(seconds);
+    let mut model = model(fit, rotation);
+    for i in 0..3 { model[3][i] += position[i]; }
+    model
+}
+
 // Shared range reduction keeps guest and host matrix bits identical without a guest libm.
 pub fn sin_cos(angle: f32) -> (f32, f32) {
     let x = f64::from(angle) % core::f64::consts::TAU;
