@@ -20,6 +20,7 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
         "dungeon" => demo_dungeon::render_dungeon_frame(seconds),
         "julia" => frame::render_demo_frame(seconds).map_err(|e| format!("{e:?}")),
         "guest-boombox" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::BoomBox),
+        "guest-helmet" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Helmet),
         "guest-bounce" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Bounce),
         "guest-triangle" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Triangle),
         "guest-sprites" => {
