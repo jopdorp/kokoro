@@ -212,7 +212,7 @@ vec3 reflectedFlames(vec3 p,vec3 direction,float limit) {
     vec3 c=vec3(0);
     for(int i=0;i<lights.length();i++) {
         float flame=lights[i].position.w;if(flame<=0.)continue;
-        vec3 to=lights[i].position.xyz-p;
+        vec3 to=lights[i].position.xyz+vec3(0,flame*.25,0)-p;
         float along=dot(to,direction);if(along<0. || along>limit)continue;
         vec3 d=to-direction*along;d.y*=.5;
         float glow=exp(-dot(d,d)/max(.002,flame*flame*.065));

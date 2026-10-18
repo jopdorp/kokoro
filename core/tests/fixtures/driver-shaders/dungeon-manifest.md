@@ -16,11 +16,12 @@ Columns: words = 128-bit instructions; regs = highest R referenced + 1 (64/128-b
 | dungeon_cones_rt.vert | 215 | 23 | 0/0 | 0x1d: 0x28 0xa0 0xa8 | 0x0 0x1 | a54633dc25851d3c75652fb4e8d129b78c682f3c31c11735fe10f453c811872c |
 | dungeon_cones_rt.frag | 9504 | 70 | 0/0 | 0x1d: 0x28 0x30 0x38 0x40 0x44 0x50 0x58 0x60 0x68 0x70 0x78 0x80 0x88 0x90 0x98 | 0x1 | 54c59446a640e6b41d4c2a83133bd8c9f6e593c9b0ec11e968f9200728acbe8b |
 | dungeon_sprite.vert | 190 | 30 | 0/0 | 0x1d: 0x8 0x30 0x38 | 0x0 0x1 | edfaadf23d7db44f32b2a3496fd7bad5d653227368ef8f4aec0091ca878662c9 |
-| dungeon_sprite.frag | 1065 | 38 | 0/0 | 0x1d: 0x8 0x10 0x18 0x20 0x28 | - | 22e835ad66b60367daa4ef17ccac0d84b0d44aa31c138bfc4fcbda1e11bd30ee |
+| dungeon_sprite.frag | 1097 | 38 | 0/0 | 0x1d: 0x8 0x10 0x18 0x20 0x28 | - | 25ab3391968bbb456bc7841cf5936202a550154487d7155d4ed7ee0e97048fc1 |
 | dungeon_water.comp | 160 | 24 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 | - | 876230f1259de6e63451428321184579205d76cdc4c21781c191d2af98df12a8 |
 | dungeon_light.comp | 80 | 10 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | b210ef77cd81aec36690528bd79122dc978509f473ff57ff3c84c08e688c7fb5 |
-| dungeon_particles.comp | 1842 | 62 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | 138e8b3f2da71baf80c42fce397d180e08dec097e8d1108c99d70e4745708c21 |
+| dungeon_particles.comp | 1872 | 62 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | b80c2e4ea101e61918b31f4ad23f2d5287ddedf84d289b6e48c28c95dd27cd53 |
 | dungeon_fog.comp | 598 | 43 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 | - | 1316c063061a3c21f1b16e0f7883c0ec0ea77171a7030d972a46fd24cba9ecd3 |
 | dungeon_post.comp | 841 | 70 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 0x80 0x88 | - | 1380632ffe4e70b5a095ffb2c588a4c51d58c5dadcd9fdc5030d793cea4c64fd |
 
 Notes: dungeon.frag and dungeon_cones.frag are byte-identical, as are dungeon_rt.frag and dungeon_cones_rt.frag (same frag source per pair). Multi-EXIT programs were taken whole (the longest nvdisasm-clean run). No stage spills.
+The fire sprite and particle stages were rebuilt on pod f8d7yaymimfujn, A40 SM86, driver 580.159.03.
