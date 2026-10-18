@@ -35,6 +35,7 @@ fn showcase(config: *const [u64; 3]) -> bool {
 
 fn draw(showcase: bool) -> svc::Result<()> {
     let (count, steps, dt) = if showcase { (SHOWCASE_COUNT, 3, 0.015) } else { (REALTIME_COUNT, 1, 0.02) };
+    let fps = if showcase { 30.0 } else { 60.0 };
     let size = [WIDTH, HEIGHT];
     let heap = svc::set_heap_size(0x100_0000)?;
     let memory = heap + 0x10_0000;
@@ -82,11 +83,11 @@ fn draw(showcase: bool) -> svc::Result<()> {
         words.len = 0;
         let instances = nv::guest_slice::<f32>(memory + source - BASE, (count + EXTRA_COUNT) as usize * 12);
         let (bodies, extras) = instances.split_at_mut(count as usize * 12);
-        scene::solar::hud(frame as f32 / 60.0, (time * 2_500.0) as u32, bodies,
+        scene::solar::hud(frame as f32 / fps, (time * 2_500.0) as u32, bodies,
             &mut extras[((TRAIL_COUNT + STAR_COUNT) * 12) as usize..], sqrt);
         let [hi, lo] = scene::split(source);
         scene::inc(scene::threed::SET_VERTEX_STREAM_A_FORMAT + 4, &[hi, lo], &mut words);
-        scene::solar::draw(frame as f32 / 60.0, count, frame, sqrt, &mut words);
+        scene::solar::draw(frame as f32 / fps, count, frame, sqrt, &mut words);
         channel.submit(DRAW_SEGMENT, words.len)?;
         window.present(size)?;
     }
