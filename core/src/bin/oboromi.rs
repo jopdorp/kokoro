@@ -1,5 +1,12 @@
 fn main() -> Result<(), String> {
-    let path = match std::env::args().skip(1).collect::<Vec<_>>().as_slice() {
+    let args = std::env::args().skip(1).collect::<Vec<_>>();
+    if matches!(args.as_slice(), [help] if help == "--help")
+        || matches!(args.as_slice(), [run, help] if run == "run" && help == "--help")
+    {
+        println!("oboromi run <file.nro>\nOBOROMI_EXACT=1 oboromi run <file.nro>\nOBOROMI_CPU=unicorn oboromi run <file.nro>\noboromi-gui");
+        return Ok(());
+    }
+    let path = match args.as_slice() {
         [command, path] if command == "run" => std::path::PathBuf::from(path),
         _ => return Err("usage: oboromi run <file.nro>".into()),
     };
