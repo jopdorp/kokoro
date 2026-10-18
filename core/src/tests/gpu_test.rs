@@ -174,6 +174,7 @@ pub mod inst {
     pub const SUATOM_CAS: u128 = 0x595;
     pub const TLD4_R_2D: u128 = 0xb63 | TEX_2D;
     pub const TLD4_G_2D: u128 = TLD4_R_2D | 1 << 87;
+    const FOOTPRINT: u128 = 0xb72;
     pub const TXD_2D: u128 = 0xb6c | TEX_2D;
     pub const TMML_LOD_2D: u128 = 0xb69 | TEX_2D;
     const LDS: u128 = 0x984;
@@ -340,6 +341,10 @@ pub mod inst {
             | (byte_offset as u128 / 4) << 40
             | (bank as u128) << 54
             | (mask as u128) << 72
+    }
+
+    pub fn footprint(rd: u32, rd2: u32, ra: u32, pu: u32) -> u128 {
+        FOOTPRINT | PT_GUARD | TEX_2D | (rd as u128) << 16 | (ra as u128) << 24 | 0xff << 32 | (rd2 as u128) << 64 | (pu as u128) << 81
     }
 
     pub fn with_rb(word: u128, rb: u32) -> u128 {
@@ -1166,6 +1171,7 @@ fn fixtures_match_nvdisasm() {
         (inst::pixld(6, 2, 4), "PIXLD.INNER_COVERAGE R6, P2 ;"),
         (inst::out_imm(4, 2, 3, 1), "OUT.EMIT R4, R2, 0x3 ;"),
         (inst::out_imm(6, 4, 2, 3), "OUT.EMIT_THEN_CUT R6, R4, 0x2 ;"),
+        (inst::footprint(4, 8, 12, 0), "FOOTPRINT.TEX P0, R8, R4, R12, 0x0, 0x0, 2D ;"),
     ];
     use crate::tests::gpu::fp::fp16::tests as fp16;
     for (word, expected) in fixtures.iter().copied().chain(fp16::arith()).chain(fp16::compare()).chain(fp16::convert()) {

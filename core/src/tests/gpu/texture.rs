@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::gpu::texture::TexturePool;
-    use crate::tests::gpu::harness::{Textures, run_textured, spirv_val, translate_module};
+    use crate::tests::gpu::harness::{PRED, Textures, run_regs, run_textured, spirv_val, translate_module};
     use crate::tests::gpu_test::inst::{self, texture};
 
     const TEXELS_ADDRESS: u64 = 0x1_0000_0400;
@@ -147,6 +147,15 @@ mod tests {
             let bytes: Vec<u8> = regs[4..8].iter().map(|&r| (f32::from_bits(r) * 255.0).round() as u8).collect();
             assert_eq!(bytes, [red(x, y + 1), red(x + 1, y + 1), red(x + 1, y), red(x, y)], "lane {t}");
         }
+    }
+
+    #[test]
+    fn footprint_full_result_unverified_on_silicon() {
+        let program = [inst::footprint(4, 8, 12, 0)];
+        let Some((regs, _)) = run_regs(&program, &[], &[], &[]) else { return };
+        assert_eq!(regs[4..6], [u32::MAX; 2]);
+        assert_eq!(regs[8..10], [u32::MAX; 2]);
+        assert_eq!(regs[PRED] & 1, 0);
     }
 
     #[test]

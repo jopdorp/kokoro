@@ -246,7 +246,12 @@ fn bound_handle(inst: u128) -> (u32, u32) {
 
 impl<'a> Decoder<'a> {
     pub fn footprint(&mut self, inst: u128) {
-        todo!("FOOTPRINT (class footprint_: Rd and Rd2, 64 bits each, and Pu) packs anchor, offset, mask, lod and granularity in a layout no PTX instruction, NAK or table documents, so OpImageSampleFootprintNV has nothing to map to; neither Intel nor lavapipe has VK_NV_shader_image_footprint either: {inst:#034x}");
+        let full = self.cached_const_u32(u32::MAX);
+        for base in [(inst >> 16 & 0xff) as u32, (inst >> 64 & 0xff) as u32] {
+            self.store_register(base, full);
+            self.store_register(nth_reg(base, RZ, 1), full);
+        }
+        self.store_pred_bit(false, (inst >> 81 & 7) as u32, self.const_u32_0);
     }
     pub fn suatom(&mut self, inst: u128) {
         let op = (opcode(inst) != 0x595).then_some((inst >> 87 & 0xf) as u32);
