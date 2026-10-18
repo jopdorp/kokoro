@@ -122,9 +122,19 @@ fn dungeon(out: &std::path::Path) {
     std::fs::write(out.join("dungeon-poses.bin"), floats(poses.iter().flat_map(|p| [p.eye[0], p.eye[1], p.eye[2], p.yaw, p.pitch, p.fade]))).unwrap();
     let frames = poses.iter().enumerate().flat_map(|(frame, &pose)| floats(matrices(&world, pose, frame as f32 / 60.0, [96, 24]))).collect::<Vec<_>>();
     std::fs::write(out.join("dungeon-frames.bin"), frames).unwrap();
+    let blackbody = (0..256).flat_map(|i| {
+        let t = (900.0 + i as f32 / 255.0 * 3300.0) / 100.0;
+        let r = if t <= 66.0 { 1.0 } else { 1.292_936_2 * (t - 60.0).powf(-0.133_204_76) };
+        let g = if t <= 66.0 { 0.390_081_58 * t.ln() - 0.631_841_4 } else { 1.129_890_9 * (t - 60.0).powf(-0.075_514_846) };
+        let b = if t >= 66.0 { 1.0 } else if t <= 19.0 { 0.0 } else { 0.543_206_8 * (t - 10.0).ln() - 1.196_254_1 };
+        [r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0), 1.0]
+    });
+    std::fs::write(out.join("dungeon-blackbody.bin"), floats(blackbody)).unwrap();
     let mut shadow_lights: Vec<_> = (0..world.lights.len()).collect();
     shadow_lights.sort_by(|&a, &b| world.lights[b].colour[0].total_cmp(&world.lights[a].colour[0]));
     shadow_lights.truncate(10);
+    let fire_sources = world.lights.iter().enumerate().flat_map(|(i, light)| [light.pos[0], light.pos[1] + light.flame * 0.5, light.pos[2], light.flame, light.colour[0], light.colour[1], light.colour[2], shadow_lights.iter().position(|&slot| slot == i).map_or(0.0, |slot| slot as f32 + 1.0)]);
+    std::fs::write(out.join("dungeon-fire-sources.bin"), floats(fire_sources)).unwrap();
     let mut lights = Vec::new();
     for frame in 0..poses.len() { for (i, light) in world.lights.iter().enumerate() {
         let seconds = frame as f32 / 60.0;

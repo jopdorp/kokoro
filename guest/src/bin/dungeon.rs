@@ -35,6 +35,7 @@ const COMPUTE_PROGRAMS: [u64; 14] = [
     BASE + 0x11_0000, BASE + 0x12_0000, BASE + 0x13_0000, BASE + 0x14_0000,
     BASE + 0x15_0000, BASE + 0x16_0000,
 ];
+const COMPUTE_REGISTERS: [u32; 14] = [24, 32, 33, 20, 24, 19, 20, 20, 46, 35, 62, 38, 43, 70];
 const QMD: u64 = BASE + 0x17_0000;
 const CBUF: u64 = BASE + 0x17_2000;
 const RELEASE: u64 = BASE + 0x17_4000;
@@ -130,6 +131,16 @@ struct Layout {
     water: [u64; 2],
     water_surface: u64,
     water_uniforms: u64,
+    fire_volumes: u64,
+    fire_sources: u64,
+    fire_atlas: u64,
+    fire_emission: u64,
+    fire_uniforms: u64,
+    blackbody: u64,
+    volume_current: u64,
+    volume_history: [u64; 2],
+    volume_output: u64,
+    fire_cells: u32,
     frame: u64,
     particle_time: u64,
     particles: u64,
@@ -164,14 +175,28 @@ impl Layout {
         let water = [water[0], water[0] + u64::from(grid[0] * grid[1] * 8)];
         let water_surface = water[1] + u64::from(grid[0] * grid[1] * 8);
         let water_uniforms = align(water_surface + u64::from(grid[0] * grid[1] * 16));
-        let frame = align(water_uniforms + 0x1000);
+        let torch_grid = if showcase { [24, 48, 24] } else { [12, 24, 12] };
+        let pit_grid = torch_grid.map(|v| v * 2);
+        let fire_cells = torch_grid.into_iter().product::<u32>() * (LIGHT_COUNT as u32 - 1) + pit_grid.into_iter().product::<u32>();
+        let fire_volumes = align(water_uniforms + 0x1000);
+        let fire_sources = align(fire_volumes + (LIGHT_COUNT * 16) as u64);
+        let fire_emission = align(fire_sources + (LIGHT_COUNT * 32) as u64);
+        let fire_uniforms = align(fire_emission + (LIGHT_COUNT * 4) as u64);
+        let blackbody = align(fire_uniforms + 0x1000);
+        let fire_atlas = align(blackbody + 256 * 16);
+        let volume_current = align(fire_atlas + u64::from(fire_cells) * 13 * 4);
+        let half_pixels = u64::from(WIDTH / 2 * HEIGHT / 2);
+        let volume_history = [align(volume_current + half_pixels * 16), 0];
+        let volume_history = [volume_history[0], align(volume_history[0] + half_pixels * 16)];
+        let volume_output = align(volume_history[1] + half_pixels * 16);
+        let frame = align(volume_output + u64::from(WIDTH * HEIGHT * 8));
         let particle_time = frame + 0x240;
         let particles = align(particle_time + 0x10);
         let fog = align(particles + (LIGHT_COUNT * 96 * 48) as u64);
         let bloom = align(fog + u64::from(WIDTH / 4 * HEIGHT / 4 * 16));
         let output = align(bloom + u64::from(WIDTH / 4 * HEIGHT / 4 * 16));
         let end = align(output + u64::from(WIDTH * HEIGHT * 4));
-        Self { vertices, vertex_bytes, indices, opaque_indices, water_indices, lights, rooms, cones, ray_geometry, ray_indices, textures, target, target_depth, reflection, reflection_depth, shadows, water, water_surface, water_uniforms, frame, particle_time, particles, fog, bloom, output, end, grid, reflection_size }
+        Self { vertices, vertex_bytes, indices, opaque_indices, water_indices, lights, rooms, cones, ray_geometry, ray_indices, textures, target, target_depth, reflection, reflection_depth, shadows, water, water_surface, water_uniforms, fire_volumes, fire_sources, fire_atlas, fire_emission, fire_uniforms, blackbody, volume_current, volume_history, volume_output, fire_cells, frame, particle_time, particles, fog, bloom, output, end, grid, reflection_size }
     }
 }
 
@@ -225,11 +250,34 @@ fn frame_data(frame: usize, showcase: bool, rays: bool, camera: Option<([f32; 3]
     let light_data = include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-frame-lights.bin"));
     let bytes = LIGHT_COUNT * 32;
     let at = frame.min(72 * 60) * bytes;
-    nv::guest_slice(cpu(layout.lights), bytes).copy_from_slice(&light_data[at..at + bytes]);
+    if frame <= 1 { nv::guest_slice(cpu(layout.lights), bytes).copy_from_slice(&light_data[at..at + bytes]); }
 }
 
 fn setup_graphics(fs: u32, layout: &Layout, showcase: bool, rays: bool) -> svc::Result<()> {
-    for (address, bytes) in [(DUNGEON_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon.vert.bin").as_slice()), (DUNGEON_FRAGMENT, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon.frag.bin").as_slice()), (DUNGEON_RT_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_rt.vert.bin").as_slice()), (DUNGEON_RT_FRAGMENT, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_rt.frag.bin").as_slice()), (CONES_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_cones.vert.bin").as_slice()), (CONES_RT_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_cones_rt.vert.bin").as_slice()), (SPRITE_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_sprite.vert.bin")), (SPRITE_FRAGMENT, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_sprite.frag.bin")), (COMPUTE_PROGRAMS[0], include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_water.comp.bin")), (COMPUTE_PROGRAMS[1], include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_particles.comp.bin")), (COMPUTE_PROGRAMS[12], include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_fog.comp.bin")), (COMPUTE_PROGRAMS[13], include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_post.comp.bin"))] { shader(address, bytes); }
+    for (address, bytes) in [
+        (DUNGEON_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon.vert.bin").as_slice()),
+        (DUNGEON_FRAGMENT, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon.frag.bin").as_slice()),
+        (DUNGEON_RT_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_rt.vert.bin").as_slice()),
+        (DUNGEON_RT_FRAGMENT, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_rt.frag.bin").as_slice()),
+        (CONES_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_cones.vert.bin").as_slice()),
+        (CONES_RT_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_cones_rt.vert.bin").as_slice()),
+        (SPRITE_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_sprite.vert.bin")),
+        (SPRITE_FRAGMENT, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_sprite.frag.bin")),
+        (COMPUTE_PROGRAMS[0], include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_water.comp.bin")),
+        (COMPUTE_PROGRAMS[1], include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_particles.comp.bin")),
+        (COMPUTE_PROGRAMS[2], include_bytes!("../../../core/tests/fixtures/driver-shaders/fire_force.comp.bin")),
+        (COMPUTE_PROGRAMS[3], include_bytes!("../../../core/tests/fixtures/driver-shaders/fire_curl.comp.bin")),
+        (COMPUTE_PROGRAMS[4], include_bytes!("../../../core/tests/fixtures/driver-shaders/fire_confine.comp.bin")),
+        (COMPUTE_PROGRAMS[5], include_bytes!("../../../core/tests/fixtures/driver-shaders/fire_div.comp.bin")),
+        (COMPUTE_PROGRAMS[6], include_bytes!("../../../core/tests/fixtures/driver-shaders/fire_jacobi.comp.bin")),
+        (COMPUTE_PROGRAMS[7], include_bytes!("../../../core/tests/fixtures/driver-shaders/fire_project.comp.bin")),
+        (COMPUTE_PROGRAMS[8], include_bytes!("../../../core/tests/fixtures/driver-shaders/fire_advect.comp.bin")),
+        (COMPUTE_PROGRAMS[9], include_bytes!("../../../core/tests/fixtures/driver-shaders/smoke_light.comp.bin")),
+        (COMPUTE_PROGRAMS[10], include_bytes!("../../../core/tests/fixtures/driver-shaders/volume_march.comp.bin")),
+        (COMPUTE_PROGRAMS[11], include_bytes!("../../../core/tests/fixtures/driver-shaders/volume_resolve.comp.bin")),
+        (COMPUTE_PROGRAMS[12], include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_fog.comp.bin")),
+        (COMPUTE_PROGRAMS[13], include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_post.comp.bin")),
+    ] { shader(address, bytes); }
     let vertices = if showcase { include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-showcase-vertices.bin")).as_slice() } else { include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-realtime-vertices.bin")).as_slice() };
     let indices = if showcase { include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-showcase-indices.bin")).as_slice() } else { include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-realtime-indices.bin")).as_slice() };
     nv::guest_slice(cpu(layout.vertices), vertices.len()).copy_from_slice(vertices);
@@ -245,6 +293,23 @@ fn setup_graphics(fs: u32, layout: &Layout, showcase: bool, rays: bool) -> svc::
     copy(TSC, &[7 << 20, 2 | 2 << 4 | 3 << 6, 0xf00 << 12, 0, 0, 0, 0, 0]);
     copy(DRAW_PARAMETERS, &render::draw_parameters());
     copy(FRAGMENT_CONSTANTS, &render::fragment_constants());
+    let torch_grid = if showcase { [24, 48, 24] } else { [12, 24, 12] };
+    let mut volumes = [0u32; LIGHT_COUNT * 4];
+    let mut offset = 0;
+    for i in 0..LIGHT_COUNT {
+        let grid = if i + 1 == LIGHT_COUNT { torch_grid.map(|v| v * 2) } else { torch_grid };
+        volumes[i * 4..i * 4 + 4].copy_from_slice(&[offset, grid[0], grid[1], grid[2]]);
+        offset += grid.into_iter().product::<u32>();
+    }
+    copy(layout.fire_volumes, &volumes);
+    copy(layout.fire_sources, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-fire-sources.bin")));
+    copy(layout.blackbody, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-blackbody.bin")));
+    nv::guest_slice::<u32>(cpu(layout.fire_atlas), layout.fire_cells as usize * 13).fill(0);
+    nv::guest_slice::<u32>(cpu(layout.fire_emission), LIGHT_COUNT).fill(0);
+    nv::guest_slice::<u32>(cpu(layout.volume_current), (WIDTH * HEIGHT) as usize).fill(0);
+    nv::guest_slice::<u32>(cpu(layout.volume_history[0]), (WIDTH * HEIGHT) as usize).fill(0);
+    nv::guest_slice::<u32>(cpu(layout.volume_history[1]), (WIDTH * HEIGHT) as usize).fill(0);
+    nv::guest_slice::<u32>(cpu(layout.volume_output), (WIDTH * HEIGHT * 2) as usize).fill(0);
     if rays {
         let mut registry = Words { storage: nv::guest_slice(cpu(TLAS), 22), len: 0 };
         render::acceleration_structure(render::RayGeometry { vertices: buffer(layout.ray_geometry, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-ray-geometry.bin")).len()), indices: buffer(layout.ray_indices, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-ray-indices.bin")).len()), tlas: TLAS }, &mut registry);
@@ -281,24 +346,50 @@ fn render_frame(channel: &nv::Channel, layout: &Layout, showcase: bool, rays: bo
     words.len = 0;
     if rays { render::ray_water(target, programs, ray_programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, layout.water_indices, &mut words); } else { render::water(target, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, layout.water_indices, &mut words); }
     submit(&mut words).map_err(|_| 24u32)?;
-    words.len = 0;
-    copy(DESCRIPTORS, &render::sprite_descriptors(render::SpriteResources { frame: buffer(layout.frame + 256, 256), lights: buffer(layout.lights, LIGHT_COUNT * 32), depth: buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), particles: buffer(layout.particles, LIGHT_COUNT * 96 * 48), texture: 0 }));
-    copy(VERTEX_CONSTANTS, &render::sprite_constants());
-    render::sprites(target, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), (LIGHT_COUNT * if showcase { 96 } else { 24 }) as u32, &mut words);
-    submit(&mut words).map_err(|_| 25u32)?;
-
     let seconds = tick as f32 / 60.0;
     copy(layout.water_uniforms, &[layout.grid[0] as f32, layout.grid[1] as f32, 1.0 / 60.0, 2.0, 1.0, 1.0, 0.0, seconds]);
     copy(layout.particle_time, &[seconds, if showcase { 96.0 } else { 24.0 }, 0.0, 0.0]);
-    let passes = [compute_pass(0, COMPUTE_PROGRAMS[0]), compute_pass(1, COMPUTE_PROGRAMS[1]), compute_pass(2, COMPUTE_PROGRAMS[12]), compute_pass(3, COMPUTE_PROGRAMS[13])];
+    let program_slots = [0, 2, 3, 4, 5, 6, 6, 6, 6, 6, 6, 6, 6, 7, 8, 1, 9, 10, 11, 12, 13];
+    let passes: [compute::Pass; 21] = core::array::from_fn(|slot| compute_pass(slot as u64, COMPUTE_PROGRAMS[program_slots[slot]]));
+    for slot in 1..=18 {
+        let phase = if (5..13).contains(&slot) { slot - 5 } else { 0 };
+        copy(layout.fire_uniforms + slot as u64 * 32, &[layout.fire_cells, LIGHT_COUNT as u32, phase as u32, u32::from(showcase), (1.0f32 / 60.0).to_bits(), seconds.to_bits(), 0, 0]);
+    }
     let ping = tick as usize & 1;
     install(&compute::water(passes[0], compute_buffer(layout.water[ping], (layout.grid[0] * layout.grid[1] * 8) as usize), compute_buffer(layout.water[1 - ping], (layout.grid[0] * layout.grid[1] * 8) as usize), compute_buffer(layout.water_surface, (layout.grid[0] * layout.grid[1] * 16) as usize), compute_buffer(layout.water_uniforms, 0x1000), layout.grid, tick + 1), passes[0]);
-    install(&compute::particles(passes[1], compute_buffer(layout.lights, LIGHT_COUNT * 32), compute_buffer(layout.particles, LIGHT_COUNT * 96 * 48), compute_buffer(layout.particle_time, 16), (LIGHT_COUNT * if showcase { 96 } else { 24 }) as u32, tick + 1), passes[1]);
-    install(&compute::fog(passes[2], [compute_buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), compute_buffer(layout.fog, (WIDTH / 4 * HEIGHT / 4 * 16) as usize), compute_buffer(layout.frame + 256, 256), compute_buffer(layout.lights, LIGHT_COUNT * 32), compute_buffer(layout.bloom, (WIDTH / 4 * HEIGHT / 4 * 16) as usize)], [WIDTH, HEIGHT], tick + 1), passes[2]);
-    install(&compute::post(passes[3], [compute_buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), compute_buffer(layout.output, (WIDTH * HEIGHT * 4) as usize), compute_buffer(layout.frame + 256, 256), compute_buffer(layout.lights, LIGHT_COUNT * 32), compute_buffer(layout.fog, (WIDTH / 4 * HEIGHT / 4 * 16) as usize), compute_buffer(layout.bloom, (WIDTH / 4 * HEIGHT / 4 * 16) as usize)], [WIDTH, HEIGHT], tick + 1), passes[3]);
+    let atlas = compute_buffer(layout.fire_atlas, layout.fire_cells as usize * 13 * 4);
+    let volumes = compute_buffer(layout.fire_volumes, LIGHT_COUNT * 16);
+    let sources = compute_buffer(layout.fire_sources, LIGHT_COUNT * 32);
+    let lights = compute_buffer(layout.lights, LIGHT_COUNT * 32);
+    let emission = compute_buffer(layout.fire_emission, LIGHT_COUNT * 4);
+    let uniforms = |slot| compute_buffer(layout.fire_uniforms + slot as u64 * 32, 32);
+    install(&compute::linear(passes[1], [atlas, volumes, sources, lights, emission], uniforms(1), layout.fire_cells, COMPUTE_REGISTERS[2], tick * 32 + 1), passes[1]);
+    install(&compute::linear(passes[2], [atlas, volumes], uniforms(2), layout.fire_cells, COMPUTE_REGISTERS[3], tick * 32 + 2), passes[2]);
+    install(&compute::linear(passes[3], [atlas, volumes], uniforms(3), layout.fire_cells, COMPUTE_REGISTERS[4], tick * 32 + 3), passes[3]);
+    install(&compute::linear(passes[4], [atlas, volumes], uniforms(4), layout.fire_cells, COMPUTE_REGISTERS[5], tick * 32 + 4), passes[4]);
+    for slot in 5..13 { install(&compute::linear(passes[slot], [atlas, volumes], uniforms(slot), layout.fire_cells, COMPUTE_REGISTERS[6], tick * 32 + slot as u32), passes[slot]); }
+    install(&compute::linear(passes[13], [atlas, volumes], uniforms(13), layout.fire_cells, COMPUTE_REGISTERS[7], tick * 32 + 13), passes[13]);
+    install(&compute::linear(passes[14], [atlas, volumes, emission], uniforms(14), layout.fire_cells, COMPUTE_REGISTERS[8], tick * 32 + 14), passes[14]);
+    let particle_count = (LIGHT_COUNT * if showcase { 96 } else { 24 }) as u32;
+    install(&compute::linear(passes[15], [sources, compute_buffer(layout.particles, LIGHT_COUNT * 96 * 48), atlas, volumes], compute_buffer(layout.particle_time, 16), particle_count, COMPUTE_REGISTERS[1], tick * 32 + 15), passes[15]);
+    install(&compute::linear(passes[16], [atlas, volumes, sources], uniforms(16), layout.fire_cells, COMPUTE_REGISTERS[9], tick * 32 + 16), passes[16]);
+    install(&compute::linear(passes[17], [atlas, volumes, sources, compute_buffer(layout.blackbody, 256 * 16), compute_buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), compute_buffer(layout.volume_current, (WIDTH / 2 * HEIGHT / 2 * 16) as usize)], compute_buffer(layout.frame + 256, 320), WIDTH / 2 * HEIGHT / 2, COMPUTE_REGISTERS[10], tick * 32 + 17), passes[17]);
+    install(&compute::linear(passes[18], [compute_buffer(layout.volume_current, (WIDTH / 2 * HEIGHT / 2 * 16) as usize), compute_buffer(layout.volume_history[ping], (WIDTH / 2 * HEIGHT / 2 * 16) as usize), compute_buffer(layout.volume_history[1 - ping], (WIDTH / 2 * HEIGHT / 2 * 16) as usize), compute_buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), compute_buffer(layout.volume_output, (WIDTH * HEIGHT * 8) as usize)], compute_buffer(layout.frame + 256, 320), WIDTH * HEIGHT, COMPUTE_REGISTERS[11], tick * 32 + 18), passes[18]);
+    install(&compute::fog(passes[19], [compute_buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), compute_buffer(layout.fog, (WIDTH / 4 * HEIGHT / 4 * 16) as usize), compute_buffer(layout.frame + 256, 256), lights, compute_buffer(layout.bloom, (WIDTH / 4 * HEIGHT / 4 * 16) as usize)], [WIDTH, HEIGHT], tick * 32 + 19), passes[19]);
+    install(&compute::post_volume(passes[20], [compute_buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), compute_buffer(layout.output, (WIDTH * HEIGHT * 4) as usize), compute_buffer(layout.frame + 256, 256), lights, compute_buffer(layout.fog, (WIDTH / 4 * HEIGHT / 4 * 16) as usize), compute_buffer(layout.bloom, (WIDTH / 4 * HEIGHT / 4 * 16) as usize), compute_buffer(layout.volume_output, (WIDTH * HEIGHT * 8) as usize)], [WIDTH, HEIGHT], COMPUTE_REGISTERS[13], tick * 32 + 20), passes[20]);
     words.len = 0;
-    for pass in passes { compute::dispatch(pass, &mut words); }
-    submit(&mut words).map_err(|_| 23u32)
+    for &pass in &passes[..16] { compute::dispatch(pass, &mut words); }
+    submit(&mut words).map_err(|_| 23u32)?;
+
+    words.len = 0;
+    copy(DESCRIPTORS, &render::sprite_descriptors(render::SpriteResources { frame: buffer(layout.frame + 256, 256), lights: buffer(layout.lights, LIGHT_COUNT * 32), depth: buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), particles: buffer(layout.particles, LIGHT_COUNT * 96 * 48), texture: 0 }));
+    copy(VERTEX_CONSTANTS, &render::sprite_constants());
+    render::sprites(target, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), particle_count, &mut words);
+    submit(&mut words).map_err(|_| 25u32)?;
+
+    words.len = 0;
+    for &pass in &passes[16..] { compute::dispatch(pass, &mut words); }
+    submit(&mut words).map_err(|_| 26u32)
 }
 
 fn audio(fs: u32, memory: u64) -> svc::Result<(sound::Engine<'static>, audren::Pcm<'static>)> {

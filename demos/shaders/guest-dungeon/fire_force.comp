@@ -15,7 +15,7 @@ vec3 velocity(uint i,uint n){return vec3(unpackHalf2x16(atlas[i*2]).xy,unpackHal
 vec3 scalar(uint i,uint n){uint at=4*n+i*2;return vec3(unpackHalf2x16(atlas[at]),unpackHalf2x16(atlas[at+1]).x);}
 void storeVelocity(uint i,uint n,vec3 v){uint at=2*n+i*2;atlas[at]=packHalf2x16(v.xy);atlas[at+1]=packHalf2x16(vec2(v.z,0));}
 void storeScalar(uint i,uint n,vec3 v){uint at=6*n+i*2;atlas[at]=packHalf2x16(v.xy);atlas[at+1]=packHalf2x16(vec2(v.z,0));}
-float hash(float x){return fract(sin(x*91.3458)*47453.5453);}
+float hash(float x){return fract(sin(x*91.3458)*47453.5453);}float reveal(uint v){float x=clamp((clock.y-36.)/6.,0.,1.);return v<2u?1.:.04+.96*x*x*(3.-2.*x);}
 void main(){
     uint i=gl_GlobalInvocationID.x,n=total();if(i>=n)return;uint v=volumeOf(i);Volume q=volumes[v];uvec3 p=coord(i,q);Light source=sources[v];
     vec3 u=velocity(i,n),s=scalar(i,n);float dt=clock.x,flame=source.position.w;
@@ -29,5 +29,5 @@ void main(){
     s.x=max(0.,s.x-dt*(.12*s.x+.018*s.x*s.x*s.x*s.x));s.z=max(0.,s.z*(1.-dt*.08));u*=1.-dt*.025;
     if(any(equal(p,uvec3(0)))||p.x+1==q.grid.y||p.y+1==q.grid.z||p.z+1==q.grid.w)u*=.15;
     storeVelocity(i,n,u);storeScalar(i,n,s);
-    if(i==q.grid.x){uint e=emission[v];float ratio=float(e)/max(1.,float(q.grid.y*q.grid.z*q.grid.w)*65535.*.18);lights[v].colour.rgb=sources[v].colour.rgb*clamp(.72+ratio*.5,.72,1.25);emission[v]=0;}
+    if(i==q.grid.x){uint e=emission[v];float ratio=float(e)/max(1.,float(q.grid.y*q.grid.z*q.grid.w)*65535.*.18),visible=reveal(v);lights[v].position=vec4(source.position.xyz,source.position.w*visible);lights[v].colour=vec4(source.colour.rgb*clamp(.72+ratio*.5,.72,1.25)*visible,source.colour.a);emission[v]=0;}
 }
