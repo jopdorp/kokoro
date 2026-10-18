@@ -11,9 +11,17 @@ To make your own, see [Build a program](../build-a-program.md).
 
 This page shows oboromi's graphics and sound demos. Every clip is captured from the emulator on an Intel laptop unless its caption says otherwise.
 
+## What this does and does not show
+
+oboromi emulates the hardware: an AArch64 CPU, an Ampere GPU, display and an audio DSP path. The GPU translator is validated against desktop sm_86 NVIDIA silicon. Command and shader-header layouts come from NVIDIA's published headers via Mesa.
+
+Nintendo supplies the OS; oboromi does not emulate it. The small service layer in this repository is a stand-in that lets our own test programs drive the emulated GPU, display and audio. It follows Switch 1 interfaces because those are known.
+
+Every demo is our own program built with our SDK. No Switch 2 binary, shader, firmware or exploit was used, and no retail or third-party binary has run. The demos show the hardware emulation running end to end with code written for it, not Switch 2 software compatibility.
+
 ## Running on the emulator {#guest-programs}
 
-Each Nintendo Relocatable Object (NRO) is loaded by the emulated CPU, uses Switch 2 shader machine code through the GPU driver path, and sends sound through the audio renderer.
+Each Nintendo Relocatable Object (NRO) is loaded by the emulated CPU, uses Ampere machine code through the GPU driver path, and sends sound through the audio renderer.
 
 ### Triangle
 

@@ -1,16 +1,16 @@
 # Current coverage and limits
 
-The included demos run through the loader, CPU, kernel, services, GPU and audio paths. Commercial games and firmware do not boot yet.
+The project's own demos run through the loader, CPU, kernel, stand-in services, GPU and audio paths. No retail or third-party binary has run, and Nintendo's OS is not emulated.
 
 | Area | Current state |
 |---|---|
 | CPU | Dynarmic by default; Unicorn for exact and comparison runs |
 | Kernel | Threads, scheduling, handles, memory, IPC and events used by the demos |
-| Services | GPU, display, audio, input, time, applet and filesystem paths used by the demos |
+| Service stand-ins | GPU, display, audio, input, time, applet and filesystem paths used by the demos |
 | GPU commands | 3D and compute classes, draw state, textures, tensors, ray queries and presentation |
 | Translator | Broad compute and graphics coverage with structured control flow |
 | Audio | Renderer, raw output, DSP effects and measured-HRIR spatial extension |
-| Loader | Included NRO images; commercial game formats remain in progress |
+| Loader | The project's own NRO images; no retail game formats |
 
 ## Translator coverage
 
@@ -33,7 +33,7 @@ Anything that is not bit-exact against the hardware oracle is a speed hack. Spee
 
 ## Hardware-backed limits
 
-The translator is checked against desktop Ampere silicon. NVIDIA's SM86 and SM88 instruction tables are byte-identical, but no code here has been validated on a physical Switch 2.
+The translator is checked against desktop sm_86 Ampere silicon. NVIDIA's SM86 and SM88 instruction tables are byte-identical, but no Switch 2 shader has been seen and no code here has been validated on a physical Switch 2.
 
 `FOOTPRINT` fields have been measured on SM86, while its complete raw result and portable Vulkan mapping remain open. `BAR.SCAN` runs only with a full-warp count in the tested forms, but its result was not observable through the documented barrier readers. Those instructions therefore remain named failures instead of guessed implementations.
 

@@ -1,6 +1,6 @@
 # CUDA
 
-CUDA is NVIDIA's way of writing general programs for its GPUs. The Switch 2 runs the same machine code as a desktop Ampere card, so CUDA programs compiled for that card make good real-world test programs. For example, NVIDIA's Mandelbrot sample runs through the translator and draws the right picture.
+CUDA is NVIDIA's way of writing general programs for its GPUs. Programs compiled for a desktop sm_86 Ampere card give the translator independent compiler input and can be checked on real NVIDIA silicon. For example, the project builds NVIDIA's Mandelbrot sample source into one of its own demos and runs it through the translator.
 
 The emulator runs compiled CUDA programs through the translator, on any Vulkan device. It can also run them natively on an NVIDIA card through libcuda, NVIDIA's driver library.
 
@@ -10,7 +10,7 @@ flowchart LR
     CUBIN --> LOAD["Kernel::load<br/>Finds code, constants, shared size"]
     LOAD --> LAUNCH["Kernel::launch<br/>Fills constant buffer 0 like the driver"]
     LAUNCH --> TR["Translator + Vulkan<br/>Any graphics card"]
-    SASS["Switch 2 shader code"] --> WR["Seed cubin writer<br/>Wraps the code as a CUDA program"]
+    SASS["Ampere machine code"] --> WR["Seed cubin writer<br/>Wraps the code as a CUDA program"]
     WR --> NAT["libcuda.so.1<br/>NVIDIA card only"]
     TR --> CMP{"Same bytes?"}
     NAT --> CMP

@@ -8,11 +8,11 @@ component: [oboromi-gpu]
 
 ## In plain words
 
-A game's command list mixes settings changes, draws, constant updates, clears and "tell the CPU I'm done" signals. Their order matters, but the PC's graphics card runs on its own clock. So we process a whole command list before returning. Every draw gets a frozen copy of its settings, everything runs in list order, and the results are in emulated RAM when the call returns. It is like a cashier who rings up each item before taking the next: slower than a busy kitchen, but never out of order.
+A program's command list mixes settings changes, draws, constant updates, clears and "tell the CPU I'm done" signals. Their order matters, but the PC's graphics card runs on its own clock. So we process a whole command list before returning. Every draw gets a frozen copy of its settings, everything runs in list order, and the results are in emulated RAM when the call returns. It is like a cashier who rings up each item before taking the next: slower than a busy kitchen, but never out of order.
 
 ## Context and Problem Statement
 
-A pushbuffer, the game's command list, interleaves state writes, draws, constant buffer updates, clears and semaphore releases, the GPU's "got this far" signals. The order they take effect in matters, and a host GPU queue runs on its own clock. The emulated OS layer that would wait on fences, the host's done-flags, or syncpoints, the Switch's hardware counters, is still being built.
+A pushbuffer, the program's command list, interleaves state writes, draws, constant buffer updates, clears and semaphore releases, the GPU's "got this far" signals. The order they take effect in matters, and a host GPU queue runs on its own clock. Nintendo's OS would wait on fences, the host's done-flags, or syncpoints, the Switch's hardware counters; oboromi does not emulate that OS.
 
 ## Decision Outcome
 

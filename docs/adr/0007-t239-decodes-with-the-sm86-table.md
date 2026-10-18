@@ -4,11 +4,11 @@ date: 2026-10-17
 decision-makers: jopdorp
 component: [oboromi-gpu]
 ---
-# The Switch 2 chip decodes with the desktop instruction table
+# Use the desktop instruction table for the T239 target
 
 ## In plain words
 
-We read Switch 2 shader code with the instruction table of NVIDIA's desktop Ampere chips. That only works if both chips encode instructions the same way. We checked inside NVIDIA's own disassembler: its tables for the desktop chip and the Switch 2 chip are byte for byte the same. So recordings made on a desktop card test the same encodings a Switch 2 runs.
+We target Ampere machine code for the T239 with the instruction table of NVIDIA's desktop Ampere chips. We checked inside NVIDIA's own disassembler: its tables for the desktop SM86 chip and the SM88 target are byte for byte the same. Recordings made on a desktop card validate the translator against real Ampere silicon, but no Switch 2 shader or hardware has been tested.
 
 ## Context and Problem Statement
 
@@ -31,7 +31,7 @@ NVIDIA's public open-gpu-doc headers also list the T239 under the same 3D class 
 
 ### What this makes easy
 
-* Recordings from a desktop GA102 card check the same encodings the Switch 2 runs.
+* Recordings from a desktop GA102 card check the SM86 encodings used by the translator.
 * Handler names stay the public, readable opcode names.
 
 ### What this makes hard

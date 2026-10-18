@@ -22,8 +22,8 @@ flowchart LR
 | Emulated system, PC | The emulated system is the Switch 2 model and its RAM; the PC runs oboromi. | An emulated address points into console RAM. |
 | Shader | A small program the GPU runs once per vertex, pixel or work item. | A pixel shader that returns one pixel's colour. |
 | SASS | NVIDIA's native GPU machine code, the instructions the chip really executes. | `FADD R0, R1, R2` adds two floats; on SM86 each instruction is a 128-bit word. |
-| SM86 | The instruction set of NVIDIA's Ampere desktop chips, which the Switch 2 also uses. | An RTX 3090 runs SM86 code. |
-| SM88 | CUDA's name for the Switch 2 GPU's instruction set; its encoding table equals SM86's. | `nvdisasm --binary SM88` decodes Switch 2 code. |
+| SM86 | The instruction set of NVIDIA's Ampere desktop chips, used as the translator's target. | An RTX 3090 runs SM86 code. |
+| SM88 | NVIDIA's disassembler target for the Switch 2 GPU; its bundled encoding table equals SM86's. | `nvdisasm --binary SM88` accepts the SM88 target. |
 | Ampere | NVIDIA's GPU generation shared by desktop cards and the Switch 2. | RTX 30 series cards are Ampere. |
 | T239 | The Switch 2's system-on-chip: ARM CPU cores plus an Ampere GPU called GA10F. | The main chip inside every Switch 2. |
 | GA102 | The desktop Ampere chip the reference results are recorded on. | RTX 3090 and RTX A6000 are GA102 cards. |

@@ -1,6 +1,6 @@
 # Build a program
 
-The triangle is the smallest program that runs on the emulator. Its source is [`guest/src/bin/triangle.rs`](https://github.com/jopdorp/oboromi/blob/guest-path/guest/src/bin/triangle.rs).
+The triangle is the smallest of the project's own test programs that runs on the emulator. Its source is [`guest/src/bin/triangle.rs`](https://github.com/jopdorp/oboromi/blob/guest-path/guest/src/bin/triangle.rs).
 
 ## What you need
 
@@ -38,7 +38,7 @@ objcopy="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p
 
 ## Build shaders
 
-The repository's exact fixtures come from GLSL compiled through the NVIDIA driver on the GPU pod. For a local build, Mesa's NAK compiler produces the shader header and SM86 SASS:
+The repository's exact fixtures come from GLSL compiled through the NVIDIA driver on an NVIDIA card. For a local build, Mesa's NAK compiler produces the shader header and SM86 SASS:
 
 ```sh
 TMPDIR="$HOME/.cache/tmp" \

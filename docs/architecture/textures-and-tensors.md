@@ -1,12 +1,12 @@
 # Textures and tensors
 
-Some instructions need more than a direct rewrite. Texture reads need the game's own image descriptions turned into Vulkan images. Tensor core instructions, which multiply small matrices in one go, need Ampere's own way of adding numbers for bit-exact results. Exact mode uses that method; the default uses the faster cooperative path.
+Some instructions need more than a direct rewrite. Texture reads need a program's image descriptions turned into Vulkan images. Tensor core instructions, which multiply small matrices in one go, need Ampere's own way of adding numbers for bit-exact results. Exact mode uses that method; the default uses the faster cooperative path.
 
 ## Textures
 
 ### How does a shader find its texture?
 
-A texture is an image a shader reads with filtering, and a sampler holds the reading settings, such as edge wrapping. A game describes both in tables in emulated RAM, called pools. The TIC pool holds texture headers (format, size, layout, address) and the TSC pool holds sampler entries.
+A texture is an image a shader reads with filtering, and a sampler holds the reading settings, such as edge wrapping. A program describes both in tables in emulated RAM, called pools. The TIC pool holds texture headers (format, size, layout, address) and the TSC pool holds sampler entries.
 
 The shader picks one entry from each pool with a handle, one word stored in a constant buffer (cbuf). The translator records where each handle comes from, as a cbuf bank and byte offset. Each distinct source gets its own Vulkan slot, a binding, numbered upwards from 36. Before the run, the PC reads the handle, decodes both pool entries, and plugs in a Vulkan image with its sampler. The image is uploaded again whenever its emulated pages change, so a texture that was drawn into shows its latest draw. In draws, textures are read by pixel shaders today.
 

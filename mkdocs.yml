@@ -1,5 +1,5 @@
 site_name: oboromi
-site_description: How the oboromi Switch 2 emulator is built
+site_description: How oboromi emulates AArch64 and Ampere hardware
 site_url: https://jopdorp.github.io/oboromi/
 docs_dir: docs
 site_dir: site
@@ -85,7 +85,7 @@ nav:
       - RAM is the one true copy: adr/0004-backing-memory-authority-for-coherence.md
       - Exact matrix sums as loops: adr/0005-hmma-exact-accumulation-as-dontunroll-loops.md
       - Commands run in order: adr/0006-synchronous-pusher-with-draw-snapshots.md
-      - Switch 2 uses the desktop table: adr/0007-t239-decodes-with-the-sm86-table.md
+      - Desktop table for the T239 target: adr/0007-t239-decodes-with-the-sm86-table.md
       - Real chips are the reference: adr/0008-silicon-first-verification.md
   - Glossary: glossary.md
   - SM86 instruction table (PDF): sm86.pdf

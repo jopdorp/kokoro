@@ -15,9 +15,22 @@
 oboromi is an early emulator for the Nintendo Switch 2. It builds on the CPU,
 service, GPU and front-end foundations laid by its maintainer and contributors.
 
-Its own AArch64 programs now run through the loader, kernel and services. They
-draw through the emulated NVIDIA Ampere GPU, play through the audio renderer and
-present in the Qt window. Commercial games and firmware do not boot yet.
+## what this does and does not show
+
+oboromi emulates the hardware: an AArch64 CPU, an Ampere GPU, display and an
+audio DSP path. The GPU translator is validated against desktop sm_86 NVIDIA
+silicon. Command and shader-header layouts come from NVIDIA's published headers
+via Mesa.
+
+Nintendo supplies the OS; oboromi does not emulate it. The small service layer
+in this repository is a stand-in that lets our own test programs drive the
+emulated GPU, display and audio. It follows Switch 1 interfaces because those
+are known.
+
+Every demo is our own program built with our SDK. No Switch 2 binary, shader,
+firmware or exploit was used, and no retail or third-party binary has run. The
+demos show the hardware emulation running end to end with code written for it,
+not Switch 2 software compatibility.
 
 See the [architecture guide](https://jopdorp.github.io/oboromi/architecture/)
 and [current demos](https://jopdorp.github.io/oboromi/architecture/demos/).
@@ -30,7 +43,7 @@ and [current demos](https://jopdorp.github.io/oboromi/architecture/demos/).
     - SASS to SPIR-V translation
     - Vulkan compute, graphics and ray queries
   - **kernel**: system calls, handles, memory and thread scheduling
-  - **nn**: high-level emulation of system services
+  - **nn**: stand-in services used by the test programs
   - **sys**: entire emulation state
   - **tests**
 - **docs**
