@@ -30,7 +30,7 @@ fn solar_merges_conserve_mass_and_momentum_deterministically_for_100_steps() {
     let body = [0; 48];
     let counts = vec![0xff; CELLS as usize * 4];
     let slots = vec![0; (CELLS * CELL_CAPACITY) as usize * 4];
-    if let Some(output) = run_kernel(CUBIN, "solar_step", [CELLS / 64, 1, 1], [64, 1, 1], &[
+    if let Some(output) = run_kernel(CUBIN, "solar_step", [CELLS / 64, 1, 1], [64, 1, 1], 0, &[
         Arg::Buffer(&body), Arg::Buffer(&body), Arg::Buffer(&counts), Arg::Buffer(&slots),
         Arg::Value(&1u32.to_le_bytes()), Arg::Value(&1u32.to_le_bytes()), Arg::Value(&0.01f32.to_le_bytes()),
         Arg::Value(&0.0f32.to_le_bytes()), Arg::Value(&1e-6f32.to_le_bytes()), Arg::Value(&0u32.to_le_bytes()),
@@ -41,7 +41,7 @@ fn solar_merges_conserve_mass_and_momentum_deterministically_for_100_steps() {
         [ 0.00,-0.30, 0.00, 0.0, 0.05, 0.25, 0.00, 1.5, 0.0, 0.0, 0.0, 0.0],
         [ 0.10, 0.30, 0.00, 0.0,-0.05,-0.25, 0.00, 0.5, 0.0, 0.0, 0.0, 0.0],
     ]);
-    let run = || run_kernel(CUBIN, "solar_contract", [1; 3], [1; 3], &[
+    let run = || run_kernel(CUBIN, "solar_contract", [1; 3], [1; 3], 0, &[
         Arg::Buffer(&input), Arg::Value(&4u32.to_le_bytes()), Arg::Value(&100u32.to_le_bytes()),
     ]).map(|output| output[0].clone());
     let Some(first) = run() else { return };
@@ -55,7 +55,7 @@ fn solar_merges_conserve_mass_and_momentum_deterministically_for_100_steps() {
     assert!(initial_momentum.into_iter().zip(final_momentum).all(|(before, after)| (before - after).abs() <= 1e-6));
     let orbit = [[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0]];
     let orbit_bytes = bytes(&orbit);
-    let output = run_kernel(CUBIN, "solar_orbit_contract", [1; 3], [1; 3], &[
+    let output = run_kernel(CUBIN, "solar_orbit_contract", [1; 3], [1; 3], 0, &[
         Arg::Buffer(&orbit_bytes), Arg::Value(&1_200u32.to_le_bytes()), Arg::Value(&0.02f32.to_le_bytes()),
     ]).unwrap();
     let final_orbit = bodies(&output[0]);
