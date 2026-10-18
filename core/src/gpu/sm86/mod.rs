@@ -616,10 +616,11 @@ impl<'a> Decoder<'a> {
             if reg != RZ { self.nan_flag(reg); }
         }
         if self.translation != Translation::ForceDispatcher {
+            let fragment = matches!(self.stage, Stage::Fragment { .. });
             let collectives = self.tensor == TensorMode::Fast && words.iter().any(|&inst| matches!(opcode(inst), 0x23c | 0x83b))
                 && self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle)
-                || matches!(self.stage, Stage::Fragment { .. });
-            match plan_with_collectives(words, collectives) {
+                || fragment;
+            match plan_with_collectives(words, collectives, fragment) {
                 Ok(plan) => return self.translate_structured(words, &plan),
                 Err(reason) => assert!(self.translation == Translation::Auto, "no structured translation: {reason}"),
             }
