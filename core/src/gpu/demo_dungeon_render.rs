@@ -234,7 +234,7 @@ impl Renderer {
         let lights_data: Vec<_> = world
             .lights
             .iter()
-            .enumerate().flat_map(|(i,l)| [l.pos[0], l.pos[1]+l.flame*.5, l.pos[2], l.flame, l.colour[0], l.colour[1], l.colour[2], shadow_slots[i].map_or(0.,|slot|slot as f32+1.)])
+            .enumerate().flat_map(|(i,l)| [l.pos[0], l.pos[1]+l.flame*0.5, l.pos[2], l.flame, l.colour[0], l.colour[1], l.colour[2], shadow_slots[i].map_or(0.,|slot|slot as f32+1.)])
             .collect();
         let mut lights = HostBuffer::new(state, (lights_data.len() * 4) as u64).map_err(named)?;
         lights.write(&floats(&lights_data)).map_err(named)?;
@@ -512,7 +512,7 @@ impl Renderer {
         let projection = [[1., 0., 0., 0.], [0., -1., 0., 0.], [0., 0., -30. / 29.95, -1.], [0., 0., -1.5 / 29.95, 0.]];
         for (i, light) in world.lights.iter().enumerate() {
             let Some(slot)=self.shadow_slots[i] else {continue;};
-            let light_position=[light.pos[0],light.pos[1]+light.flame*.5,light.pos[2]];
+            let light_position=[light.pos[0],light.pos[1]+light.flame*0.5,light.pos[2]];
             let bytes=u64::from(self.shadow_size*self.shadow_size*8);
             for (face, dir) in [[1., 0., 0.], [-1., 0., 0.], [0., 1., 0.], [0., -1., 0.], [0., 0., 1.], [0., 0., -1.]]
                 .into_iter()
@@ -745,7 +745,7 @@ impl Renderer {
             let phase=i as f32*2.3;
             let flicker=1.+l.flicker*(0.22*(seconds*4.3+phase).sin()+0.07*(seconds*17.1+phase*1.7).sin());
             let reveal=if world.zones[world.cave].space.contains(l.pos) {0.04+0.96*smoother((seconds-36.)/6.)} else {1.};
-            [l.pos[0],l.pos[1]+l.flame*.5,l.pos[2],l.flame*reveal,l.colour[0]*flicker*reveal,l.colour[1]*flicker*reveal,l.colour[2]*flicker*reveal,self.shadow_slots[i].map_or(0.,|slot|slot as f32+1.)]
+            [l.pos[0],l.pos[1]+l.flame*0.5,l.pos[2],l.flame*reveal,l.colour[0]*flicker*reveal,l.colour[1]*flicker*reveal,l.colour[2]*flicker*reveal,self.shadow_slots[i].map_or(0.,|slot|slot as f32+1.)]
         }).collect();
         self.lights.write(&floats(&light_data)).map_err(named)?;
         let per_emitter = if self.showcase { 96 } else { 24 };
