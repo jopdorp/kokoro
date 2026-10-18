@@ -29,8 +29,8 @@ pub struct Machine {
 }
 
 impl Machine {
-    pub fn demo(demo: Demo) -> Result<Self, String> {
-        let (name, image): (_, &[u8]) = match demo {
+    fn demo_image(demo: Demo) -> (&'static str, &'static [u8]) {
+        match demo {
             Demo::BoomBox => ("boombox.nro", include_bytes!("../tests/fixtures/guest/boombox.nro")),
             Demo::Helmet => ("helmet.nro", include_bytes!("../tests/fixtures/guest/helmet.nro")),
             Demo::Raytraced => ("raytraced.nro", include_bytes!("../tests/fixtures/guest/raytraced.nro")),
@@ -44,19 +44,33 @@ impl Machine {
             Demo::Triangle => ("triangle.nro", include_bytes!("../tests/fixtures/guest/triangle.nro")),
             Demo::Sprites => ("sprites.nro", include_bytes!("../tests/fixtures/guest/sprites.nro")),
             Demo::TensorUpscale => ("tensor-upscale.nro", include_bytes!("../tests/fixtures/guest/tensor-upscale.nro")),
-        };
+        }
+    }
+
+    pub fn demo(demo: Demo) -> Result<Self, String> {
+        let (name, image) = Self::demo_image(demo);
         Self::image(name, image)
     }
 
+    #[cfg(test)]
+    fn demo_exact(demo: Demo) -> Result<Self, String> {
+        let (name, image) = Self::demo_image(demo);
+        Self::image_with(name, image, crate::cpu::cpu_manager::CpuBackend::Unicorn, crate::gpu::SpeedHacks::none())
+    }
+
     fn image(name: &str, image: &[u8]) -> Result<Self, String> {
+        Self::image_with(name, image, crate::cpu::cpu_manager::CpuManager::default_backend(), *crate::gpu::SPEED_HACKS.lock().unwrap())
+    }
+
+    fn image_with(name: &str, image: &[u8], backend: crate::cpu::cpu_manager::CpuBackend, hacks: crate::gpu::SpeedHacks) -> Result<Self, String> {
         use crate::nn::{hipc::Service, nvdrv::Nvdrv, vi};
         use std::{cell::RefCell, rc::Rc};
-        let cpus = crate::cpu::cpu_manager::CpuManager::new();
+        let cpus = crate::cpu::cpu_manager::CpuManager::new_with_backend(backend);
         let mut kernel = crate::kernel::Kernel::default();
         kernel.scheduler.virtual_time = true;
         // One virtual tick per block keeps demo updates inside the audio period; this is an execution budget, not hardware timing.
         cpus.get_core(0).unwrap().set_block_ticks(1);
-        let gpu = crate::gpu::engine::Gpu::with_ram(crate::gpu::device().map_err(|e| format!("{e:?}"))?, cpus.ram.clone(), None, *crate::gpu::SPEED_HACKS.lock().unwrap()).map_err(|e| format!("{e:?}"))?;
+        let gpu = crate::gpu::engine::Gpu::with_ram(crate::gpu::device().map_err(|e| format!("{e:?}"))?, cpus.ram.clone(), None, hacks).map_err(|e| format!("{e:?}"))?;
         let nvdrv = Rc::new(RefCell::new(Nvdrv::new(gpu)));
         kernel.sm.borrow_mut().0.insert("nvdrv".into(), nvdrv.clone() as Rc<RefCell<dyn Service>>);
         let (display, vsync) = vi::services(nvdrv);
@@ -115,6 +129,8 @@ mod tests {
     use std::cell::RefCell;
     use std::rc::Rc;
 
+    fn exact() -> crate::gpu::ExactSpeedHacks { crate::gpu::ExactSpeedHacks::new() }
+
     // guest.bin is what scripts/build-guest.sh builds from guest/. nvdrv needs a GPU, which the kernel's own sm: lacks.
     #[test]
     fn the_guest_image_initializes_services_draws_and_presents() {
@@ -126,7 +142,7 @@ mod tests {
         let core = cpu.get_core(0).unwrap();
         let mut kernel = Kernel::default();
         kernel.hid.borrow_mut().input = || InputState { buttons: 1, left: [0.5, -0.5], right: [0.0; 2], connected: true };
-        let nvdrv = Rc::new(RefCell::new(Nvdrv::new(Gpu::with_ram(Box::leak(Box::new(state)), cpu.ram.clone(), None, Default::default()).unwrap())));
+        let nvdrv = Rc::new(RefCell::new(Nvdrv::new(Gpu::with_ram(Box::leak(Box::new(state)), cpu.ram.clone(), None, crate::gpu::SpeedHacks::none()).unwrap())));
         kernel.sm.borrow_mut().0.insert("nvdrv".into(), nvdrv.clone() as Rc<RefCell<dyn Service>>);
         kernel.sm.borrow_mut().0.extend(vi::services(nvdrv).0);
         kernel.start(core, entry, image.len() as u64);
@@ -143,6 +159,7 @@ mod tests {
 
     #[test]
     fn guest_triangle_end_to_end() {
+        let _exact = exact();
         let _display = DISPLAY_TEST.lock().unwrap();
         let state = crate::gpu::device().expect("guest triangle requires Vulkan");
         crate::gpu::frame::render_triangle_demo(0.0).unwrap();
@@ -155,10 +172,10 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("triangle.nro");
         std::fs::write(&path, include_bytes!("../tests/fixtures/guest/triangle.nro")).unwrap();
-        let cpus = CpuManager::new();
+        let cpus = CpuManager::new_with_backend(crate::cpu::cpu_manager::CpuBackend::Unicorn);
         let cpu = cpus.get_core(0).unwrap();
         let mut kernel = Kernel::default();
-        let nvdrv = Rc::new(RefCell::new(Nvdrv::new(Gpu::with_ram(state, cpus.ram.clone(), None, Default::default()).unwrap())));
+        let nvdrv = Rc::new(RefCell::new(Nvdrv::new(Gpu::with_ram(state, cpus.ram.clone(), None, crate::gpu::SpeedHacks::none()).unwrap())));
         kernel.sm.borrow_mut().0.insert("nvdrv".into(), nvdrv.clone() as Rc<RefCell<dyn Service>>);
         kernel.sm.borrow_mut().0.extend(vi::services(nvdrv).0);
         crate::loader::nro::load(&cpus.ram, cpu, &mut kernel, &path).unwrap();
@@ -183,7 +200,7 @@ mod tests {
     fn guest_audio(demo: Demo, frames: usize) -> (Machine, u64, usize) {
         let mut discard = vec![0; crate::audio::queued() * 2];
         crate::audio::pull(&mut discard);
-        let mut guest = Machine::demo(demo).unwrap();
+        let mut guest = Machine::demo_exact(demo).unwrap();
         let (mut actual, mut count) = (0xcbf29ce484222325u64, 0usize);
         for _ in 0..frames {
             guest.frame_with(|| {
@@ -198,6 +215,7 @@ mod tests {
 
     #[test]
     fn guest_music_matches_host_audio() {
+        let _exact = exact();
         let _display = DISPLAY_TEST.lock().unwrap();
         let (mut guest, actual, count) = guest_audio(Demo::Music, 360);
         let mut host = crate::audio::demo_music::music();
@@ -222,6 +240,7 @@ mod tests {
 
     #[test]
     fn guest_bounce_matches_host_audio() {
+        let _exact = exact();
         let _display = DISPLAY_TEST.lock().unwrap();
         let (_guest, actual, count) = guest_audio(Demo::Bounce, 61);
         let mut host = crate::gpu::demo_bounce::Bounce::new();
@@ -234,11 +253,12 @@ mod tests {
 
     #[test]
     fn guest_helmet_matches_host_frame() {
+        let _exact = exact();
         if !crate::gpu::demo::asset_dir("flighthelmet").exists() { return eprintln!("skipped: run demos/assets/fetch.sh for flighthelmet"); }
         let _display = DISPLAY_TEST.lock().unwrap();
         crate::gpu::demo::render_helmet_frame(1.0).unwrap();
         let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
-        let mut guest = Machine::demo(Demo::Helmet).unwrap();
+        let mut guest = Machine::demo_exact(Demo::Helmet).unwrap();
         for _ in 0..=60 { guest.frame().unwrap(); }
         let mut frame = crate::display::DISPLAY.lock().unwrap();
         let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
@@ -248,10 +268,11 @@ mod tests {
 
     #[test]
     fn guest_post_matches_host_frame() {
+        let _exact = exact();
         let _display = DISPLAY_TEST.lock().unwrap();
         crate::gpu::demo_post::render_post_frame(1.0).unwrap();
         let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
-        let mut guest = Machine::demo(Demo::Post).unwrap();
+        let mut guest = Machine::demo_exact(Demo::Post).unwrap();
         for _ in 0..=60 { guest.frame().unwrap(); }
         let mut frame = crate::display::DISPLAY.lock().unwrap();
         let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
@@ -261,10 +282,11 @@ mod tests {
 
     #[test]
     fn guest_particles_matches_host_frame() {
+        let _exact = exact();
         let _display = DISPLAY_TEST.lock().unwrap();
         for tick in 0..=60 { crate::gpu::demo_particles::render_particles_frame(tick as f32 / 60.0).unwrap(); }
         let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
-        let mut guest = Machine::demo(Demo::Particles).unwrap();
+        let mut guest = Machine::demo_exact(Demo::Particles).unwrap();
         for _ in 0..=60 { guest.frame().unwrap(); }
         let mut frame = crate::display::DISPLAY.lock().unwrap();
         let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
@@ -274,10 +296,11 @@ mod tests {
 
     #[test]
     fn guest_julia_matches_host_frame() {
+        let _exact = exact();
         let _display = DISPLAY_TEST.lock().unwrap();
         crate::gpu::frame::render_demo_frame(1.0).unwrap();
         let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
-        let mut guest = Machine::demo(Demo::Julia).unwrap();
+        let mut guest = Machine::demo_exact(Demo::Julia).unwrap();
         for _ in 0..=60 { guest.frame().unwrap(); }
         let mut frame = crate::display::DISPLAY.lock().unwrap();
         let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
@@ -287,6 +310,7 @@ mod tests {
 
     #[test]
     fn guest_mandelbrot_matches_host_launch() {
+        let _exact = exact();
         use crate::gpu::cubin::Arg;
         use crate::tests::gpu::harness::run_kernel;
         use scene::mandelbrot::*;
@@ -303,7 +327,7 @@ mod tests {
             Arg::Value(&animation), Arg::Value(&grid_width), Arg::Value(&blocks), Arg::Value(&[0]),
         ];
         let expected = run_kernel(include_bytes!("../tests/fixtures/mandelbrot-sm86.cubin"), name, GRID, BLOCK, 0, &args).unwrap().remove(0);
-        let mut guest = Machine::demo(Demo::Mandelbrot).unwrap();
+        let mut guest = Machine::demo_exact(Demo::Mandelbrot).unwrap();
         for _ in 0..=frame_number { guest.frame().unwrap(); }
         let mut displayed = crate::display::DISPLAY.lock().unwrap();
         let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
@@ -313,6 +337,7 @@ mod tests {
 
     #[test]
     fn guest_boombox_spatial_audio_and_frame_match() {
+        let _exact = exact();
         if !crate::gpu::demo::asset_dir("boombox").exists() { return eprintln!("skipped: run demos/assets/fetch.sh for boombox"); }
         let tone: Vec<i16> = (0..48_000).map(|n| {
             let t = n as f32 / 48_000.0;
@@ -357,7 +382,7 @@ mod tests {
         let _display = DISPLAY_TEST.lock().unwrap();
         crate::gpu::demo::render_boombox_frame(1.0).unwrap();
         let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
-        let mut guest = Machine::demo(Demo::BoomBox).unwrap();
+        let mut guest = Machine::demo_exact(Demo::BoomBox).unwrap();
         for _ in 0..=60 { guest.frame().unwrap(); }
         let mut frame = crate::display::DISPLAY.lock().unwrap();
         let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
@@ -367,6 +392,7 @@ mod tests {
 
     #[test]
     fn guest_raytraced_matches_host_frame() {
+        let _exact = exact();
         if !crate::gpu::demo::asset_dir("boombox").exists() { return eprintln!("skipped: run demos/assets/fetch.sh for boombox"); }
         let _display = DISPLAY_TEST.lock().unwrap();
         let state = crate::gpu::device().expect("ray-traced guest requires Vulkan");
@@ -376,7 +402,7 @@ mod tests {
         let mut expected = vec![0; 320 * 180 * 4];
         host.gpu.read(host.target, &mut expected).unwrap();
         drop(host);
-        let mut guest = Machine::image("raytraced-test.nro", include_bytes!("../tests/fixtures/guest/raytraced.nro")).unwrap();
+        let mut guest = Machine::image_with("raytraced-test.nro", include_bytes!("../tests/fixtures/guest/raytraced.nro"), crate::cpu::cpu_manager::CpuBackend::Unicorn, crate::gpu::SpeedHacks::none()).unwrap();
         guest.frame().unwrap();
         let mut frame = crate::display::DISPLAY.lock().unwrap();
         assert_eq!((frame.width, frame.height), (320, 180));
@@ -387,10 +413,11 @@ mod tests {
 
     #[test]
     fn guest_bounce_matches_host_frame() {
+        let _exact = exact();
         let _display = DISPLAY_TEST.lock().unwrap();
         for tick in 0..=60 { crate::gpu::demo_bounce::render_bounce_frame(tick as f32 / 60.0).unwrap(); }
         let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
-        let mut guest = Machine::demo(Demo::Bounce).unwrap();
+        let mut guest = Machine::demo_exact(Demo::Bounce).unwrap();
         for _ in 0..=60 { guest.frame().unwrap(); }
         let mut frame = crate::display::DISPLAY.lock().unwrap();
         let digest = |bytes: &[u8]| bytes.iter().fold(0xcbf29ce484222325u64, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
@@ -400,6 +427,7 @@ mod tests {
 
     #[test]
     fn host_stick_moves_the_guest_sprites_at_the_second_present() {
+        let _exact = exact();
         let _display = DISPLAY_TEST.lock().unwrap();
         let snapshot = || crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
         let sun = |pixels: &[u8]| {
@@ -418,13 +446,13 @@ mod tests {
         crate::input::set_override(Some(InputState::default()));
         crate::gpu::demo_sprites::render_sprites_frame(0.0).unwrap();
         let expected = snapshot();
-        let mut centered = Machine::demo(Demo::Sprites).unwrap();
+        let mut centered = Machine::demo_exact(Demo::Sprites).unwrap();
         centered.frame().unwrap();
         centered.frame().unwrap();
         let baseline = snapshot();
         assert!(baseline == expected);
         drop(centered);
-        let mut controlled = Machine::demo(Demo::Sprites).unwrap();
+        let mut controlled = Machine::demo_exact(Demo::Sprites).unwrap();
         controlled.frame().unwrap();
         crate::input::set_override(Some(InputState { left: [0.5, 0.5], connected: true, ..Default::default() }));
         controlled.frame().unwrap();
