@@ -5,7 +5,6 @@ use core::f32::consts::{FRAC_1_SQRT_2, TAU};
 
 pub const SCROLL_PER_SECOND: f32 = 120.0;
 const PARALLAX: [f32; 3] = [0.15, 0.4, 0.8];
-const SPRITES_PER_LAYER: usize = 65;
 const CELL: usize = ATLAS_SIZE / 4;
 const HILLS: [[u8; 3]; 3] = [[150, 182, 205], [92, 140, 112], [40, 82, 62]];
 pub const SHAPES: [[u8; 3]; 4] = [[255, 214, 92], [236, 92, 92], [255, 255, 255], [112, 200, 255]];

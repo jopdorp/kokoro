@@ -48,7 +48,8 @@ fn draw() -> svc::Result<()> {
         let input = hid::read();
         if input.buttons & !previous & 1 != 0 { tinted = !tinted; }
         previous = input.buttons;
-        for instance in &mut *instances {
+        for (i, instance) in instances.iter_mut().enumerate() {
+            if i > 0 && (i - 1) % (SPRITES_PER_LAYER + 1) == 0 { continue; }
             instance[0] += input.left[0] as f32 / 32767.0 * 4.0;
             instance[1] -= input.left[1] as f32 / 32767.0 * 4.0;
         }

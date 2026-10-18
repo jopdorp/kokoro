@@ -34,7 +34,8 @@ pub const DRIVER_BANK: u32 = 0x1d;
 pub const SCENE: [f32; 2] = [1280.0, 720.0];
 pub const SKY: [f32; 4] = [0.55, 0.7, 0.9, 1.0];
 pub const SUNSET: [f32; 4] = [1.0, 0.9, 0.8, 1.0];
-pub const INSTANCE_COUNT: usize = 199;
+pub const SPRITES_PER_LAYER: usize = 65;
+pub const INSTANCE_COUNT: usize = 1 + 3 * (1 + SPRITES_PER_LAYER);
 pub const ATLAS_SIZE: usize = 2048;
 fn load<const N: usize>(buffer: u64, values: &[f32; N], words: &mut impl Extend<u32>) {
     inc(SET_CONSTANT_BUFFER_SELECTOR_A, &[16, (buffer >> 32) as u32, buffer as u32, 0], words);
