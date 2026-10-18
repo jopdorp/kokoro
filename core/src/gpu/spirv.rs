@@ -87,6 +87,7 @@ pub mod capability {
     pub const ATOMIC_FLOAT32_ADD: u32 = 6033;
     pub const COOPERATIVE_MATRIX: u32 = 6022;
     pub const VULKAN_MEMORY_MODEL: u32 = 5345;
+    pub const VULKAN_MEMORY_MODEL_DEVICE_SCOPE: u32 = 5346;
     pub const SHADER_CLOCK: u32 = 5055;
 }
 
