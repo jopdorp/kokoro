@@ -21,11 +21,11 @@ void main(){
     vec3 u=velocity(i,n),s=scalar(i,n);float dt=clock.x,flame=source.position.w;
     vec2 xz=(vec2(p.x,p.z)+.5)/vec2(q.grid.y,q.grid.w)*2.-1.;float y=(float(p.y)+.5)/float(q.grid.z);
     float flicker=.82+.18*sin(clock.y*(9.3+float(v)*.17)+float(v)*2.71)+.09*sin(clock.y*17.1+float(v));
-    float lobes=flame>1.?(.65+.35*sin(atan(xz.y,xz.x)*5.+clock.y*3.7)):1.;
+    float lobes=.58+.42*sin(atan(xz.y,xz.x)*(flame>1.?7.:4.)+clock.y*3.7+float(v));
     float inject=(1.-smoothstep(.12,flame>1.?.72:.34,length(xz)))*lobes*(1.-smoothstep(.015,.09,y));
     float fuel=inject*dt*(flame>1.?7.5:6.)*flicker;s.y+=fuel;s.x+=fuel*1.8;
     float burn=min(s.y,max(s.x-.12,0.)*dt*2.6);s.y-=burn;s.x+=burn*5.8;s.z+=burn*.72;
-    u.y+=dt*(s.x*2.7-s.z*.48);u.xz+=vec2(hash(float(i)+clock.y)-.5,hash(float(i)*1.7-clock.y)-.5)*inject*dt*1.4;
+    u.y+=dt*(s.x*4.2-s.z*.35);u.xz+=vec2(hash(float(i)+clock.y)-.5,hash(float(i)*1.7-clock.y)-.5)*inject*dt*1.8;
     s.x=max(0.,s.x-dt*(.12*s.x+.018*s.x*s.x*s.x*s.x));s.z=max(0.,s.z*(1.-dt*.08));u*=1.-dt*.025;
     if(any(equal(p,uvec3(0)))||p.x+1==q.grid.y||p.y+1==q.grid.z||p.z+1==q.grid.w)u*=.15;
     storeVelocity(i,n,u);storeScalar(i,n,s);

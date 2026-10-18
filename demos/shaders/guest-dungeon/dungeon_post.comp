@@ -35,9 +35,9 @@ void main(){
     vec2 fp=(vec2(p)+.5)/4.-.5;ivec2 fi=ivec2(floor(fp));vec2 f=fract(fp);
     vec4 fog=mix(mix(fogAt(fi),fogAt(fi+ivec2(1,0)),f.x),mix(fogAt(fi+ivec2(0,1)),fogAt(fi+1),f.x),f.y);
     uvec2 packed_volume=volume_pixels[p.y*int(settings.x)+p.x];vec4 volume=vec4(unpackHalf2x16(packed_volume.x),unpackHalf2x16(packed_volume.y));
-    c=c*volume.a+volume.rgb;
-    c=(c*fog.a+fog.rgb)*1.15;
+    c=(c*volume.a*fog.a+fog.rgb)*1.15;
     c=clamp(c*(2.51*c+.03)/(c*(2.43*c+.59)+.14),0.,1.);
+    c=clamp(c+volume.rgb/(1.+volume.rgb),0.,1.);
     vec2 uv=(vec2(p)+.5)/settings.xy; c*=1.-.18*pow(length(uv-.5),2.);
     c=pow(c,vec3(1./2.2));pixels[p.y*int(settings.x)+p.x]=packUnorm4x8(vec4(c,1));
 }
