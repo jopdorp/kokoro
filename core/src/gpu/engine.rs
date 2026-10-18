@@ -121,6 +121,7 @@ pub struct Geometry {
 struct Traversable<'a> {
     geometry: Vec<Geometry>,
     ranges: Vec<PaRange>,
+    registry: Option<(Vec<PaRange>, u64)>,
     generation: u64,
     built: Option<AccelerationStructure<'a>>,
 }
@@ -436,7 +437,51 @@ impl<'a> Gpu<'a> {
             ranges.extend(self.space.resolve(g.vertices, u64::from(g.stride) * u64::from(g.vertex_count))?);
             ranges.extend(self.space.resolve(g.indices, 4 * u64::from(g.index_count))?);
         }
-        self.traversables.insert(gpu_va, Traversable { geometry, ranges, generation: 0, built: None });
+        self.traversables.insert(gpu_va, Traversable { geometry, ranges, registry: None, generation: 0, built: None });
+        Ok(())
+    }
+
+    fn guest_acceleration_structure(&self, gpu_va: u64) -> Result<Option<(Vec<Geometry>, Vec<PaRange>)>, String> {
+        let mut header = [0; 8];
+        gather(&self.space, unsafe { self.ram.slice(0, self.ram.size()) }, gpu_va, &mut header).map_err(named)?;
+        let word = |bytes: &[u8], at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
+        if word(&header, 0) != scene::pbr::ACCELERATION_STRUCTURE_MAGIC {
+            return Ok(None);
+        }
+        let count = word(&header, 4) as usize;
+        if count == 0 {
+            return Err(format!("acceleration structure at {gpu_va:#x} has no instances"));
+        }
+        let len = count.checked_mul(scene::pbr::GEOMETRY_WORDS * 4).and_then(|len| len.checked_add(8)).ok_or("acceleration structure registry is too large")?;
+        let ranges = self.space.resolve(gpu_va, len as u64).map_err(named)?.collect();
+        let mut bytes = vec![0; len];
+        gather(&self.space, unsafe { self.ram.slice(0, self.ram.size()) }, gpu_va, &mut bytes).map_err(named)?;
+        let geometry = bytes[8..].chunks_exact(scene::pbr::GEOMETRY_WORDS * 4).map(|record| {
+            let address = |at| u64::from(word(record, at)) << 32 | u64::from(word(record, at + 4));
+            Geometry {
+                vertices: address(0), stride: word(record, 8), vertex_count: word(record, 12),
+                indices: address(16), index_count: word(record, 24), opaque: word(record, 28) != 0,
+                transform: std::array::from_fn(|row| std::array::from_fn(|column| f32::from_bits(word(record, 32 + (row * 4 + column) * 4)))),
+            }
+        }).collect();
+        Ok(Some((geometry, ranges)))
+    }
+
+    fn refresh_guest_acceleration_structure(&mut self, gpu_va: u64) -> Result<(), String> {
+        let refresh = self.traversables.get(&gpu_va).is_none_or(|entry| entry.registry.as_ref().is_some_and(|(ranges, built)| generation(&self.memory, ranges) != *built));
+        if !refresh {
+            return Ok(());
+        }
+        let Some((geometry, registry_ranges)) = self.guest_acceleration_structure(gpu_va)? else {
+            return self.traversables.contains_key(&gpu_va).then_some(()).ok_or_else(|| format!("no acceleration structure is registered at {gpu_va:#x}"));
+        };
+        let registry_generation = generation(&self.memory, &registry_ranges);
+        let mut ranges = registry_ranges.clone();
+        for g in &geometry {
+            ranges.extend(self.space.resolve(g.vertices, u64::from(g.stride) * u64::from(g.vertex_count)).map_err(named)?);
+            ranges.extend(self.space.resolve(g.indices, 4 * u64::from(g.index_count)).map_err(named)?);
+        }
+        self.traversables.insert(gpu_va, Traversable { geometry, ranges, registry: Some((registry_ranges, registry_generation)), generation: 0, built: None });
         Ok(())
     }
 
@@ -444,7 +489,8 @@ impl<'a> Gpu<'a> {
         if self.state.acceleration_structure.is_none() {
             return Err("ray queries are not supported by this device".into());
         }
-        let entry = self.traversables.get_mut(&va).ok_or_else(|| format!("no acceleration structure is registered at {va:#x}"))?;
+        self.refresh_guest_acceleration_structure(va)?;
+        let entry = self.traversables.get_mut(&va).unwrap();
         let current = generation(&self.memory, &entry.ranges);
         if entry.built.is_some() && entry.generation == current {
             return Ok(());

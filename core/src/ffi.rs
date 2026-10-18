@@ -109,8 +109,8 @@ pub extern "C" fn oboromi_render_boombox_demo(_seconds: f32) -> bool {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn oboromi_render_raytraced_demo(seconds: f32) -> bool {
-    matches!(catch_unwind(|| crate::gpu::demo::render_raytraced_frame(seconds)), Ok(Ok(())))
+pub extern "C" fn oboromi_render_raytraced_demo(_seconds: f32) -> bool {
+    matches!(catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::Raytraced)), Ok(Ok(())))
 }
 
 #[unsafe(no_mangle)]

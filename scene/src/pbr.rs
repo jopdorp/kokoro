@@ -4,7 +4,7 @@ pub const BASE: u64 = 0x1000_0000;
 pub const PUSHBUFFER: u64 = BASE;
 pub const FRAME_SEGMENT: u64 = BASE + 0x8000;
 pub const VERTEX_PROGRAM: u64 = BASE + 0x1_0000;
-pub const PIXEL_PROGRAM: u64 = BASE + 0x1_8000;
+pub const PIXEL_PROGRAM: u64 = BASE + 0x4_0000;
 pub const VERTEX_TABLE: u64 = BASE + 0x2_0000;
 pub const VERTEX_UNIFORMS: u64 = VERTEX_TABLE + 0x100;
 pub const MATERIALS: u64 = BASE + 0x2_1000;
@@ -13,13 +13,24 @@ pub const MATERIAL_UNIFORMS: u64 = 0x80;
 pub const TIC: u64 = BASE + 0x3_0000;
 pub const TSC: u64 = BASE + 0x3_8000;
 pub const REPORT: u64 = BASE + 0x3_f000;
-pub const VERTICES: u64 = BASE + 0x4_0000;
+pub const VERTICES: u64 = BASE + 0x6_0000;
 // The depth target lives on the host only, so its VA needs no pages.
 pub const DEPTH: u64 = 0x2000_0000;
 pub const ALIGN: u64 = 0x1_0000;
 pub const EYE: [f32; 3] = [0.0, 0.35, 3.5];
 pub const TLAS: u64 = BASE + 0x2_f000;
 pub const RAY_CONSTANTS: u64 = TLAS + 0x800;
+pub const ACCELERATION_STRUCTURE_MAGIC: u32 = u32::from_le_bytes(*b"OAS1");
+pub const GEOMETRY_WORDS: usize = 20;
+#[derive(Clone, Copy)]
+pub struct RayGeometry {
+    pub model_vertices: u32,
+    pub model_indices: u32,
+    pub vertex_count: u32,
+    pub index_count: u32,
+    pub indices_va: u64,
+    pub light_count: u32,
+}
 pub const IDENTITY: Matrix = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]];
 pub const ROOM_EYE: [f32; 3] = [0.0, 1.0, 5.5];
 pub const ROOM_MATERIALS: [([u8; 3], f32, f32); 8] = [
@@ -72,6 +83,49 @@ pub type Matrix = [[f32; 4]; 4];
 
 pub fn multiply(a: Matrix, b: Matrix) -> Matrix {
     core::array::from_fn(|column| core::array::from_fn(|row| (0..4).map(|k| a[k][row] * b[column][k]).sum()))
+}
+
+pub fn view_projection(width: u32, height: u32, eye: [f32; 3], sqrt: impl Fn(f32) -> f32) -> Matrix {
+    let (near, far, focal) = (0.1, 20.0, 2.414_213_7);
+    let projection = [[focal * height as f32 / width as f32, 0.0, 0.0, 0.0], [0.0, -focal, 0.0, 0.0], [0.0, 0.0, far / (near - far), -1.0], [0.0, 0.0, near * far / (near - far), 0.0]];
+    let length = sqrt(eye.iter().map(|v| v * v).sum());
+    let back = eye.map(|v| v / length);
+    let side_length = sqrt(back[0] * back[0] + back[2] * back[2]);
+    let right = [back[2] / side_length, 0.0, -back[0] / side_length];
+    let up = [-back[1] * right[2], back[2] * right[0] - back[0] * right[2], -back[1] * right[0]];
+    let mut view = [[right[0], up[0], back[0], 0.0], [right[1], up[1], back[1], 0.0], [right[2], up[2], back[2], 0.0], [0.0; 4]];
+    view[3] = [-right.iter().zip(eye).map(|(a, b)| a * b).sum::<f32>(), -up.iter().zip(eye).map(|(a, b)| a * b).sum::<f32>(), -length, 1.0];
+    multiply(projection, view)
+}
+
+pub fn room_frame(seconds: f32, traced: bool, sqrt: impl Fn(f32) -> f32) -> ([f32; 3], [f32; 16], f32) {
+    let (camera, _) = sin_cos(seconds * 0.18);
+    let (orbit, orbit_cos) = sin_cos(seconds * 0.45);
+    let (bob, _) = sin_cos(seconds * 1.4);
+    let eye = [camera * 0.55, ROOM_EYE[1], ROOM_EYE[2]];
+    let key = [orbit * 1.8, 2.15 + bob * 0.12, 0.4 + 1.25 * orbit_cos];
+    let length = sqrt(key.iter().map(|v| v * v).sum());
+    let cool = [-1.65, 0.7 + 0.25 * bob, -0.55, 0.12];
+    let light = if traced { [key[0], key[1], key[2], 0.32] } else { [key[0] / length, key[1] / length, key[2] / length, 0.0] };
+    let mut head = [0.0; 16];
+    head[..4].copy_from_slice(&light);
+    head[4..8].copy_from_slice(&[4.1, 3.5, 3.0, 0.0]);
+    head[8..12].copy_from_slice(if traced { &cool } else { &[0.17, 0.18, 0.22, 0.0] });
+    head[12..].copy_from_slice(&[eye[0], eye[1], eye[2], 1.0]);
+    (eye, head, cool[1])
+}
+
+pub fn acceleration_structure(model: Matrix, layout: RayGeometry, words: &mut impl Extend<u32>) {
+    words.extend([ACCELERATION_STRUCTURE_MAGIC, 2]);
+    let mut geometry = |vertex_count, indices, index_count, transform: [[f32; 4]; 3]| {
+        words.extend(split(VERTICES));
+        words.extend([48, vertex_count]);
+        words.extend(split(indices));
+        words.extend([index_count, 1]);
+        words.extend(transform.into_iter().flatten().map(f32::to_bits));
+    };
+    geometry(layout.model_vertices, layout.indices_va, layout.model_indices, core::array::from_fn(|row| core::array::from_fn(|column| model[column][row])));
+    geometry(layout.vertex_count, layout.indices_va + (u64::from(layout.model_indices) + 30) * 4, layout.index_count - layout.model_indices - 30 - layout.light_count, [IDENTITY[0], IDENTITY[1], IDENTITY[2]]);
 }
 
 pub fn init(width: u32, height: u32, target: u64, vertex_bytes: u64, indices_va: u64, textures: u32, words: &mut impl Extend<u32>) {
