@@ -2,9 +2,9 @@
 
 use super::engine::{bytes, entry};
 use super::harness::shared_device;
-use crate::gpu::VkState;
 use crate::gpu::compute::{ComputePipeline, HostBuffer};
 use crate::gpu::engine::Gpu;
+use crate::gpu::VkState;
 use crate::tests::gpu_test::inst::bra;
 use ash::vk::DescriptorType;
 use scene::dungeon::compute::{self, Buffer, Encoded, Pass};
