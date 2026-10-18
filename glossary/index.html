@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How the oboromi Switch 2 emulator is built">
+        <meta name="description" content="How oboromi emulates AArch64 and Ampere hardware">
       
       
       
@@ -1089,7 +1089,7 @@
   <span class="md-ellipsis">
     
   
-    Switch 2 uses the desktop table
+    Desktop table for the T239 target
   
 
     
@@ -1560,13 +1560,13 @@
 </tr>
 <tr>
 <td>SM86</td>
-<td>The instruction set of NVIDIA's Ampere desktop chips, which the Switch 2 also uses.</td>
+<td>The instruction set of NVIDIA's Ampere desktop chips, used as the translator's target.</td>
 <td>An RTX 3090 runs SM86 code.</td>
 </tr>
 <tr>
 <td>SM88</td>
-<td>CUDA's name for the Switch 2 GPU's instruction set; its encoding table equals SM86's.</td>
-<td><code>nvdisasm --binary SM88</code> decodes Switch 2 code.</td>
+<td>NVIDIA's disassembler target for the Switch 2 GPU; its bundled encoding table equals SM86's.</td>
+<td><code>nvdisasm --binary SM88</code> accepts the SM88 target.</td>
 </tr>
 <tr>
 <td>Ampere</td>

@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How the oboromi Switch 2 emulator is built">
+        <meta name="description" content="How oboromi emulates AArch64 and Ampere hardware">
       
       
       
@@ -792,6 +792,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#what-this-does-and-does-not-show" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this does and does not show
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#guest-programs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1330,7 +1341,7 @@
   <span class="md-ellipsis">
     
   
-    Switch 2 uses the desktop table
+    Desktop table for the T239 target
   
 
     
@@ -1474,6 +1485,17 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-does-and-does-not-show" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this does and does not show
+      
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#guest-programs" class="md-nav__link">
@@ -1678,8 +1700,12 @@
 <p>Download the <a href="https://github.com/jopdorp/oboromi/releases/tag/demos-2026-10-18">Linux emulator, compiler SDK, and every demo NRO</a>.</p>
 <p>To make your own, see <a href="../../build-a-program/">Build a program</a>.</p>
 <p>This page shows oboromi's graphics and sound demos. Every clip is captured from the emulator on an Intel laptop unless its caption says otherwise.</p>
+<h2 id="what-this-does-and-does-not-show">What this does and does not show<a class="headerlink" href="#what-this-does-and-does-not-show" title="Permanent link">&para;</a></h2>
+<p>oboromi emulates the hardware: an AArch64 CPU, an Ampere GPU, display and an audio DSP path. The GPU translator is validated against desktop sm_86 NVIDIA silicon. Command and shader-header layouts come from NVIDIA's published headers via Mesa.</p>
+<p>Nintendo supplies the OS; oboromi does not emulate it. The small service layer in this repository is a stand-in that lets our own test programs drive the emulated GPU, display and audio. It follows Switch 1 interfaces because those are known.</p>
+<p>Every demo is our own program built with our SDK. No Switch 2 binary, shader, firmware or exploit was used, and no retail or third-party binary has run. The demos show the hardware emulation running end to end with code written for it, not Switch 2 software compatibility.</p>
 <h2 id="guest-programs">Running on the emulator<a class="headerlink" href="#guest-programs" title="Permanent link">&para;</a></h2>
-<p>Each Nintendo Relocatable Object (NRO) is loaded by the emulated CPU, uses Switch 2 shader machine code through the GPU driver path, and sends sound through the audio renderer.</p>
+<p>Each Nintendo Relocatable Object (NRO) is loaded by the emulated CPU, uses Ampere machine code through the GPU driver path, and sends sound through the audio renderer.</p>
 <h3 id="triangle">Triangle<a class="headerlink" href="#triangle" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-triangle.png?v=97f0617f" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-triangle.mp4?v=f6a5962b" type="video/mp4"></video>
 

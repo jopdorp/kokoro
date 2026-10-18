@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How the oboromi Switch 2 emulator is built">
+        <meta name="description" content="How oboromi emulates AArch64 and Ampere hardware">
       
       
       
@@ -1091,7 +1091,7 @@
   <span class="md-ellipsis">
     
   
-    Switch 2 uses the desktop table
+    Desktop table for the T239 target
   
 
     
@@ -1287,16 +1287,16 @@
 
 
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p>The emulator is made of a Qt window, emulated ARM cores, a kernel, system services, an audio renderer and a GPU emulator. The included demos are loaded as AArch64 images and use those layers to draw, play sound and present a frame.</p>
+<p>The emulator is made of a Qt window, emulated ARM cores, a kernel, a small stand-in service layer, an audio renderer and a GPU emulator. The included demos are the project's own AArch64 images and use those layers to draw, play sound and present a frame. Nintendo's OS is not emulated.</p>
 <pre class="mermaid"><code>flowchart TB
     GUI["Qt window&lt;br/&gt;Buttons and the picture"] --&gt;|"C calls"| FFI["ffi.rs&lt;br/&gt;Rust functions the window calls"]
-    FFI --&gt; SYS["sys::State&lt;br/&gt;List of OS services"]
+    FFI --&gt; SYS["sys::State&lt;br/&gt;Test service stand-ins"]
     FFI --&gt; CPU["cpu&lt;br/&gt;Emulated ARM cores"]
     CPU --- RAM[("Emulated RAM&lt;br/&gt;The console's memory")]
     SYS --&gt; NN["nn&lt;br/&gt;Service registry"]
     FFI --&gt; ENG
     subgraph GPU["GPU"]
-        FIFO["fifo + threed&lt;br/&gt;Reads the game's GPU commands"] --&gt; ENG["Engine&lt;br/&gt;Runs each draw against console memory"]
+        FIFO["fifo + threed&lt;br/&gt;Reads the program's GPU commands"] --&gt; ENG["Engine&lt;br/&gt;Runs each draw against emulated memory"]
         ENG --&gt; SASS["sm86&lt;br/&gt;Rewrites NVIDIA shader code for Vulkan"]
         ENG --&gt; VK["compute + graphics&lt;br/&gt;Runs the work on the PC's GPU"]
         SASS --&gt; VK
@@ -1326,7 +1326,7 @@
 </tr>
 <tr>
 <td><a href="services/">Services</a></td>
-<td>How a game reaches a service, and which services are being built</td>
+<td>How the test programs reach the stand-in services</td>
 </tr>
 <tr>
 <td><a href="audio/">Audio</a></td>
@@ -1338,7 +1338,7 @@
 </tr>
 <tr>
 <td><a href="gpu-pipeline/">GPU pipeline</a></td>
-<td>How a game's draw command becomes pixels</td>
+<td>How a test program's draw command becomes pixels</td>
 </tr>
 <tr>
 <td><a href="sass-translator/">SASS translator</a></td>
@@ -1354,7 +1354,7 @@
 </tr>
 <tr>
 <td><a href="textures-and-tensors/">Textures and tensors</a></td>
-<td>How game images are decoded, and how matrix instructions are made exact</td>
+<td>How program images are decoded, and how matrix instructions are made exact</td>
 </tr>
 <tr>
 <td><a href="verification/">Verification</a></td>

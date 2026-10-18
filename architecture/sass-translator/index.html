@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How the oboromi Switch 2 emulator is built">
+        <meta name="description" content="How oboromi emulates AArch64 and Ampere hardware">
       
       
       
@@ -1254,7 +1254,7 @@
   <span class="md-ellipsis">
     
   
-    Switch 2 uses the desktop table
+    Desktop table for the T239 target
   
 
     
@@ -1533,7 +1533,7 @@
 
 
 <h1 id="sass-translator">SASS translator<a class="headerlink" href="#sass-translator" title="Permanent link">&para;</a></h1>
-<p>The Switch 2's GPU runs NVIDIA machine code called SASS, which an Intel or AMD card cannot run. The translator rewrites each SASS program into SPIR-V, the shader format every Vulkan driver accepts. For example, <code>FADD R0, R1, R2</code> becomes "load the source registers from an array, add them as floats, store the sum".</p>
+<p>Ampere GPUs run NVIDIA machine code called SASS, which an Intel or AMD card cannot run. The translator rewrites each SASS program into SPIR-V, the shader format every Vulkan driver accepts. For example, <code>FADD R0, R1, R2</code> becomes "load the source registers from an array, add them as floats, store the sum".</p>
 <h2 id="how-are-instructions-decoded">How are instructions decoded?<a class="headerlink" href="#how-are-instructions-decoded" title="Permanent link">&para;</a></h2>
 <p>A generator reads the instruction table NVIDIA's disassembler, nvdisasm, carries, and writes the decoder as Rust code. Each row of that table, an encoding class, becomes one branch of the decoder. Each branch calls a handler, the function that emits SPIR-V for one instruction family.</p>
 <table>
@@ -1570,7 +1570,7 @@
 </tr>
 </tbody>
 </table>
-<p>Why the SM86 table works for the Switch 2: NVIDIA's disassembler ships byte-identical tables for the desktop chip and the Switch 2 chip. See <a href="../../adr/0007-t239-decodes-with-the-sm86-table/">ADR-0007</a>.</p>
+<p>Why the translator uses the SM86 table for its Switch 2 target: NVIDIA's disassembler ships byte-identical tables for SM86 and SM88. No Switch 2 shader has been used to validate that choice. See <a href="../../adr/0007-t239-decodes-with-the-sm86-table/">ADR-0007</a>.</p>
 <h2 id="where-does-the-emulated-gpu-state-live">Where does the emulated GPU state live?<a class="headerlink" href="#where-does-the-emulated-gpu-state-live" title="Permanent link">&para;</a></h2>
 <p>SPIR-V has no direct way to name the emulated GPU's hardware registers. Each register therefore becomes an entry in an array the shader owns. "Private" below means one copy per thread, and "Workgroup" means one copy shared by a group of threads.</p>
 <table>
@@ -1839,7 +1839,7 @@
 </table>
 <p>Compute, vertex, fragment, geometry, tessellation and ray-query programs all pass through the same translator. Remaining named failures cover unsupported runtime facilities and operations without a safe portable mapping, including sparse tensors, complete <code>FOOTPRINT</code> results and <code>BAR.SCAN</code> results.</p>
 <h2 id="how-are-exact-nvidia-shaders-built">How are exact NVIDIA shaders built?<a class="headerlink" href="#how-are-exact-nvidia-shaders-built" title="Permanent link">&para;</a></h2>
-<p>The NVIDIA driver is used on the GPU pod when exact SASS is required. The repository also carries a NAK offline compiler built from Mesa. Its binding shim lays out textures and uniform buffers the way the emulator expects and writes the shader header plus machine code.</p>
+<p>The NVIDIA driver is used on a desktop sm_86 card when exact SASS is required. The repository also carries a NAK offline compiler built from Mesa. Its binding shim lays out textures and uniform buffers the way the emulator expects and writes the shader header plus machine code.</p>
 <table>
 <thead>
 <tr>

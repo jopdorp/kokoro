@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How the oboromi Switch 2 emulator is built">
+        <meta name="description" content="How oboromi emulates AArch64 and Ampere hardware">
       
       
       
@@ -1193,7 +1193,7 @@
   <span class="md-ellipsis">
     
   
-    Switch 2 uses the desktop table
+    Desktop table for the T239 target
   
 
     
@@ -1411,7 +1411,7 @@
 
 
 <h1 id="gpu-pipeline">GPU pipeline<a class="headerlink" href="#gpu-pipeline" title="Permanent link">&para;</a></h1>
-<p>A game draws by writing a list of commands into memory and telling the GPU where the list is. The emulator reads that list, collects the settings for each draw, rewrites the game's shaders for Vulkan, and draws on the PC's graphics card. For example, a triangle takes a handful of commands: where the shaders are, where the vertices are, the viewport, then "draw".</p>
+<p>A program draws by writing a list of commands into memory and telling the GPU where the list is. The emulator reads that list, collects the settings for each draw, rewrites its Ampere machine code for Vulkan, and draws on the PC's graphics card. For example, a triangle takes a handful of commands: where the shaders are, where the vertices are, the viewport, then "draw".</p>
 <h2 id="how-does-a-draw-reach-vulkan">How does a draw reach Vulkan?<a class="headerlink" href="#how-does-a-draw-reach-vulkan" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>sequenceDiagram
     participant RAM as Emulated RAM
@@ -1433,7 +1433,7 @@
     V--&gt;&gt;E: Pixels
     E-&gt;&gt;RAM: Write pixels back
     Note over E,RAM: The display reads the finished image from emulated RAM</code></pre>
-<p><em>One draw, from the game's command list to pixels back in console memory.</em></p>
+<p><em>One draw, from the program's command list to pixels back in emulated memory.</em></p>
 <p>The words on this path:</p>
 <ul>
 <li>A <strong>pushbuffer</strong> is one command list in emulated RAM, and the <strong>GPFIFO</strong> is the queue of pointers to those lists.</li>

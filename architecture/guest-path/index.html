@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How the oboromi Switch 2 emulator is built">
+        <meta name="description" content="How oboromi emulates AArch64 and Ampere hardware">
       
       
       
@@ -1149,7 +1149,7 @@
   <span class="md-ellipsis">
     
   
-    Switch 2 uses the desktop table
+    Desktop table for the T239 target
   
 
     
@@ -1323,7 +1323,7 @@
 
 
 <h1 id="emulator-path">Emulator path<a class="headerlink" href="#emulator-path" title="Permanent link">&para;</a></h1>
-<p>The included demos are <code>no_std</code> AArch64 images. The loader places an image in emulated RAM, starts it on the emulated CPU and lets it use the same kernel and service boundaries a game uses.</p>
+<p>The included demos are the project's own <code>no_std</code> AArch64 images. The loader places an image in emulated RAM, starts it on the emulated CPU and lets it drive the hardware through a small stand-in service layer. That layer follows known Switch 1 interfaces; Nintendo's OS is not emulated.</p>
 <pre class="mermaid"><code>flowchart TB
     P["AArch64 image"] --&gt;|"SVC"| K["Kernel&lt;br/&gt;Threads, handles, IPC"]
     K --&gt; NV["GPU driver services"]
@@ -1353,7 +1353,7 @@
 <td>System calls, threads, scheduler, memory, events and IPC</td>
 </tr>
 <tr>
-<td>GPU services</td>
+<td>GPU service stand-ins</td>
 <td>Allocation, address mapping, channel submission and sync points</td>
 </tr>
 <tr>

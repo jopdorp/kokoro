@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How the oboromi Switch 2 emulator is built">
+        <meta name="description" content="How oboromi emulates AArch64 and Ampere hardware">
       
       
       
@@ -1171,7 +1171,7 @@
   <span class="md-ellipsis">
     
   
-    Switch 2 uses the desktop table
+    Desktop table for the T239 target
   
 
     
@@ -1367,14 +1367,14 @@
 
 
 <h1 id="cuda">CUDA<a class="headerlink" href="#cuda" title="Permanent link">&para;</a></h1>
-<p>CUDA is NVIDIA's way of writing general programs for its GPUs. The Switch 2 runs the same machine code as a desktop Ampere card, so CUDA programs compiled for that card make good real-world test programs. For example, NVIDIA's Mandelbrot sample runs through the translator and draws the right picture.</p>
+<p>CUDA is NVIDIA's way of writing general programs for its GPUs. Programs compiled for a desktop sm_86 Ampere card give the translator independent compiler input and can be checked on real NVIDIA silicon. For example, the project builds NVIDIA's Mandelbrot sample source into one of its own demos and runs it through the translator.</p>
 <p>The emulator runs compiled CUDA programs through the translator, on any Vulkan device. It can also run them natively on an NVIDIA card through libcuda, NVIDIA's driver library.</p>
 <pre class="mermaid"><code>flowchart LR
     CU["kernel.cu&lt;br/&gt;CUDA source"] --&gt;|"nvcc -arch=sm_86 -cubin"| CUBIN["cubin&lt;br/&gt;Compiled kernels in an ELF file"]
     CUBIN --&gt; LOAD["Kernel::load&lt;br/&gt;Finds code, constants, shared size"]
     LOAD --&gt; LAUNCH["Kernel::launch&lt;br/&gt;Fills constant buffer 0 like the driver"]
     LAUNCH --&gt; TR["Translator + Vulkan&lt;br/&gt;Any graphics card"]
-    SASS["Switch 2 shader code"] --&gt; WR["Seed cubin writer&lt;br/&gt;Wraps the code as a CUDA program"]
+    SASS["Ampere machine code"] --&gt; WR["Seed cubin writer&lt;br/&gt;Wraps the code as a CUDA program"]
     WR --&gt; NAT["libcuda.so.1&lt;br/&gt;NVIDIA card only"]
     TR --&gt; CMP{"Same bytes?"}
     NAT --&gt; CMP</code></pre>

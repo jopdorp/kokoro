@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How the oboromi Switch 2 emulator is built">
+        <meta name="description" content="How oboromi emulates AArch64 and Ampere hardware">
       
       
       
@@ -1171,7 +1171,7 @@
   <span class="md-ellipsis">
     
   
-    Switch 2 uses the desktop table
+    Desktop table for the T239 target
   
 
     
@@ -1367,7 +1367,7 @@
 
 
 <h1 id="current-coverage-and-limits">Current coverage and limits<a class="headerlink" href="#current-coverage-and-limits" title="Permanent link">&para;</a></h1>
-<p>The included demos run through the loader, CPU, kernel, services, GPU and audio paths. Commercial games and firmware do not boot yet.</p>
+<p>The project's own demos run through the loader, CPU, kernel, stand-in services, GPU and audio paths. No retail or third-party binary has run, and Nintendo's OS is not emulated.</p>
 <table>
 <thead>
 <tr>
@@ -1385,7 +1385,7 @@
 <td>Threads, scheduling, handles, memory, IPC and events used by the demos</td>
 </tr>
 <tr>
-<td>Services</td>
+<td>Service stand-ins</td>
 <td>GPU, display, audio, input, time, applet and filesystem paths used by the demos</td>
 </tr>
 <tr>
@@ -1402,7 +1402,7 @@
 </tr>
 <tr>
 <td>Loader</td>
-<td>Included NRO images; commercial game formats remain in progress</td>
+<td>The project's own NRO images; no retail game formats</td>
 </tr>
 </tbody>
 </table>
@@ -1451,7 +1451,7 @@
 </tbody>
 </table>
 <h2 id="hardware-backed-limits">Hardware-backed limits<a class="headerlink" href="#hardware-backed-limits" title="Permanent link">&para;</a></h2>
-<p>The translator is checked against desktop Ampere silicon. NVIDIA's SM86 and SM88 instruction tables are byte-identical, but no code here has been validated on a physical Switch 2.</p>
+<p>The translator is checked against desktop sm_86 Ampere silicon. NVIDIA's SM86 and SM88 instruction tables are byte-identical, but no Switch 2 shader has been seen and no code here has been validated on a physical Switch 2.</p>
 <p><code>FOOTPRINT</code> fields have been measured on SM86, while its complete raw result and portable Vulkan mapping remain open. <code>BAR.SCAN</code> runs only with a full-warp count in the tested forms, but its result was not observable through the documented barrier readers. Those instructions therefore remain named failures instead of guessed implementations.</p>
 <p>Verified by: the subsystem suites named on each architecture page, the CUDA corpus probe and the silicon fixture scoreboards.</p>
 <p>Sources: <code>core/src/cpu</code>, <code>core/src/kernel</code>, <code>core/src/nn</code>, <code>core/src/audio</code>, <code>core/src/gpu</code>, <code>guest</code>, <code>scene</code>.</p>

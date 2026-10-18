@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How the oboromi Switch 2 emulator is built">
+        <meta name="description" content="How oboromi emulates AArch64 and Ampere hardware">
       
       
       
@@ -27,7 +27,7 @@
     
     
       
-        <title>Switch 2 uses the desktop table - oboromi</title>
+        <title>Desktop table for the T239 target - oboromi</title>
       
     
     
@@ -77,7 +77,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#the-switch-2-chip-decodes-with-the-desktop-instruction-table" class="md-skip">
+        <a href="#use-the-desktop-instruction-table-for-the-t239-target" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Switch 2 uses the desktop table
+              Desktop table for the T239 target
             
           </span>
         </div>
@@ -1100,7 +1100,7 @@
   <span class="md-ellipsis">
     
   
-    Switch 2 uses the desktop table
+    Desktop table for the T239 target
   
 
     
@@ -1126,7 +1126,7 @@
   <span class="md-ellipsis">
     
   
-    Switch 2 uses the desktop table
+    Desktop table for the T239 target
   
 
     
@@ -1452,9 +1452,9 @@
 
 
 
-<h1 id="the-switch-2-chip-decodes-with-the-desktop-instruction-table">The Switch 2 chip decodes with the desktop instruction table<a class="headerlink" href="#the-switch-2-chip-decodes-with-the-desktop-instruction-table" title="Permanent link">&para;</a></h1>
+<h1 id="use-the-desktop-instruction-table-for-the-t239-target">Use the desktop instruction table for the T239 target<a class="headerlink" href="#use-the-desktop-instruction-table-for-the-t239-target" title="Permanent link">&para;</a></h1>
 <h2 id="in-plain-words">In plain words<a class="headerlink" href="#in-plain-words" title="Permanent link">&para;</a></h2>
-<p>We read Switch 2 shader code with the instruction table of NVIDIA's desktop Ampere chips. That only works if both chips encode instructions the same way. We checked inside NVIDIA's own disassembler: its tables for the desktop chip and the Switch 2 chip are byte for byte the same. So recordings made on a desktop card test the same encodings a Switch 2 runs.</p>
+<p>We target Ampere machine code for the T239 with the instruction table of NVIDIA's desktop Ampere chips. We checked inside NVIDIA's own disassembler: its tables for the desktop SM86 chip and the SM88 target are byte for byte the same. Recordings made on a desktop card validate the translator against real Ampere silicon, but no Switch 2 shader or hardware has been tested.</p>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
 <p>The decoder is generated from the SM86 table, the desktop Ampere instruction set. The Switch 2's chip, the T239, has a GA10F GPU, which CUDA calls SM88. If its encodings differed, every handler keyed on SM86 would be wrong in places.</p>
 <h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
@@ -1496,7 +1496,7 @@
 <p>NVIDIA's public open-gpu-doc headers also list the T239 under the same 3D class as the desktop GA102 family.</p>
 <h3 id="what-this-makes-easy">What this makes easy<a class="headerlink" href="#what-this-makes-easy" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Recordings from a desktop GA102 card check the same encodings the Switch 2 runs.</li>
+<li>Recordings from a desktop GA102 card check the SM86 encodings used by the translator.</li>
 <li>Handler names stay the public, readable opcode names.</li>
 </ul>
 <h3 id="what-this-makes-hard">What this makes hard<a class="headerlink" href="#what-this-makes-hard" title="Permanent link">&para;</a></h3>

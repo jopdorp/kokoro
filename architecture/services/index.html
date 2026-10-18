@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How the oboromi Switch 2 emulator is built">
+        <meta name="description" content="How oboromi emulates AArch64 and Ampere hardware">
       
       
       
@@ -1149,7 +1149,7 @@
   <span class="md-ellipsis">
     
   
-    Switch 2 uses the desktop table
+    Desktop table for the T239 target
   
 
     
@@ -1323,7 +1323,7 @@
 
 
 <h1 id="services">Services<a class="headerlink" href="#services" title="Permanent link">&para;</a></h1>
-<p>Games reach hardware-shaped features through system services. The kernel opens a named port, returns a session handle, parses the HIPC and CMIF request, calls the service object and writes the reply into the same IPC buffer.</p>
+<p>The project's own test programs reach the emulated hardware through a small service layer. It is a stand-in, not an emulation of Nintendo's OS, and follows Switch 1 interfaces because those are known. The kernel opens a named port, returns a session handle, parses the HIPC and CMIF request, calls the service object and writes the reply into the same IPC buffer.</p>
 <pre class="mermaid"><code>sequenceDiagram
     participant P as Program on the emulator
     participant K as Kernel
@@ -1373,7 +1373,7 @@
 </tr>
 </tbody>
 </table>
-<p>The service registry still provides the broader foundation laid by the original project. Commands outside the implemented paths return errors. Switch 2-only command layouts remain unsupported when public documentation does not define them.</p>
+<p>Commands outside the paths used by the test programs return errors. No Switch 2 service ABI was used to build this layer.</p>
 <p>Verified by: the kernel IPC, nvdrv, VI, binder, audio, input, time, applet and filesystem tests, plus the end-to-end demo tests.</p>
 <p>Sources: <code>core/src/kernel</code>, <code>core/src/nn</code>, <code>guest/src/{cmif,nv,display,audren}.rs</code>.</p>
 
