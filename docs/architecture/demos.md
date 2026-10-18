@@ -69,7 +69,7 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-mandelbrot.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-mandelbrot.mp4" type="video/mp4"></video>
 
-*NVIDIA's CUDA sample kernel runs unchanged through the translator. The guest owns the frame memory, launches the kernel through `nvdrv` each frame with the new zoom, and presents it.*
+*A double-precision dive into the seahorse valley. The guest owns the frame memory, launches NVIDIA's CUDA sample kernel through `nvdrv`, and presents it.*
 
 ### Ray-traced scene
 
