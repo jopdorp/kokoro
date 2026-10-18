@@ -1,5 +1,19 @@
 # Demos
 
+## Guest programs
+
+### Triangle
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-triangle.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-triangle.mp4" type="video/mp4"></video>
+
+### Sprites
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-sprites.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-sprites.mp4" type="video/mp4"></video>
+
+*Runs as a guest program on the emulated CPU and GPU. The binary is loaded by the NRO loader, runs on the emulated ARM CPU, calls the kernel and the services, and draws through nvdrv on the emulated GPU with Switch 2 shader machine code. The sprites move with a real controller through the hid service.*
+
+The other demos still build their command streams on the host. They are being converted one by one.
+
 The Qt window has buttons that draw through the GPU work today. Larger scenes show post effects, sprites, particles, BoomBox, FlightHelmet, ray tracing and a dungeon. For example, the Triangle button writes GPU commands into emulated memory every frame, and the full engine draws them.
 
 ## What runs today?
