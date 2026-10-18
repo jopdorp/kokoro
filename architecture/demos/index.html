@@ -59,13 +59,13 @@
   
     <meta property="og:title" content="oboromi demos">
     <meta property="og:description" content="Watch guest programs and graphics demos running through oboromi.">
-    <meta property="og:image" content="https://jopdorp.github.io/oboromi/media/demo-dungeon-poster.png?v=81b548a0">
+    <meta property="og:image" content="https://jopdorp.github.io/oboromi/media/demo-dungeon-poster.png">
     <meta property="og:video" content="https://jopdorp.github.io/oboromi/media/demo-dungeon.mp4?v=4bb4ddb2">
     <meta property="og:video:type" content="video/mp4">
     <meta property="og:video:width" content="1920">
     <meta property="og:video:height" content="1080">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://jopdorp.github.io/oboromi/media/demo-dungeon-poster.png?v=81b548a0">
+    <meta name="twitter:image" content="https://jopdorp.github.io/oboromi/media/demo-dungeon-poster.png">
   
 
   </head>
@@ -1677,16 +1677,16 @@
 <p><em>The guest makes the instruments and sends the mix through the audio renderer.</em></p>
 <h2 id="dungeon">Dungeon<a class="headerlink" href="#dungeon" title="Permanent link">&para;</a></h2>
 <p>Dungeon is a native Vulkan tech demo. It does not use the emulated CPU or GPU, but it drives the audio renderer and sets the bar for the guest version.</p>
-<video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/demo-dungeon-poster.png?v=81b548a0" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon.mp4?v=4bb4ddb2" type="video/mp4"></video>
+<video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/demo-dungeon-raytraced.png?v=a7f43169" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-raytraced.mp4?v=4bb4ddb2" type="video/mp4"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon.mp4?v=4bb4ddb2" type="video/mp4"></video>
 
-<p><em>Showcase: ray queries make every flame shadow dance, reflect torches on wet calcite and add warm limestone bounce. This clip was rendered offline on the Intel laptop.</em></p>
-<video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/demo-dungeon-realtime-poster.png?v=ec5d64f2" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-realtime.mp4?v=1cd477b2" type="video/mp4"></video>
+<p><em>Dungeon ray traced: ray queries make every flame shadow dance, reflect torches on wet calcite and add traced limestone bounce. This clip was rendered offline on the Intel laptop.</em></p>
+<video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.png?v=44d0df83" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.mp4?v=1cd477b2" type="video/mp4"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-realtime.mp4?v=1cd477b2" type="video/mp4"></video>
 
-<p><em>Realtime: baked shadows and planar reflections make the same tour lighter to render. This clip was rendered offline on the Intel laptop.</em></p>
-<video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/dungeon-v8-rt-compare.png?v=6d1b397a" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-compare.mp4?v=a7ef406a" type="video/mp4"></video>
+<p><em>Dungeon raster: baked shadows and planar reflections make the same tour lighter to render. This clip was rendered offline on the Intel laptop.</em></p>
+<video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/dungeon-v8-rt-compare.png?v=c425617b" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-compare.mp4?v=73139399" type="video/mp4"></video>
 
-<p><em>Raster is left and ray queries are right over the same fifteen reveal seconds. The right ceiling and firepit stay warmer while every flame moves its soft shadow; wet calcite catches the torches. Mean absolute RGB difference is 5.76% over all 900 frames.</em></p>
-<p><img alt="Raster and ray-query dungeon frame" src="https://jopdorp.github.io/oboromi/media/dungeon-v8-rt-compare.png?v=6d1b397a" /></p>
+<p><em>Dungeon raster is left and Dungeon ray traced is right over the same fifteen reveal seconds. Every flame moves its traced shadow; wet calcite catches the torches. Mean absolute RGB difference is 8.94% over all 900 frames.</em></p>
+<p><img alt="Raster and ray-query dungeon frame" src="https://jopdorp.github.io/oboromi/media/dungeon-v8-rt-compare.png?v=c425617b" /></p>
 <p><em>The same reveal frame. The difference is clear in the warm ceiling bounce, softer formation shadows and wet calcite reflections.</em></p>
 <h2 id="measured">Measured<a class="headerlink" href="#measured" title="Permanent link">&para;</a></h2>
 <p>Median frame times on the Intel Arc laptop used for the captures:</p>
@@ -1715,18 +1715,18 @@
 <td>10.2 ms</td>
 </tr>
 <tr>
-<td>Dungeon realtime</td>
+<td>Dungeon raster</td>
 <td>41.7 ms</td>
 </tr>
 <tr>
-<td>Dungeon showcase</td>
+<td>Dungeon ray traced</td>
 <td>232.5 ms</td>
 </tr>
 </tbody>
 </table>
 <p>These are laptop measurements, not native Switch 2 measurements.</p>
 <h2 id="share">Share<a class="headerlink" href="#share" title="Permanent link">&para;</a></h2>
-<p>Paste the dungeon <a href="https://jopdorp.github.io/oboromi/media/demo-dungeon.mp4?v=4bb4ddb2">clip</a>, <a href="https://jopdorp.github.io/oboromi/media/demo-dungeon-poster.png?v=81b548a0">poster</a>, or <a href="https://jopdorp.github.io/oboromi/media/teaser-dungeon.gif?v=44ba6544">GIF teaser</a> straight into Discord.
+<p>Paste the dungeon <a href="https://jopdorp.github.io/oboromi/media/demo-dungeon.mp4?v=4bb4ddb2">clip</a>, <a href="https://jopdorp.github.io/oboromi/media/demo-dungeon-poster.png">poster</a>, or <a href="https://jopdorp.github.io/oboromi/media/teaser-dungeon.gif?v=44ba6544">GIF teaser</a> straight into Discord.
 The ray-traced <a href="https://jopdorp.github.io/oboromi/media/demo-raytraced.mp4?v=f1fe5292">clip</a> and <a href="https://jopdorp.github.io/oboromi/media/teaser-raytraced.gif?v=5ed24262">GIF teaser</a>, and the sprites <a href="https://jopdorp.github.io/oboromi/media/fullcircle-sprites.mp4?v=a0a2a5d6">clip</a> and <a href="https://jopdorp.github.io/oboromi/media/teaser-sprites.gif?v=7f562251">GIF teaser</a>, work there too.</p>
 
 
