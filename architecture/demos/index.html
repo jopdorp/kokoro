@@ -1494,14 +1494,16 @@
 
 <h1 id="demos">Demos<a class="headerlink" href="#demos" title="Permanent link">&para;</a></h1>
 <h2 id="guest-programs">Guest programs<a class="headerlink" href="#guest-programs" title="Permanent link">&para;</a></h2>
+<p>When a demo becomes a guest program, its entry moves here.</p>
 <h3 id="triangle">Triangle<a class="headerlink" href="#triangle" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-triangle.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-triangle.mp4" type="video/mp4"></video>
 
+<p><em>The loader starts the guest. It asks the kernel and services for memory and a display, writes a command list, sends it through nvdrv, and presents the triangle.</em></p>
 <h3 id="sprites">Sprites<a class="headerlink" href="#sprites" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-sprites.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-sprites.mp4" type="video/mp4"></video>
 
-<p><em>Runs as a guest program on the emulated CPU and GPU. The binary is loaded by the NRO loader, runs on the emulated ARM CPU, calls the kernel and the services, and draws through nvdrv on the emulated GPU with Switch 2 shader machine code. The sprites move with a real controller through the hid service.</em></p>
-<p>The other demos still build their command streams on the host. They are being converted one by one.</p>
+<p><em>The stick moves the layers through the hid service. Halfway, a button press flashes the scene.</em></p>
+<p>Both run as guest programs on the emulated CPU and GPU. The other demos still build their command streams on the host and are being converted one by one.</p>
 <p>The Qt window has buttons that draw through the GPU work today. Larger scenes show post effects, sprites, particles, BoomBox, FlightHelmet, ray tracing and a dungeon. For example, the Triangle button writes GPU commands into emulated memory every frame, and the full engine draws them.</p>
 <h2 id="what-runs-today">What runs today?<a class="headerlink" href="#what-runs-today" title="Permanent link">&para;</a></h2>
 <table>
@@ -1603,9 +1605,6 @@
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/julia-demo-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/julia-demo.mp4" type="video/mp4"></video>
 
 <p><em>Demo: a hand-written SM86 program, translated to SPIR-V, redrawing a Julia set every frame on an Intel laptop GPU.</em></p>
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/triangle-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/triangle.mp4" type="video/mp4"></video>
-
-<p><em>Triangle: GPU commands written into emulated memory every frame, drawn through the whole engine on an Intel laptop GPU.</em></p>
 <p><img alt="NVIDIA's Mandelbrot sample, run through the translator" src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot.png" /></p>
 <p><em>NVIDIA's cuda-samples Mandelbrot kernel, compiled by nvcc for SM86 and run unchanged through the translator on an Intel laptop GPU.</em></p>
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot-zoom-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot-zoom.mp4" type="video/mp4"></video>
@@ -1686,9 +1685,6 @@
 </table>
 <p>The ray-traced scene runs through <code>demo::render_raytraced_frame</code> or the <code>capture</code> example with <code>raytraced</code>. It requires ray queries and fragment subgroup operations.</p>
 <h3 id="what-do-the-new-scenes-look-like">What do the new scenes look like?<a class="headerlink" href="#what-do-the-new-scenes-look-like" title="Permanent link">&para;</a></h3>
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-sprites-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-sprites.mp4" type="video/mp4"></video>
-
-<p><em>Sprites: NVIDIA-compiled sprite shaders draw scrolling hills and floating sprites, blended back to front, from a host-written command list.</em></p>
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-post-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-post.mp4" type="video/mp4"></video>
 
 <p><em>Post-effect: a pinwheel drawn into one image, then sampled as a texture by a second pass that adds the screen effects.</em></p>
