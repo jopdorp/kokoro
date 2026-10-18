@@ -854,6 +854,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#solar-system-birth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Solar system birth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#julia" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1527,6 +1538,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#solar-system-birth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Solar system birth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#julia" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1657,14 +1679,18 @@
 <video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-particles.png?v=7a38706a" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-particles.mp4?v=e18967d6" type="video/mp4"></video>
 
 <p><em>The guest runs the compute update, then submits one instanced draw through <code>nvdrv</code>.</em></p>
+<h3 id="solar-system-birth">Solar system birth<a class="headerlink" href="#solar-system-birth" title="Permanent link">&para;</a></h3>
+<video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/demo-solar-showcase.png?v=31d23ba7" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-solar-showcase.mp4?v=f1f9fbd9" type="video/mp4"></video>
+
+<p><em>This guest program starts 2,048 bodies in a young disk. Kepler drift plus mutual kicks move them around the star, and overlapping bodies accrete. The showcase took 1,088.569 ms per frame at the median and 1,450.911 ms at p95 on the Intel Arc laptop.</em></p>
 <h3 id="julia">Julia<a class="headerlink" href="#julia" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-julia.png?v=540977b6" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-julia.mp4?v=2769a78a" type="video/mp4"></video>
 
 <p><em>The guest sends the Julia set shader through <code>nvdrv</code> and passes time through a small block of shader input data.</em></p>
 <h3 id="mandelbrot-cuda">Mandelbrot CUDA<a class="headerlink" href="#mandelbrot-cuda" title="Permanent link">&para;</a></h3>
-<video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-mandelbrot.png?v=b7a02596" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-mandelbrot.mp4?v=13c715d4" type="video/mp4"></video>
+<video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-mandelbrot.png?v=19ba7859" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-mandelbrot.mp4?v=e257306f" type="video/mp4"></video>
 
-<p><em>NVIDIA's CUDA sample kernel runs unchanged through the translator. The guest owns the frame memory, launches the kernel through <code>nvdrv</code> each frame with the new zoom, and presents it.</em></p>
+<p><em>A double-precision dive into the seahorse valley. The guest owns the frame memory, launches NVIDIA's CUDA sample kernel through <code>nvdrv</code>, and presents it.</em></p>
 <h3 id="ray-traced-scene">Ray-traced scene<a class="headerlink" href="#ray-traced-scene" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/demo-raytraced-poster.png?v=dafb778c" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-raytraced.mp4?v=f1fe5292" type="video/mp4"></video>
 
