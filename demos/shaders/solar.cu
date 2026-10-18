@@ -10,7 +10,7 @@ struct Body {
 constexpr unsigned TILE = 64;
 constexpr unsigned GRID_SIDE = 64;
 constexpr unsigned CELLS = GRID_SIDE * GRID_SIDE;
-constexpr unsigned CELL_CAPACITY = 8;
+constexpr unsigned CELL_CAPACITY = 16;
 constexpr unsigned TRAILS = 32;
 constexpr unsigned SEEDS = 6;
 
@@ -145,9 +145,11 @@ extern "C" __global__ void solar_step(Body* bodies, Body* scratch, unsigned* cel
             float r = sqrtf(position.x * position.x + position.z * position.z);
             float orbital = rsqrtf(r);
             float gas = fmaxf(0.0f, 1.0f - time / 20.0f);
-            float drag = 0.0025f * gas;
-            float target_x = -position.z / r * orbital - position.x / r * 0.002f;
-            float target_z = position.x / r * orbital - position.z / r * 0.002f;
+            float growth = sqrtf(body.velocity_mass.w / dust_mass);
+            float drag = dt * gas * (0.12f + 0.005f * growth);
+            float migration = 0.001f * (1.0f + 0.05f * growth);
+            float target_x = -position.z / r * orbital - position.x / r * migration;
+            float target_z = position.x / r * orbital - position.z / r * migration;
             velocity.x += (target_x - velocity.x) * drag;
             velocity.y *= 1.0f - drag * 3.0f;
             velocity.z += (target_z - velocity.z) * drag;

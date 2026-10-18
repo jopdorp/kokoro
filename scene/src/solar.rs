@@ -12,7 +12,7 @@ pub const EXTRA_COUNT: u32 = TRAIL_COUNT + STAR_COUNT;
 pub const BODY_BYTES: u32 = 48;
 pub const DUST_MASS: f32 = 0.000_018 / SHOWCASE_COUNT as f32;
 pub const CELLS: u32 = 64 * 64;
-pub const CELL_CAPACITY: u32 = 8;
+pub const CELL_CAPACITY: u32 = 16;
 pub const THREADS: u32 = 64;
 
 pub const BASE: u64 = 0x2000_0000;
@@ -173,7 +173,8 @@ pub mod assets {
         let mut seed = 0x6d2b_79f5;
         for i in 0..SHOWCASE_COUNT - 1 {
             let root_radius = 0.3f32.sqrt() + random(&mut seed) * (4.0f32.sqrt() - 0.3f32.sqrt());
-            let semimajor = root_radius * root_radius;
+            let seed_body = i < 6;
+            let semimajor = if seed_body { 0.5 + 0.28 * i as f32 } else { root_radius * root_radius };
             let angle = random(&mut seed) * core::f32::consts::TAU;
             let node = random(&mut seed) * core::f32::consts::TAU;
             let anomaly = random(&mut seed) * core::f32::consts::TAU;
@@ -185,7 +186,6 @@ pub mod assets {
             let (anomaly_sin, anomaly_cos) = crate::pbr::sin_cos(anomaly);
             let (inclination_sin, inclination_cos) = crate::pbr::sin_cos(inclination);
             let radial = semimajor * (1.0 - eccentricity * anomaly_cos);
-            let seed_body = i < 6;
             let mass = if seed_body { DUST_MASS * (24.0 + 5.0 * i as f32) } else { DUST_MASS * (0.7 + 0.6 * random(&mut seed)) };
             let plane_x = [node_cos, 0.0, node_sin];
             let plane_y = [-node_sin * inclination_sin, inclination_cos, node_cos * inclination_sin];
