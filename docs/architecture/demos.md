@@ -85,17 +85,17 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 
 Dungeon is a native Vulkan tech demo. It does not use the emulated CPU or GPU, but it drives the audio renderer and sets the bar for the guest version.
 
-<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon.mp4" type="video/mp4"></video>
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-raytraced.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-raytraced.mp4" type="video/mp4"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon.mp4" type="video/mp4"></video>
 
-*Showcase: ray queries make every flame shadow dance, reflect torches on wet calcite and add warm limestone bounce. This clip was rendered offline on the Intel laptop.*
+*Dungeon ray traced: ray queries make every flame shadow dance, reflect torches on wet calcite and add traced limestone bounce. This clip was rendered offline on the Intel laptop.*
 
-<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime.mp4" type="video/mp4"></video>
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-raster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-raster.mp4" type="video/mp4"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime.mp4" type="video/mp4"></video>
 
-*Realtime: baked shadows and planar reflections make the same tour lighter to render. This clip was rendered offline on the Intel laptop.*
+*Dungeon raster: baked shadows and planar reflections make the same tour lighter to render. This clip was rendered offline on the Intel laptop.*
 
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/dungeon-v8-rt-compare.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-compare.mp4" type="video/mp4"></video>
 
-*Raster is left and ray queries are right over the same fifteen reveal seconds. The right ceiling and firepit stay warmer while every flame moves its soft shadow; wet calcite catches the torches. Mean absolute RGB difference is 5.76% over all 900 frames.*
+*Dungeon raster is left and Dungeon ray traced is right over the same fifteen reveal seconds. Every flame moves its traced shadow; wet calcite catches the torches. Mean absolute RGB difference is 8.94% over all 900 frames.*
 
 ![Raster and ray-query dungeon frame](https://raw.githubusercontent.com/jopdorp/oboromi/assets/dungeon-v8-rt-compare.png)
 
@@ -111,8 +111,8 @@ Median frame times on the Intel Arc laptop used for the captures:
 | Julia set | 4.7 ms |
 | Triangle, 1080p | 6.6 ms |
 | CUDA Mandelbrot, 800x600 | 10.2 ms |
-| Dungeon realtime | 41.7 ms |
-| Dungeon showcase | 232.5 ms |
+| Dungeon raster | 41.7 ms |
+| Dungeon ray traced | 232.5 ms |
 
 These are laptop measurements, not native Switch 2 measurements.
 
