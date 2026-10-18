@@ -239,7 +239,7 @@ fn assert_round_to_nearest(inst: u128) {
 }
 
 fn accept_nearest_for_directed_rounding() {
-    // Vulkan SPIR-V cannot select rounding per arithmetic operation, so directed forms use round-to-nearest.
+    // Vulkan SPIR-V cannot select rounding per arithmetic operation, so directed forms use round-to-nearest, within one ULP of the requested result.
 }
 
 fn deferred_nan(inst: u128) -> bool {

@@ -49,7 +49,7 @@ impl<'a> Decoder<'a> {
     }
 
     pub fn dadd(&mut self, inst: u128) {
-        assert_round_to_nearest(inst);
+        accept_nearest_for_directed_rounding();
         let ty = self.type_f64();
         let a = self.fp64_reg(inst, 24, 73, 72);
         // DADD's second operand sits in the C slot, so a register comes from Rc.

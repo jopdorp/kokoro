@@ -73,6 +73,12 @@ mod tests {
     const WORD_DMUL_RP: u128 = binary(DMUL_R, 20, 0, 2) | 2 << 78;
     const WORD_DFMA_RM: u128 = ternary(DFMA_R, 22, 4, 6, 8) | 1 << 78;
     const WORD_DFMA_RP: u128 = ternary(DFMA_R, 24, 10, 12, 14) | 2 << 78;
+    const WORD_DADD_RP: u128 = dadd_r(50, 0, 2) | 2 << 78;
+    const WORD_DADD_RM: u128 = dadd_r(52, 0, 2) | 1 << 78;
+    const WORD_DADD_RZ: u128 = dadd_r(54, 0, 2) | 3 << 78;
+    const WORD_DMUL_RM: u128 = binary(DMUL_R, 56, 0, 2) | 1 << 78;
+    const WORD_DMUL_RZ: u128 = binary(DMUL_R, 58, 0, 2) | 3 << 78;
+    const WORD_DFMA_RZ: u128 = ternary(DFMA_R, 60, 0, 2, 4) | 3 << 78;
     const WORD_DSETP_LT: u128 = dsetp(DSETP_R, 0, 1, 0, 2, 1, 0, 7);
     const WORD_DSETP_EQU: u128 = dsetp(DSETP_I, 3, 4, 4, 0x4000_0000, 10, 0, 7);
     const WORD_DSETP_NUM: u128 = dsetp(DSETP_C, 5, 6, 4, 0, 7, 0, 7);
@@ -181,15 +187,29 @@ mod tests {
             WORD_DMUL_RP,
             WORD_DFMA_RM,
             WORD_DFMA_RP,
+            WORD_DADD_RP,
+            WORD_DADD_RM,
+            WORD_DADD_RZ,
+            WORD_DMUL_RM,
+            WORD_DMUL_RZ,
+            WORD_DFMA_RZ,
             inst::ffma(40, 30, 31, 32) | 1 << 78,
             inst::ffma(41, 33, 34, 35) | 2 << 78,
             inst::ffma(42, 36, 37, 38) | 3 << 78,
+            inst::fmul(62, 30, 31) | 3 << 78,
+            inst::fadd(63, 33, 35) | 3 << 78,
         ];
         let Some((regs, _)) = run_regs(&program, &seed, &[], &[]) else { return };
         for (reg, target) in [
             (20, (1.0 + 3.0 * eps).to_bits()),
             (22, (-1.0f64).to_bits() + 1),
             (24, 1.0f64.to_bits() + 1),
+            (50, ((1.0 + eps) + (1.0 + eps)).to_bits()),
+            (52, ((1.0 + eps) + (1.0 + eps)).to_bits()),
+            (54, ((1.0 + eps) + (1.0 + eps)).to_bits()),
+            (56, ((1.0 + eps) * (1.0 + eps)).to_bits()),
+            (58, ((1.0 + eps) * (1.0 + eps)).to_bits()),
+            (60, (1.0 + eps).mul_add(1.0 + eps, -1.0).to_bits()),
         ] {
             let actual = regs[reg] as u64 | (regs[reg + 1] as u64) << 32;
             assert!(actual.abs_diff(target) <= 1, "R{reg}: {actual:#x} vs {target:#x}");
@@ -197,6 +217,8 @@ mod tests {
         for (reg, target) in [(40, (-1.0f32).to_bits() + 1), (41, 1.0f32.to_bits() + 1), (42, 1.0f32.to_bits())] {
             assert!(regs[reg].abs_diff(target) <= 1, "R{reg}: {:#x} vs {target:#x}", regs[reg]);
         }
+        assert_eq!(regs[62], (-1.0f32).to_bits());
+        assert!(regs[63].abs_diff((1.0f32 + f32::EPSILON / 2.0).to_bits()) <= 1);
     }
 
     #[test]
