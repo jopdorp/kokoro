@@ -72,9 +72,10 @@ extern "C" __global__ void solar_step(Body* bodies, Body* scratch, unsigned* cel
         if (body.velocity_mass.w == 0.0f) { scratch[i] = body; return; }
         float3 position = make_float3(body.position_size.x, body.position_size.y, body.position_size.z);
         float3 a = acceleration(bodies, count, i, position);
-        body.velocity_mass.x += a.x * dt;
-        body.velocity_mass.y += a.y * dt;
-        body.velocity_mass.z += a.z * dt;
+        float kick = time == 0.0f ? dt * 0.5f : dt;
+        body.velocity_mass.x += a.x * kick;
+        body.velocity_mass.y += a.y * kick;
+        body.velocity_mass.z += a.z * kick;
         if (i != 0) {
             float r = sqrtf(position.x * position.x + position.z * position.z);
             float orbital = rsqrtf(r);
