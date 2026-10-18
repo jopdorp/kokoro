@@ -1,3 +1,8 @@
+---
+social_title: oboromi demos
+social_description: Watch guest programs and graphics demos running through oboromi.
+---
+
 # Demos
 
 This page shows oboromi's graphics and sound demos. Every clip is captured from the emulator on an Intel laptop unless its caption says otherwise.
@@ -104,3 +109,8 @@ Median frame times on the Intel Arc laptop used for the captures:
 | Dungeon showcase | 144.5 ms |
 
 These are laptop measurements, not native Switch 2 measurements.
+
+## Share
+
+Paste the dungeon [clip](https://jopdorp.github.io/oboromi/media/demo-dungeon.mp4), [poster](https://jopdorp.github.io/oboromi/media/demo-dungeon-poster.png), or [GIF teaser](https://jopdorp.github.io/oboromi/media/teaser-dungeon.gif) straight into Discord.
+The ray-traced [clip](https://jopdorp.github.io/oboromi/media/demo-raytraced.mp4) and [GIF teaser](https://jopdorp.github.io/oboromi/media/teaser-raytraced.gif), and the sprites [clip](https://jopdorp.github.io/oboromi/media/fullcircle-sprites.mp4) and [GIF teaser](https://jopdorp.github.io/oboromi/media/teaser-sprites.gif), work there too.
