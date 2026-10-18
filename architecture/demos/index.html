@@ -887,17 +887,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#ray-traced-scene" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ray-traced scene
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#music" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1571,17 +1560,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#ray-traced-scene" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ray-traced scene
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#music" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1664,9 +1642,11 @@
 
 <p><em>The guest runs the physics and submits the particle shader through <code>nvdrv</code>. Collision sounds go through the audio renderer.</em></p>
 <h3 id="boombox">BoomBox<a class="headerlink" href="#boombox" title="Permanent link">&para;</a></h3>
-<video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-boombox.png?v=2556f60c" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-boombox.mp4?v=0c0860ef" type="video/mp4"></video>
+<video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-boombox.png?v=2556f60c" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-boombox.mp4?v=0c0860ef" type="video/mp4"><source src="https://jopdorp.github.io/oboromi/media/demo-raytraced.mp4?v=f1fe5292" type="video/mp4"></video>
 
-<p><em>The BoomBox plays the CC0 track “Lofi Hip Hop Loop” by omfgdude. The guest places it in 3D the way a game does, through the audio renderer's voice parameters. Pitch adds Doppler as it orbits, while volumes set distance and panning, and a filter dulls it when the grille turns away. The reverb effect gives it a lively room instead of a box.</em></p>
+<p><em>The ray-traced guest turns the BoomBox and moving lamp inside the 3.0 × 3.9 × 4.8 metre room. Ray queries add soft shadows, reflections and colour bounce. The CC0 track “Lofi Hip Hop Loop” by omfgdude goes through the audio renderer: pitch adds Doppler, volumes set cardioid directivity and panning, a biquad dulls the grille off-axis, and the room dimensions and surfaces set the reflections and reverb.</em></p>
+<p><img alt="Ray-traced scene with the old and new lighting" src="https://jopdorp.github.io/oboromi/media/demo-raytraced-gi-proof.png?v=eb67c861" /></p>
+<p><em>The top row is v4 and the bottom row is v5. Look at the lamp's pool, the moving shadows and the wall colour on the BoomBox.</em></p>
 <h3 id="flighthelmet">FlightHelmet<a class="headerlink" href="#flighthelmet" title="Permanent link">&para;</a></h3>
 <video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-helmet.png?v=154e124f" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-helmet.mp4?v=ec0819a5" type="video/mp4"></video>
 
@@ -1691,12 +1671,6 @@
 <video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-mandelbrot.png?v=19ba7859" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-mandelbrot.mp4?v=e257306f" type="video/mp4"></video>
 
 <p><em>A double-precision dive into the seahorse valley. The guest owns the frame memory, launches NVIDIA's CUDA sample kernel through <code>nvdrv</code>, and presents it.</em></p>
-<h3 id="ray-traced-scene">Ray-traced scene<a class="headerlink" href="#ray-traced-scene" title="Permanent link">&para;</a></h3>
-<video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/demo-raytraced-poster.png?v=dafb778c" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-raytraced.mp4?v=f1fe5292" type="video/mp4"></video>
-
-<p><em>The guest places the geometry, instances and commands in its memory, then issues the draw with the ray-query shader through <code>nvdrv</code>. The emulator builds the acceleration structure from that memory, and the frame digest is equal to the host's. The lamp is now the main light. Its pool sweeps the red and green walls as it orbits, the shadows swing with it, and the walls' colour bounces onto the BoomBox. Soft shadows, chrome, glass and the glossy floor remain. The clip was rendered offline on an RTX A5000, in the same chip family as the 3090, because the laptop runs this shader slowly.</em></p>
-<p><img alt="Ray-traced scene with the old and new lighting" src="https://jopdorp.github.io/oboromi/media/demo-raytraced-gi-proof.png?v=eb67c861" /></p>
-<p><em>The top row is v4 and the bottom row is v5. Look at the lamp's pool, the moving shadows and the wall colour on the BoomBox.</em></p>
 <h3 id="music">Music<a class="headerlink" href="#music" title="Permanent link">&para;</a></h3>
 <video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-music.png?v=77965032" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-music.mp4?v=f2d2a3c9" type="video/mp4"></video>
 
@@ -1709,11 +1683,11 @@
 <video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.png?v=44d0df83" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.mp4?v=1cd477b2" type="video/mp4"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-realtime.mp4?v=1cd477b2" type="video/mp4"></video>
 
 <p><em>Dungeon raster: baked shadows and planar reflections make the same tour lighter to render. This clip was rendered offline on the Intel laptop.</em></p>
-<video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/dungeon-v8-rt-compare.png?v=c425617b" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-compare.mp4?v=73139399" type="video/mp4"></video>
+<video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/dungeon-v8-rt-compare.png?v=a296f9b4" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-compare.mp4?v=11310a94" type="video/mp4"></video>
 
-<p><em>Dungeon raster is left and Dungeon ray traced is right over the same fifteen reveal seconds. Every flame moves its traced shadow; wet calcite catches the torches. Mean absolute RGB difference is 8.94% over all 900 frames.</em></p>
-<p><img alt="Raster and ray-query dungeon frame" src="https://jopdorp.github.io/oboromi/media/dungeon-v8-rt-compare.png?v=c425617b" /></p>
-<p><em>The same reveal frame. The difference is clear in the warm ceiling bounce, softer formation shadows and wet calcite reflections.</em></p>
+<p><em>Dungeon raster is left and Dungeon ray traced is right over the same fifteen reveal seconds. Every flame moves its traced shadow; wet calcite catches the torches. Mean absolute RGB difference is 8.09% over all 900 frames.</em></p>
+<p><img alt="Raster and ray-query dungeon frame" src="https://jopdorp.github.io/oboromi/media/dungeon-v8-rt-compare.png?v=a296f9b4" /></p>
+<p><em>The same frame at the reveal: raster left, ray queries right. Cool opening light keeps calcite pale while fire bounce falls off into dark manganese and soot.</em></p>
 <h2 id="measured">Measured<a class="headerlink" href="#measured" title="Permanent link">&para;</a></h2>
 <p>Median frame times on the Intel Arc laptop used for the captures:</p>
 <table>
@@ -1753,7 +1727,7 @@
 <p>These are laptop measurements, not native Switch 2 measurements.</p>
 <h2 id="share">Share<a class="headerlink" href="#share" title="Permanent link">&para;</a></h2>
 <p>Paste the dungeon <a href="https://jopdorp.github.io/oboromi/media/demo-dungeon.mp4?v=4bb4ddb2">clip</a>, <a href="https://jopdorp.github.io/oboromi/media/demo-dungeon-poster.png">poster</a>, or <a href="https://jopdorp.github.io/oboromi/media/teaser-dungeon.gif?v=44ba6544">GIF teaser</a> straight into Discord.
-The ray-traced <a href="https://jopdorp.github.io/oboromi/media/demo-raytraced.mp4?v=f1fe5292">clip</a> and <a href="https://jopdorp.github.io/oboromi/media/teaser-raytraced.gif?v=5ed24262">GIF teaser</a>, and the sprites <a href="https://jopdorp.github.io/oboromi/media/fullcircle-sprites.mp4?v=a0a2a5d6">clip</a> and <a href="https://jopdorp.github.io/oboromi/media/teaser-sprites.gif?v=7f562251">GIF teaser</a>, work there too.</p>
+The BoomBox <a href="https://jopdorp.github.io/oboromi/media/fullcircle-boombox.mp4?v=0c0860ef">clip</a> and the sprites <a href="https://jopdorp.github.io/oboromi/media/fullcircle-sprites.mp4?v=a0a2a5d6">clip</a> and <a href="https://jopdorp.github.io/oboromi/media/teaser-sprites.gif?v=7f562251">GIF teaser</a> work there too.</p>
 
 
 
