@@ -104,8 +104,8 @@ pub extern "C" fn oboromi_flush_demo_caches() -> bool {
 /// draws the pbr BoomBox demo at `seconds` and presents it, false if vulkan is
 /// missing or the draw fails. blocks, so call it from a worker thread.
 #[unsafe(no_mangle)]
-pub extern "C" fn oboromi_render_boombox_demo(seconds: f32) -> bool {
-    matches!(catch_unwind(|| crate::gpu::demo::render_boombox_frame(seconds)), Ok(Ok(())))
+pub extern "C" fn oboromi_render_boombox_demo(_seconds: f32) -> bool {
+    matches!(catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::BoomBox)), Ok(Ok(())))
 }
 
 #[unsafe(no_mangle)]
