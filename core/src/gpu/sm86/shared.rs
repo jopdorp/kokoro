@@ -2,8 +2,18 @@ use super::*;
 
 impl<'a> Decoder<'a> {
     fn shared_address(&mut self, inst: u128, uniform: u32) -> u32 {
-        assert!(inst >> 78 & 3 == 0, "shared address stride {}", inst >> 78 & 3);
-        self.global_address(inst, uniform, 40)
+        let stride = (inst >> 78 & 3) as u32;
+        let mut address = self.load_register((inst >> 24) as u32 & 0xff);
+        if stride != 0 {
+            let shift = self.cached_const_u32(stride + 1);
+            address = self.ir.emit_shift_left_logical(self.type_u32[1], address, shift);
+        }
+        if inst >> 91 & 1 != 0 {
+            let ur = self.load_ureg((inst >> uniform & 0x3f) as u32);
+            address = self.ir.emit_iadd(self.type_u32[1], address, ur);
+        }
+        let offset = self.cached_const_u32((((inst >> 40) as i32) << 8 >> 8) as u32);
+        self.ir.emit_iadd(self.type_u32[1], address, offset)
     }
 
     fn shared_u64_at(&mut self, address: u32) -> u32 {
