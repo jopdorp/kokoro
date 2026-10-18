@@ -2,6 +2,8 @@
 
 use core::f32::consts::{FRAC_PI_2, PI, TAU};
 
+pub mod hrir;
+
 pub const RATE: usize = 48_000;
 pub const BLOCK: usize = 240;
 pub const HISTORY: usize = 1 << 17;
@@ -15,7 +17,6 @@ pub const PCM_BYTES: usize = 0x1000;
 const IMAGE_PATHS: usize = 3;
 const GEOMETRY_BLOCKS: u64 = 10;
 const SPEED: f32 = 343.0;
-const HEAD_RADIUS: f32 = 0.0875;
 const FDN_LENGTHS: [usize; 8] = [1423, 1559, 1699, 1871, 1999, 2131, 2281, 2417];
 const REVISION: u32 = 0x3d76_4552;
 
@@ -86,12 +87,12 @@ impl Mix {
 impl Default for Mix { fn default() -> Self { Self::new() } }
 
 #[derive(Clone, Copy)]
-struct Ear { shadow: f32, air: f32, material: f32, bass: f32, rear: f32, notch_lo: f32, notch_hi: f32 }
-impl Ear { const ZERO: Self = Self { shadow: 0.0, air: 0.0, material: 0.0, bass: 0.0, rear: 0.0, notch_lo: 0.0, notch_hi: 0.0 }; }
+struct Ear { air: f32, material: f32, bass: f32 }
+impl Ear { const ZERO: Self = Self { air: 0.0, material: 0.0, bass: 0.0 }; }
 
 #[derive(Clone, Copy)]
-struct PathState { ears: [Ear; 2], gain: f32, delay: [f32; 2], initialized: bool }
-impl PathState { const ZERO: Self = Self { ears: [Ear::ZERO; 2], gain: 0.0, delay: [0.0; 2], initialized: false }; }
+struct PathState { ears: [Ear; 2], gain: f32, delay: f32, initialized: bool }
+impl PathState { const ZERO: Self = Self { ears: [Ear::ZERO; 2], gain: 0.0, delay: 0.0, initialized: false }; }
 
 #[derive(Clone, Copy, Default)]
 struct Path { position: V3, gain: f32, absorption: f32 }
@@ -123,11 +124,11 @@ impl SourceState {
 
 #[derive(Clone, Copy)]
 struct Parameters {
-    delay: [f32; 2], gain: f32, ear_gain: [f32; 2], shadow: [f32; 2], air: f32,
-    material: f32, bass: f32, bass_filter: f32, rear: f32, rear_filter: f32, notch: [f32; 2],
+    delay: f32, gain: f32, pan: [f32; 2], hrir: hrir::Direction, headphones: bool,
+    air: f32, material: f32, bass: f32, bass_filter: f32,
 }
 
-impl Parameters { const ZERO: Self = Self { delay: [0.0; 2], gain: 0.0, ear_gain: [0.0; 2], shadow: [0.0; 2], air: 0.0, material: 0.0, bass: 0.0, bass_filter: 0.0, rear: 0.0, rear_filter: 0.0, notch: [0.0; 2] }; }
+impl Parameters { const ZERO: Self = Self { delay: 0.0, gain: 0.0, pan: [0.0; 2], hrir: hrir::Direction::ZERO, headphones: false, air: 0.0, material: 0.0, bass: 0.0, bass_filter: 0.0 }; }
 
 #[derive(Clone, Copy)]
 struct FdnState { at: [usize; 8], damp: [f32; 8] }
@@ -299,28 +300,21 @@ fn parameters(path: Path, source_gain: f32, listener: V3, forward: V3, up: V3, m
     let direction = scale(offset, 1.0 / distance);
     let right = unit(cross(forward, up));
     let azimuth = atan2(dot(direction, right), dot(direction, forward));
-    let elevation = asin(dot(direction, up).clamp(-1.0, 1.0));
     let (side, _) = sin_cos(azimuth);
-    let theta = azimuth.abs();
-    let (theta_sin, _) = sin_cos(theta);
-    let itd = HEAD_RADIUS / SPEED * if theta <= FRAC_PI_2 { theta + theta_sin } else { PI - theta + theta_sin };
     let delay = distance / SPEED * RATE as f32;
     let near = (1.0 / distance.max(0.35)).min(1.8);
-    let rear = ((-dot(direction, forward)).max(0.0) * 0.18).clamp(0.0, 0.18);
     let pan = ((side + 1.0) * PI * 0.25).clamp(0.0, FRAC_PI_2);
     let (pan_sin, pan_cos) = sin_cos(pan);
-    let far = [side.max(0.0), (-side).max(0.0)];
-    let notch = 8_000.0 + elevation / FRAC_PI_2 * 2_000.0;
     Parameters {
-        delay: core::array::from_fn(|ear| delay + if mode == Mode::Headphones { itd * RATE as f32 * far[ear] } else { 0.0 }),
+        delay,
         gain: path.gain * source_gain * near,
-        ear_gain: core::array::from_fn(|ear| if mode == Mode::Speakers { [pan_cos, pan_sin][ear] } else { 1.0 - 0.5 * far[ear] }),
-        shadow: core::array::from_fn(|ear| coefficient(14_000.0 - 11_000.0 * far[ear])),
+        pan: [pan_cos, pan_sin],
+        hrir: hrir::Direction::new(path.position, listener, forward, up),
+        headphones: mode == Mode::Headphones,
         air: coefficient(18_000.0 / (1.0 + 0.045 * distance * distance)),
-        material: coefficient(18_000.0 * (1.0 - 0.82 * path.absorption)),
+        material: coefficient(18_000.0 * (1.0 - 1.2 * path.absorption)),
         bass: (1.0 - distance).max(0.0) * 0.45,
-        bass_filter: coefficient(220.0), rear, rear_filter: coefficient(3_500.0),
-        notch: [coefficient(notch - 700.0), coefficient(notch + 700.0)],
+        bass_filter: coefficient(220.0),
     }
 }
 
@@ -329,23 +323,20 @@ fn binaural_block(parameters: Parameters, previous: &mut PathState, history: &[f
     let (from_gain, from_delay) = (previous.gain, previous.delay);
     let step = parameters.gain.max(previous.gain) * 0.005;
     let target_gain = parameters.gain.clamp(previous.gain - step, previous.gain + step);
+    let filter = parameters.hrir.filter();
+    let mut hrir = [[0.0; BLOCK]; 2];
+    if parameters.headphones { filter.render(history, written, from_delay, parameters.delay, &mut hrir); }
     for (n, frame) in out.iter_mut().enumerate() {
         let t = (n + 1) as f32 / BLOCK as f32;
         let gain = lerp(from_gain, target_gain, t);
         for ear in 0..2 {
-            let ear_delay = lerp(from_delay[ear], parameters.delay[ear], t);
-            let mut sample = delayed(history, written + n as u64, ear_delay);
-            sample = lowpass(sample, parameters.shadow[ear], &mut previous.ears[ear].shadow);
+            let delay = lerp(from_delay, parameters.delay, t);
+            let mut sample = if parameters.headphones { hrir[ear][n] } else { delayed(history, written + n as u64, delay) * parameters.pan[ear] };
             sample = lowpass(sample, parameters.air, &mut previous.ears[ear].air);
             sample = lowpass(sample, parameters.material, &mut previous.ears[ear].material);
             let bass = lowpass(sample, parameters.bass_filter, &mut previous.ears[ear].bass);
             sample += bass * parameters.bass;
-            let rear_low = lowpass(sample, parameters.rear_filter, &mut previous.ears[ear].rear);
-            sample -= (sample - rear_low) * parameters.rear;
-            let lo = lowpass(sample, parameters.notch[0], &mut previous.ears[ear].notch_lo);
-            let hi = lowpass(sample, parameters.notch[1], &mut previous.ears[ear].notch_hi);
-            sample -= (hi - lo) * 0.24;
-            frame[ear] += sample * gain * parameters.ear_gain[ear] * (1.0 - parameters.rear);
+            frame[ear] += sample * gain;
         }
     }
     previous.gain = target_gain;

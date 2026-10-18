@@ -5,3 +5,4 @@ Convert: pip install numpy Pillow; python3 -I scripts/gltf_to_raw.py Model.glb d
 Avocado is converted with --max-size 256. BoomBox (--max-size 2048, source resolution) and FlightHelmet (--max-size 1024) are too big for the code branches, fetch.sh pulls them from the assets branch.
 BoomBox music: [Lofi Hip Hop Loop](https://opengameart.org/content/lofi-hip-hop-loop) by omfgdude, CC0 1.0. The fetched `lofi.pcm` is a 48-second loop at 48 kHz mono signed 16-bit, trimmed with a 2-second crossfade and normalized to -18 LUFS.
 Dungeon audio is 48 kHz mono PCM from CC0 recordings. Per-file licence and source URLs are in dungeon-audio/SOURCES.
+SADIE II subject D1 HRIRs are Apache-2.0, Copyright 2018 University of York, from https://zenodo.org/records/12092466/files/D1_HRIR_SOFA.zip?download=1. The fetched 48 kHz asset is a 15-degree grid retaining taps 48..207.
