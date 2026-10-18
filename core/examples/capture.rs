@@ -29,6 +29,10 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
             oboromi_core::input::set_override(Some(oboromi_core::input::InputState { left: guest_sprites_stick(seconds), buttons: u64::from((2.75..3.25).contains(&seconds)), connected: true, ..Default::default() }));
             oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Sprites)
         }
+        "guest-tensor" => {
+            oboromi_core::gpu::SPEED_HACKS.lock().unwrap().fast_tensor = true;
+            oboromi_core::guest::render_demo(oboromi_core::guest::Demo::TensorUpscale)
+        }
         "triangle" => frame::render_triangle_demo(seconds),
         "sprites" => demo_sprites::render_sprites_frame(seconds),
         "post" => demo_post::render_post_frame(seconds),

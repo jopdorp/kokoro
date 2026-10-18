@@ -20,7 +20,7 @@ pub fn load_segments(ram: &GuestRam, base: u64, segments: &[(u64, &[u8])]) -> Op
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet , Post , Particles , Julia, Music }
+pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet , Post , Particles , Julia, Music, TensorUpscale }
 
 pub struct Machine {
     cpus: crate::cpu::cpu_manager::CpuManager,
@@ -42,13 +42,14 @@ impl Machine {
             Demo::Bounce => ("bounce.nro", include_bytes!("../tests/fixtures/guest/bounce.nro")),
             Demo::Triangle => ("triangle.nro", include_bytes!("../tests/fixtures/guest/triangle.nro")),
             Demo::Sprites => ("sprites.nro", include_bytes!("../tests/fixtures/guest/sprites.nro")),
+            Demo::TensorUpscale => ("tensor-upscale.nro", include_bytes!("../tests/fixtures/guest/tensor-upscale.nro")),
         };
         let cpus = crate::cpu::cpu_manager::CpuManager::new();
         let mut kernel = crate::kernel::Kernel::default();
         kernel.scheduler.virtual_time = true;
         // One virtual tick per block keeps demo updates inside the audio period; this is an execution budget, not hardware timing.
         cpus.get_core(0).unwrap().set_block_ticks(1);
-        let gpu = crate::gpu::engine::Gpu::with_ram(crate::gpu::device().map_err(|e| format!("{e:?}"))?, cpus.ram.clone(), None, Default::default()).map_err(|e| format!("{e:?}"))?;
+        let gpu = crate::gpu::engine::Gpu::with_ram(crate::gpu::device().map_err(|e| format!("{e:?}"))?, cpus.ram.clone(), None, *crate::gpu::SPEED_HACKS.lock().unwrap()).map_err(|e| format!("{e:?}"))?;
         let nvdrv = Rc::new(RefCell::new(Nvdrv::new(gpu)));
         kernel.sm.borrow_mut().0.insert("nvdrv".into(), nvdrv.clone() as Rc<RefCell<dyn Service>>);
         let (display, vsync) = vi::services(nvdrv);
