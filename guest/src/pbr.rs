@@ -57,7 +57,7 @@ fn draw(config: *const [u64; 3]) -> svc::Result<()> {
             while sound.periods < (f64::from(seconds) * 200.0) as u64 + 10 { sound.period(scene::sound::Spatial::boombox(sound.periods as f32 / 200.0))?; }
         }
         let model = if BOOMBOX { pbr::boombox_model(FIT, seconds) } else { pbr::model(FIT, pbr::sin_cos(seconds * 0.8 + if ROOM { core::f32::consts::PI } else { 0.0 })) };
-        let (eye, head, light_y) = if ROOM { pbr::room_frame(seconds, TRACED, sqrt) } else { (pbr::EYE, [0.0; 16], 0.0) };
+        let (eye, head, light_position) = if ROOM { pbr::room_frame(seconds, TRACED, sqrt) } else { (pbr::EYE, [0.0; 16], [0.0; 3]) };
         if ROOM { for material in 0..MATERIAL_COUNT { write_floats(memory + MATERIALS + MATERIAL_STRIDE * material as u64 + MATERIAL_UNIFORMS - BASE, &head); } }
         let view = if ROOM { pbr::view_projection(size[0], size[1], eye, sqrt) } else { VIEW };
         let uniforms = core::array::from_fn(|i| [model, view].as_flattened().as_flattened()[i].to_bits());
@@ -66,7 +66,7 @@ fn draw(config: *const [u64; 3]) -> svc::Result<()> {
             pbr::acceleration_structure(model, GEOMETRY, &mut registry);
         }
         words.len = 0;
-        pbr::draw(&uniforms, view, DRAWS, |i| BLENDS[i], ROOM, TRACED, GEOMETRY.model_indices, LIGHT_FIRST, light_y, tick + 1, &mut words);
+        pbr::draw(&uniforms, view, DRAWS, |i| BLENDS[i], ROOM, TRACED, GEOMETRY.model_indices, LIGHT_FIRST, light_position, tick + 1, &mut words);
         channel.submit(FRAME_SEGMENT, words.len)?;
         window.present(size)?;
         tick += 1;

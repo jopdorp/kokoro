@@ -36,6 +36,13 @@ pub struct Programs {
 }
 
 #[derive(Clone, Copy)]
+pub struct RayPrograms {
+    pub dungeon_vertex: u64,
+    pub dungeon_fragment: u64,
+    pub cones_vertex: u64,
+}
+
+#[derive(Clone, Copy)]
 pub struct Tables {
     pub descriptors: u64,
     pub vertex_constants: u64,
@@ -49,6 +56,13 @@ pub struct Tables {
 pub struct Mesh {
     pub vertices: Buffer,
     pub indices: u64,
+}
+
+#[derive(Clone, Copy)]
+pub struct RayGeometry {
+    pub vertices: Buffer,
+    pub indices: Buffer,
+    pub tlas: u64,
 }
 
 #[derive(Clone, Copy)]
@@ -73,12 +87,43 @@ pub struct SpriteResources {
     pub texture: u32,
 }
 
-fn ssbo<const N: usize>(table: &mut [u32; N], word: usize, buffer: Buffer) {
+fn ssbo(table: &mut [u32], word: usize, buffer: Buffer) {
     table[word..word + 3].copy_from_slice(&[
         buffer.address as u32,
         (buffer.address >> 32) as u32,
         buffer.size,
     ]);
+}
+
+pub fn dungeon_ray_descriptors(resources: DungeonResources, tlas: u64) -> [u32; 44] {
+    let mut table = [0; 44];
+    table[..9].copy_from_slice(&resources.textures);
+    table[10..12].copy_from_slice(&handle(resources.frame.address, resources.frame.size));
+    ssbo(&mut table, 12, resources.lights);
+    table[16..18].copy_from_slice(&[tlas as u32, (tlas >> 32) as u32]);
+    for (word, buffer) in [
+        (20, resources.reflection),
+        (24, resources.refraction),
+        (28, resources.geometry),
+        (32, resources.shadows),
+        (36, resources.rooms),
+        (40, resources.vertex_data),
+    ] {
+        ssbo(&mut table, word, buffer);
+    }
+    table
+}
+
+pub fn acceleration_structure(geometry: RayGeometry, words: &mut impl Extend<u32>) {
+    crate::pbr::acceleration_structure_registry(&[crate::pbr::AccelerationStructureGeometry {
+        vertices: geometry.vertices.address,
+        stride: 48,
+        vertex_count: geometry.vertices.size / 48,
+        indices: geometry.indices.address,
+        index_count: geometry.indices.size / 4,
+        opaque: true,
+        transform: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]],
+    }], words);
 }
 
 pub fn dungeon_descriptors(resources: DungeonResources) -> [u32; 40] {
@@ -221,7 +266,7 @@ fn target(target: Target, tables: Tables, words: &mut impl Extend<u32>) {
     inc(SET_TEX_SAMPLER_POOL_A, &[sampler_hi, sampler_lo, 8], words);
 }
 
-fn descriptor_banks(tables: Tables, vertex_constants: u32, words: &mut impl Extend<u32>) {
+fn descriptor_banks(tables: Tables, vertex_constants: u32, descriptor_size: u32, words: &mut impl Extend<u32>) {
     if vertex_constants != 0 {
         bind(
             0,
@@ -247,7 +292,7 @@ fn descriptor_banks(tables: Tables, vertex_constants: u32, words: &mut impl Exte
         DRIVER_BANK,
         Buffer {
             address: tables.descriptors,
-            size: 160,
+            size: descriptor_size,
         },
         words,
     );
@@ -265,7 +310,7 @@ fn descriptor_banks(tables: Tables, vertex_constants: u32, words: &mut impl Exte
         DRIVER_BANK,
         Buffer {
             address: tables.descriptors,
-            size: 160,
+            size: descriptor_size,
         },
         words,
     );
@@ -274,6 +319,7 @@ fn descriptor_banks(tables: Tables, vertex_constants: u32, words: &mut impl Exte
 fn mesh_state(
     target_at: Target,
     programs: Programs,
+    ray: Option<RayPrograms>,
     tables: Tables,
     mesh: Mesh,
     words: &mut impl Extend<u32>,
@@ -305,17 +351,19 @@ fn mesh_state(
     let [index_hi, index_lo] = split(mesh.indices);
     inc(SET_INDEX_BUFFER_A, &[index_hi, index_lo], words);
     inc(SET_INDEX_BUFFER_E, &[2], words);
-    program(1, 18, 0, programs.dungeon_vertex, words);
-    program(5, 46, 4, programs.dungeon_fragment, words);
-    descriptor_banks(tables, 0, words);
+    let (vertex, fragment, registers, descriptor_size) = ray.map_or((programs.dungeon_vertex, programs.dungeon_fragment, 46, 160), |ray| (ray.dungeon_vertex, ray.dungeon_fragment, 70, 176));
+    program(1, 18, 0, vertex, words);
+    program(5, registers, 4, fragment, words);
+    descriptor_banks(tables, 0, descriptor_size, words);
     inc(SET_BLEND, &[0], words);
     inc(SET_DEPTH_WRITE, &[1], words);
 }
 
-fn cones_state(programs: Programs, tables: Tables, words: &mut impl Extend<u32>) {
-    program(1, 23, 0, programs.cones_vertex, words);
-    program(5, 46, 4, programs.dungeon_fragment, words);
-    descriptor_banks(tables, 48, words);
+fn cones_state(programs: Programs, ray: Option<RayPrograms>, tables: Tables, words: &mut impl Extend<u32>) {
+    let (vertex, fragment, registers, descriptor_size) = ray.map_or((programs.cones_vertex, programs.dungeon_fragment, 46, 160), |ray| (ray.cones_vertex, ray.dungeon_fragment, 70, 176));
+    program(1, 23, 0, vertex, words);
+    program(5, registers, 4, fragment, words);
+    descriptor_banks(tables, 48, descriptor_size, words);
     inc(SET_BLEND, &[0], words);
     inc(SET_DEPTH_WRITE, &[1], words);
 }
@@ -404,18 +452,19 @@ fn instances(vertices: u32, count: u32, words: &mut impl Extend<u32>) {
 fn pair(
     target_at: Target,
     programs: Programs,
+    ray: Option<RayPrograms>,
     tables: Tables,
     mesh: Mesh,
     draws: (u32, [u32; 2]),
     clear: [f32; 4],
     words: &mut impl Extend<u32>,
 ) {
-    mesh_state(target_at, programs, tables, mesh, words);
+    mesh_state(target_at, programs, ray, tables, mesh, words);
     inc(SET_COLOR_CLEAR_VALUE, &clear.map(f32::to_bits), words);
     inc(SET_Z_CLEAR_VALUE, &[1.0f32.to_bits()], words);
     inc(CLEAR_SURFACE, &[0x3d], words);
     indexed(0, draws.0, words);
-    cones_state(programs, tables, words);
+    cones_state(programs, ray, tables, words);
     instances(draws.1[0], draws.1[1], words);
 }
 
@@ -431,6 +480,7 @@ pub fn shadow(
     pair(
         target,
         programs,
+        None,
         tables,
         mesh,
         (indices, cones),
@@ -451,6 +501,7 @@ pub fn reflection(
     pair(
         target,
         programs,
+        None,
         tables,
         mesh,
         (indices, cones),
@@ -471,12 +522,26 @@ pub fn opaque(
     pair(
         target,
         programs,
+        None,
         tables,
         mesh,
         (indices, cones),
         [0.008, 0.012, 0.018, 40.0],
         words,
     );
+}
+
+pub fn ray_opaque(
+    target: Target,
+    programs: Programs,
+    ray: RayPrograms,
+    tables: Tables,
+    mesh: Mesh,
+    indices: u32,
+    cones: [u32; 2],
+    words: &mut impl Extend<u32>,
+) {
+    pair(target, programs, Some(ray), tables, mesh, (indices, cones), [0.008, 0.012, 0.018, 40.0], words);
 }
 
 pub fn water(
@@ -488,7 +553,22 @@ pub fn water(
     count: u32,
     words: &mut impl Extend<u32>,
 ) {
-    mesh_state(target, programs, tables, mesh, words);
+    mesh_state(target, programs, None, tables, mesh, words);
+    inc(SET_DEPTH_WRITE, &[0], words);
+    indexed(first, count, words);
+}
+
+pub fn ray_water(
+    target: Target,
+    programs: Programs,
+    ray: RayPrograms,
+    tables: Tables,
+    mesh: Mesh,
+    first: u32,
+    count: u32,
+    words: &mut impl Extend<u32>,
+) {
+    mesh_state(target, programs, Some(ray), tables, mesh, words);
     inc(SET_DEPTH_WRITE, &[0], words);
     indexed(first, count, words);
 }

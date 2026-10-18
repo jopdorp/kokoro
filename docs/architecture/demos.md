@@ -69,11 +69,11 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced.mp4" type="video/mp4"></video>
 
-*The guest places the geometry, instances and commands in its memory, then issues the draw with the ray-query shader through `nvdrv`. The emulator builds the acceleration structure from that memory, and the frame digest is equal to the host's. This heavy showcase shader adds soft shadows, chrome, glass and bounce light. The clip was rendered offline on an RTX 3090 through the host capture path; the guest renders the same shader, and its 3090 capture follows.*
+*The guest places the geometry, instances and commands in its memory, then issues the draw with the ray-query shader through `nvdrv`. The emulator builds the acceleration structure from that memory, and the frame digest is equal to the host's. The lamp is now the main light. Its pool sweeps the red and green walls as it orbits, the shadows swing with it, and the walls' colour bounces onto the BoomBox. Soft shadows, chrome, glass and the glossy floor remain. The clip was rendered offline on an RTX A5000, in the same chip family as the 3090, because the laptop runs this shader slowly.*
 
-![Ray-traced scene without and with bounce light](https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-gi-proof.png)
+![Ray-traced scene with the old and new lighting](https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-gi-proof.png)
 
-*The top row is without bounce light and the bottom row is with it. Look at the BoomBox picking up the wall colour near the lamp.*
+*The top row is v4 and the bottom row is v5. Look at the lamp's pool, the moving shadows and the wall colour on the BoomBox.*
 
 ### Music
 
