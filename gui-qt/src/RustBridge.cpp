@@ -48,10 +48,6 @@ bool flushDemoCaches() {
     return oboromi_flush_demo_caches();
 }
 
-bool renderBoomBoxDemo(float seconds) {
-    return oboromi_render_boombox_demo(seconds);
-}
-
 bool renderRaytracedDemo(float seconds) {
     return oboromi_render_raytraced_demo(seconds);
 }
@@ -86,6 +82,14 @@ bool renderBounceDemo(float seconds) {
 
 bool renderParticlesFrame(float seconds) {
     return oboromi_render_particles_frame(seconds);
+}
+
+bool renderSolarFrame(float) {
+    return oboromi_render_solar_frame(false);
+}
+
+bool renderSolarShowcaseFrame(float) {
+    return oboromi_render_solar_frame(true);
 }
 
 }

@@ -24,8 +24,7 @@ bool renderTriangleDemo(float seconds);
 // Saves the demos' pipeline cache so their next run starts warm
 bool flushDemoCaches();
 
-// Draws the pbr BoomBox and FlightHelmet demos at the given time into the display
-bool renderBoomBoxDemo(float seconds);
+// Draws the BoomBox and FlightHelmet demos at the given time into the display
 bool renderRaytracedDemo(float seconds);
 void setRaytracingEnabled(bool enabled);
 bool renderHelmetDemo(float seconds);
@@ -44,5 +43,7 @@ bool renderBounceDemo(float seconds);
 
 // Draws the particles demo at the given time into the display
 bool renderParticlesFrame(float seconds);
+bool renderSolarFrame(float seconds);
+bool renderSolarShowcaseFrame(float seconds);
 
 }

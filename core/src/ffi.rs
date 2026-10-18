@@ -106,13 +106,7 @@ pub extern "C" fn oboromi_flush_demo_caches() -> bool {
     matches!(catch_unwind(crate::gpu::frame::flush_demo_caches), Ok(Ok(())))
 }
 
-/// draws the pbr BoomBox demo at `seconds` and presents it, false if vulkan is
-/// missing or the draw fails. blocks, so call it from a worker thread.
-#[unsafe(no_mangle)]
-pub extern "C" fn oboromi_render_boombox_demo(_seconds: f32) -> bool {
-    matches!(catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::BoomBox)), Ok(Ok(())))
-}
-
+/// draws the ray-traced BoomBox guest and presents it.
 #[unsafe(no_mangle)]
 pub extern "C" fn oboromi_render_raytraced_demo(_seconds: f32) -> bool {
     matches!(catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::Raytraced)), Ok(Ok(())))
@@ -176,6 +170,12 @@ pub extern "C" fn oboromi_render_particles_frame(_seconds: f32) -> bool {
         catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::Particles)),
         Ok(Ok(()))
     )
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn oboromi_render_solar_frame(showcase: bool) -> bool {
+    let demo = if showcase { crate::guest::Demo::SolarShowcase } else { crate::guest::Demo::Solar };
+    matches!(catch_unwind(|| crate::guest::render_demo(demo)), Ok(Ok(())))
 }
 
 /// generation of the last presented frame, 0 until the guest presents one.
@@ -335,12 +335,26 @@ pub extern "C" fn oboromi_audio_test_tone(seconds: f32) -> usize {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn oboromi_render_dungeon_frame(seconds: f32) -> bool {
-    matches!(catch_unwind(|| crate::gpu::demo_dungeon::render_dungeon_frame(seconds)), Ok(Ok(())))
+    let _ = seconds;
+    use crate::gpu::demo_dungeon::render::{RAYS, SHOWCASE};
+    use std::sync::atomic::Ordering::Relaxed;
+    let demo = match (SHOWCASE.load(Relaxed), RAYS.load(Relaxed)) {
+        (false, false) => crate::guest::Demo::Dungeon,
+        (false, true) => crate::guest::Demo::DungeonRays,
+        (true, false) => crate::guest::Demo::DungeonShowcase,
+        (true, true) => crate::guest::Demo::DungeonShowcaseRays,
+    };
+    matches!(catch_unwind(|| crate::guest::render_demo(demo)), Ok(Ok(())))
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn oboromi_dungeon_ray_queries() -> bool {
-    matches!(catch_unwind(|| crate::gpu::device().is_ok_and(|d| d.acceleration_structure.is_some())), Ok(true))
+    // ANV resets the device on the captured dungeon ray shader; lavapipe and non-Intel hardware run it.
+    let supported = catch_unwind(|| crate::gpu::device().is_ok_and(|d| {
+        d.acceleration_structure.is_some() && unsafe { d.instance.get_physical_device_properties(d.physical_device) }.vendor_id != 0x8086
+    })).unwrap_or(false);
+    if !supported { crate::gpu::demo_dungeon::render::RAYS.store(false, std::sync::atomic::Ordering::Relaxed); }
+    supported
 }
 
 #[unsafe(no_mangle)]

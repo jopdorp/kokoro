@@ -19,12 +19,14 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
     match demo {
         "dungeon" => demo_dungeon::render_dungeon_frame(seconds),
         "julia" => frame::render_demo_frame(seconds).map_err(|e| format!("{e:?}")),
-        "guest-boombox" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::BoomBox),
         "guest-helmet" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Helmet),
         "guest-post" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Post),
         "guest-particles" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Particles),
+        "guest-solar" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Solar),
+        "guest-solar-showcase" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::SolarShowcase),
         "guest-julia" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Julia),
         "guest-raytraced" => oboromi_core::guest::render_demo(if demo::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) { oboromi_core::guest::Demo::RaytracedShowcase } else { oboromi_core::guest::Demo::Raytraced }),
+        "guest-dungeon" => oboromi_core::guest::render_demo(match (demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed), demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed)) { (false, false) => oboromi_core::guest::Demo::Dungeon, (false, true) => oboromi_core::guest::Demo::DungeonRays, (true, false) => oboromi_core::guest::Demo::DungeonShowcase, (true, true) => oboromi_core::guest::Demo::DungeonShowcaseRays }),
         "guest-mandelbrot" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Mandelbrot),
         "guest-triangle" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Triangle),
         "guest-sprites" => {
@@ -38,7 +40,6 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
         "triangle" => frame::render_triangle_demo(seconds),
         "sprites" => demo_sprites::render_sprites_frame(seconds),
         "post" => demo_post::render_post_frame(seconds),
-        "boombox" => demo::render_boombox_frame(seconds),
         "raytraced" => demo::render_raytraced_frame(seconds),
         "raytraced-off" => { demo::set_raytracing_enabled(false); demo::render_raytraced_frame(seconds) },
         "helmet" => demo::render_helmet_frame(seconds),
@@ -105,7 +106,7 @@ fn main() {
             .position(|arg| arg == name)
             .map(|i| args[i + 1].clone())
     };
-    if args[0] == "dungeon" {
+    if matches!(args[0].as_str(), "dungeon" | "guest-dungeon") {
         demo_dungeon::set_dungeon_capture();
         demo_dungeon::render::PROFILE.store(args.iter().any(|a|a=="--profile"), std::sync::atomic::Ordering::Relaxed);
         if let Some(debug) = flag("--water-debug") {
@@ -137,8 +138,10 @@ fn main() {
     }
     let mut guest = match args[0].as_str() {
         "guest-music" => Some(oboromi_core::guest::Demo::Music),
-        "guest-boombox" => Some(oboromi_core::guest::Demo::BoomBox),
+        "guest-raytraced" => Some(if audio_only { oboromi_core::guest::Demo::RaytracedAudio } else if demo::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) { oboromi_core::guest::Demo::RaytracedShowcase } else { oboromi_core::guest::Demo::Raytraced }),
         "guest-bounce" => Some(oboromi_core::guest::Demo::Bounce),
+        "guest-dungeon" if fps == 15.0 && !demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) && !demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed) => Some(oboromi_core::guest::Demo::DungeonCapture),
+        "guest-dungeon" => Some(match (demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed), demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed)) { (false, false) => oboromi_core::guest::Demo::Dungeon, (false, true) => oboromi_core::guest::Demo::DungeonRays, (true, false) => oboromi_core::guest::Demo::DungeonShowcase, (true, true) => oboromi_core::guest::Demo::DungeonShowcaseRays }),
         _ => None,
     }.map(|demo| oboromi_core::guest::Machine::demo(demo).unwrap());
     let mut pixels = Vec::new();
@@ -148,7 +151,10 @@ fn main() {
         let tick = std::time::Instant::now();
         let seconds = start + (i + usize::from(args[0] == "dungeon")) as f32 / fps;
         if let Some(guest) = &mut guest {
-            guest.frame_with(|| { if let Some(wav) = &mut wav { if queued() > 0 { wav.drain(); } } }).unwrap();
+            guest.frame_with(|| {
+                if let Some(wav) = &mut wav { if queued() > 0 { wav.drain(); } }
+                else { let mut discard = vec![0; queued() * CHANNELS as usize]; pull(&mut discard); }
+            }).unwrap();
         } else if audio_only && args[0] == "dungeon" {
             demo_dungeon::render_dungeon_audio_frame(seconds).unwrap();
         } else {

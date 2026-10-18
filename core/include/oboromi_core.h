@@ -222,11 +222,7 @@ bool oboromi_render_triangle_demo(float seconds);
 /// saves the pipeline cache of the demos that ran, call it when a demo stops.
 bool oboromi_flush_demo_caches();
 
-/// draws the pbr BoomBox demo at `seconds` and presents it, false if vulkan is
-/// missing or the draw fails. blocks, so call it from a worker thread.
-bool oboromi_render_boombox_demo(float seconds);
-
-/// draws the Cornell-room BoomBox demo with the selected ray tracing mode.
+/// draws the ray-traced BoomBox guest with the selected ray tracing mode.
 bool oboromi_render_raytraced_demo(float seconds);
 
 /// selects ray-query or rasterised shading for the ray-traced demo.
@@ -259,6 +255,9 @@ bool oboromi_render_bounce_demo(float seconds);
 /// draws a frame of the particles demo at `seconds` and presents it, false if
 /// vulkan is missing or the frame fails. blocks, so call it from a worker thread.
 bool oboromi_render_particles_frame(float seconds);
+
+/// runs the realtime or offline solar-system guest to its next frame.
+bool oboromi_render_solar_frame(bool showcase);
 
 /// generation of the last presented frame, 0 until the guest presents one.
 uint64_t oboromi_frame_generation();
