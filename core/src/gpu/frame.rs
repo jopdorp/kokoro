@@ -7,52 +7,13 @@ use super::demo_sprites::SPRITES;
 use super::engine::Gpu;
 use super::{VkError, device};
 use crate::tests::gpu::engine::{TARGET, triangle_frame, triangle_guest};
-use crate::tests::gpu_test::inst::{cvt, *};
+use crate::tests::gpu_test::inst::*;
 use ash::vk::DescriptorType;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-const WIDTH: u32 = 1920;
-const HEIGHT: u32 = 1080;
-const BASE: u64 = 0x2_0000_1000;
-const PP_PT: u128 = 7 << 87;
-const IMAD: u128 = 0x224 | S32 | 7 << 81 | PP_PT;
-const IMAD_WIDE_U32: u128 = 0x225 | 7 << 81 | PP_PT;
-const ISETP_GE_U32: u128 = 0x20c | 6 << 76 | 7 << 68 | 7 << 84;
-const BOP_OR: u128 = 1 << 74;
-const P0: u32 = 0;
-const RZ: u32 = 255;
-const GROUP: u32 = 16;
-const MAX_ITERATIONS: u32 = 64;
-const ESCAPE_RADIUS_SQUARED: f32 = 256.0;
-const UNITS_PER_PIXEL: f32 = 2.6 / HEIGHT as f32;
-const C_RADIUS: f32 = 0.7885;
-const SECONDS_PER_TURN: f32 = 16.0;
-
-// Runs `colour` with x in R0 and y in R2, then stores R1 as the pixel's RGBA8.
-fn pixel_program(colour: &[u128]) -> Vec<u128> {
-    let head = [
-        s2r(0, 37),
-        s2r(1, 33),
-        s2r(2, 38),
-        s2r(3, 34),
-        alu3(IMAD ^ IMM_B, 0, 0, GROUP, 1),
-        alu3(IMAD ^ IMM_B, 2, 2, GROUP, 3),
-        alu(ISETP_GE_U32 ^ IMM_B | PP_PT, 0, 0, WIDTH),
-        alu(ISETP_GE_U32 ^ IMM_B | BOP_OR, 0, 2, HEIGHT),
-        guard(exit(), P0, false),
-    ];
-    let store = [
-        alu3(IMAD ^ IMM_B, 0, 2, WIDTH, 0),
-        mov_imm(4, BASE as u32),
-        mov_imm(5, (BASE >> 32) as u32),
-        alu3(IMAD_WIDE_U32 ^ IMM_B, 4, 0, 4, 4),
-        stg(4, 0, 1),
-        exit(),
-    ];
-    [&head, colour, &store].concat()
-}
-
+use scene::julia::*;
+pub use scene::julia::julia_program;
 // r = x * 17 >> 7 and g = y * 495176 >> 21 are x * 255 / 1920 and y * 255 / 1080 exactly over the frame.
 // The u32 is stored little-endian, so r is byte 0 and a is byte 3 of each RGBA8 pixel.
 fn gradient_program() -> Vec<u128> {
@@ -65,55 +26,6 @@ fn gradient_program() -> Vec<u128> {
         alu3(IMAD ^ IMM_B, 1, 3, 0x100, 1),
         alu3(LOP3 ^ IMM_B | lop3_fields(0xfc, 7, 7, true), 1, 1, 0xff80_0000, RZ),
     ])
-}
-
-// Julia set z = z * z + c with c circling the origin as the time in turns at c[0x0][0x0] grows,
-// coloured by i - log2(log2(|z|^2)) through a cosine palette and black where z never escapes.
-pub fn julia_program() -> Vec<u128> {
-    let channel = |rd, phase| [fadd_imm(rd, 14, phase), mufu(rd, MUFU_COS, rd), ffma_imm_b(rd, rd, 127.5, 15), f2i(rd, rd, cvt::S32, cvt::F32, cvt::RN)];
-    let iterate = [
-        fmul(12, 7, 7),
-        ffma(13, 6, 6, 12),
-        alu(FSETP_GT ^ IMM_B, 0, 13, ESCAPE_RADIUS_SQUARED.to_bits()),
-        alu(ISETP_GE_U32 ^ IMM_B | BOP_OR, 0, 10, MAX_ITERATIONS),
-        guard(bra(6 * 16), P0, false),
-        fmul(14, 6, 7),
-        ffma_imm_b(7, 14, 2.0, 9),
-        ffma(14, 6, 6, 12) | FP_NEG_C,
-        fadd(6, 14, 8),
-        iadd_imm(10, 10, 1),
-        bra(-11 * 16),
-    ];
-    let start = [
-        i2f(6, 0, cvt::F32, cvt::S32),
-        i2f(7, 2, cvt::F32, cvt::S32),
-        fadd_imm(6, 6, -(WIDTH as f32) / 2.0),
-        fmul_imm(6, 6, UNITS_PER_PIXEL),
-        fadd_imm(7, 7, -(HEIGHT as f32) / 2.0),
-        fmul_imm(7, 7, -UNITS_PER_PIXEL),
-        mov_cbuf(11, 0, 0),
-        mufu(8, MUFU_COS, 11),
-        mufu(9, MUFU_SIN, 11),
-        fmul_imm(8, 8, C_RADIUS),
-        fmul_imm(9, 9, C_RADIUS),
-        mov_imm(10, 0),
-    ];
-    let shade = [
-        mufu(13, MUFU_LG2, 13),
-        mufu(13, MUFU_LG2, 13),
-        i2f(14, 10, cvt::F32, cvt::S32),
-        fadd(14, 14, 13) | FP_NEG_B,
-        ffma_imm_b(14, 14, 0.07, 11),
-        mov_imm(15, 127.5f32.to_bits()),
-    ];
-    let pack = [
-        alu3(IMAD ^ IMM_B, 1, 17, 0x100, 16),
-        alu3(IMAD ^ IMM_B, 1, 18, 0x1_0000, 1),
-        alu3(LOP3 ^ IMM_B | lop3_fields(0xfc, 7, 7, true), 1, 1, 0xff00_0000, RZ),
-        alu(ISETP_GE_U32 ^ IMM_B | PP_PT, 0, 10, MAX_ITERATIONS),
-        guard(mov_imm(1, 0xff00_0000), P0, false),
-    ];
-    pixel_program(&[&start[..], &iterate, &shade, &channel(16, 0.0), &channel(17, 0.1), &channel(18, 0.2), &pack].concat())
 }
 
 struct Frame {
