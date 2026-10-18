@@ -16,7 +16,7 @@ impl<'a> Decoder<'a> {
 
     // .SAT maps NaN to +0, which NClamp does and FClamp leaves undefined.
     fn fp_arith_result(&mut self, inst: u128, val: u32, ftz: bool) -> u32 {
-        assert_round_to_nearest(inst);
+        accept_nearest_for_directed_rounding();
         self.ir.emit_decorate(val, spirv::decoration::NO_CONTRACTION, &[]);
         let val = if inst >> 77 & 1 != 0 {
             let [zero, one] = [0.0f32, 1.0].map(|c| self.ir.emit_constant_typed(self.type_f32[1], c));
@@ -59,7 +59,7 @@ impl<'a> Decoder<'a> {
         self.store_pair((inst >> 16 & 0xff) as u32, result);
     }
     pub fn dfma(&mut self, inst: u128) {
-        assert_round_to_nearest(inst);
+        accept_nearest_for_directed_rounding();
         let ty = self.type_f64();
         let a = self.fp64_reg(inst, 24, 73, 72);
         let src = self.fp64_alu_src(inst);
@@ -70,7 +70,7 @@ impl<'a> Decoder<'a> {
         self.store_pair((inst >> 16 & 0xff) as u32, result);
     }
     pub fn dmul(&mut self, inst: u128) {
-        assert_round_to_nearest(inst);
+        accept_nearest_for_directed_rounding();
         let ty = self.type_f64();
         let a = self.fp64_reg(inst, 24, 73, 72);
         let b = self.fp64_alu_src(inst);

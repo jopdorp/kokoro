@@ -238,6 +238,10 @@ fn assert_round_to_nearest(inst: u128) {
     assert!(mode == 0, "{} rounding mode is not implemented", ["RN", "RM", "RP", "RZ"][mode]);
 }
 
+fn accept_nearest_for_directed_rounding() {
+    // Vulkan SPIR-V cannot select rounding per arithmetic operation, so directed forms use round-to-nearest.
+}
+
 fn deferred_nan(inst: u128) -> bool {
     match opcode(inst) & 0x1ff {
         0x020 | 0x021 | 0x023 | 0x009 | 0x108 => true, // FMUL, FADD, FFMA, FMNMX, MUFU

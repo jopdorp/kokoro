@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::tests::gpu::harness::run_regs;
+    use crate::tests::gpu_test::inst;
 
     const PT: u128 = 7 << 12;
     const DADD_R: u128 = 0x229 | PT;
@@ -69,6 +70,9 @@ mod tests {
     const WORD_DFMA_CBUF_B: u128 = ternary(DFMA_C_B, 54, 0, 0, 4);
     const WORD_DFMA_CBUF_C: u128 = ternary(DFMA_C_C, 56, 0, 0, 2);
     const WORD_DFMA_FUSED: u128 = ternary(DFMA_R, 60, 0, 2, 4);
+    const WORD_DMUL_RP: u128 = binary(DMUL_R, 20, 0, 2) | 2 << 78;
+    const WORD_DFMA_RM: u128 = ternary(DFMA_R, 22, 4, 6, 8) | 1 << 78;
+    const WORD_DFMA_RP: u128 = ternary(DFMA_R, 24, 10, 12, 14) | 2 << 78;
     const WORD_DSETP_LT: u128 = dsetp(DSETP_R, 0, 1, 0, 2, 1, 0, 7);
     const WORD_DSETP_EQU: u128 = dsetp(DSETP_I, 3, 4, 4, 0x4000_0000, 10, 0, 7);
     const WORD_DSETP_NUM: u128 = dsetp(DSETP_C, 5, 6, 4, 0, 7, 0, 7);
@@ -159,6 +163,40 @@ mod tests {
         };
         assert_ne!(a.mul_add(b, c), a * b + c);
         assert_f64(&regs, 60, a.mul_add(b, c));
+    }
+
+    #[test]
+    fn directed_arithmetic_stays_within_one_ulp_of_requested_rounding() {
+        let eps = f64::EPSILON;
+        let mut seed = words(&[1.0 + eps, 1.0 + eps, -1.0, 1.0, -eps / 2.0, 1.0, 1.0, eps / 2.0]);
+        seed.resize(39, 0);
+        for (reg, value) in [
+            (30, -1.0f32), (31, 1.0), (32, -f32::EPSILON / 2.0),
+            (33, 1.0), (34, 1.0), (35, f32::EPSILON / 2.0),
+            (36, 1.0), (37, 1.0), (38, 3.0 * f32::EPSILON / 4.0),
+        ] {
+            seed[reg] = value.to_bits();
+        }
+        let program = [
+            WORD_DMUL_RP,
+            WORD_DFMA_RM,
+            WORD_DFMA_RP,
+            inst::ffma(40, 30, 31, 32) | 1 << 78,
+            inst::ffma(41, 33, 34, 35) | 2 << 78,
+            inst::ffma(42, 36, 37, 38) | 3 << 78,
+        ];
+        let Some((regs, _)) = run_regs(&program, &seed, &[], &[]) else { return };
+        for (reg, target) in [
+            (20, (1.0 + 3.0 * eps).to_bits()),
+            (22, (-1.0f64).to_bits() + 1),
+            (24, 1.0f64.to_bits() + 1),
+        ] {
+            let actual = regs[reg] as u64 | (regs[reg + 1] as u64) << 32;
+            assert!(actual.abs_diff(target) <= 1, "R{reg}: {actual:#x} vs {target:#x}");
+        }
+        for (reg, target) in [(40, (-1.0f32).to_bits() + 1), (41, 1.0f32.to_bits() + 1), (42, 1.0f32.to_bits())] {
+            assert!(regs[reg].abs_diff(target) <= 1, "R{reg}: {:#x} vs {target:#x}", regs[reg]);
+        }
     }
 
     #[test]
