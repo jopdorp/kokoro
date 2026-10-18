@@ -38,6 +38,18 @@ mod tests {
     }
 
     #[test]
+    fn scaled_wide_shared_accesses_use_x4_and_x8_addresses() {
+        let program = [
+            inst::sts(0, 2) | 1 << 73 | 2 << 78,
+            inst::lds(4, 0) | 1 << 73 | 2 << 78,
+            inst::sts(1, 6) | 1 << 78,
+            inst::lds(7, 1) | 1 << 78,
+        ];
+        let Some((regs, _)) = run_lanes(&program, &[vec![3, 2, 10, 11, 0, 0, 12]], &[], &[]) else { return };
+        assert_eq!(regs[0][4..8], [10, 11, 12, 12]);
+    }
+
+    #[test]
     fn atoms_add_hands_each_lane_a_distinct_old_value() {
         let seeds = lanes(|_| vec![0, 0, 0, 0, 0, 1]);
         let program = [

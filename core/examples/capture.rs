@@ -24,6 +24,7 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
         "guest-post" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Post),
         "guest-particles" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Particles),
         "guest-julia" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Julia),
+        "guest-raytraced" => oboromi_core::guest::render_demo(if demo::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) { oboromi_core::guest::Demo::RaytracedShowcase } else { oboromi_core::guest::Demo::Raytraced }),
         "guest-mandelbrot" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Mandelbrot),
         "guest-triangle" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Triangle),
         "guest-sprites" => {
@@ -123,7 +124,7 @@ fn main() {
         if let Some(rays) = flag("--raytracing") { demo_dungeon::render::RAYS.store(rays == "on", std::sync::atomic::Ordering::Relaxed); }
         if let Some(view) = flag("--view") { demo_dungeon::VIEW.store(view.parse().unwrap(), std::sync::atomic::Ordering::Relaxed); }
     }
-    if args[0] == "raytraced" { demo::SHOWCASE.store(args.iter().any(|a| a == "--showcase"), std::sync::atomic::Ordering::Relaxed); }
+    if args[0].ends_with("raytraced") { demo::SHOWCASE.store(args.iter().any(|a| a == "--showcase"), std::sync::atomic::Ordering::Relaxed); }
     let seconds: f32 = flag("--seconds").map_or(8.0, |s| s.parse().unwrap());
     let start: f32 = flag("--start").map_or(0.0, |s| s.parse().unwrap());
     let fps: f32 = flag("--fps").map_or(60.0, |s| s.parse().unwrap());

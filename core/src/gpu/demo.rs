@@ -5,6 +5,8 @@ use super::engine::{Geometry, Gpu};
 use super::frame::cache_root;
 use super::{VkState, device};
 use crate::tests::gpu::engine::{bytes, entry};
+#[cfg(test)]
+use crate::tests::gpu_test::inst::bra;
 use std::path::Path;
 use std::sync::{Mutex, atomic::{AtomicBool, Ordering}};
 
@@ -47,29 +49,37 @@ pub struct Scene<'a> {
     material_count: usize,
     model_indices: u32,
     light_first: u32,
-    light_y: f32,
+    light_position: [f32; 3],
     frame: u32,
 }
 
 impl<'a> Scene<'a> {
+    #[cfg(test)]
+    pub(crate) fn replace_programs(&mut self, programs: [&[u8]; 2]) -> Result<(), String> {
+        for (va, program) in [VERTEX_PROGRAM, PIXEL_PROGRAM].into_iter().zip(programs) {
+            self.gpu.write(va, &[program, &bra(-16).to_le_bytes()].concat()).map_err(|e| format!("{e:?}"))?;
+        }
+        Ok(())
+    }
+
     /// Lays the asset in demos/assets/`asset` out in guest memory and runs the init segment.
     pub fn new(state: &'static VkState, cache: Option<(&Path, &str)>, asset: &str, width: u32, height: u32) -> Result<Self, String> {
         let room = asset.starts_with("raytraced");
-        let traced = asset == "raytraced";
+        let traced = room && asset != "raytraced-off";
         if traced && !supports_raytraced(state) {
             return Err("ray-traced demo needs ray queries and fragment subgroup arithmetic, ballot and shuffle".into());
         }
         let dir = asset_dir(if room { "boombox" } else { asset });
-        Self::with_scene_files(state, cache, &|file| std::fs::read(dir.join(file)).map_err(|e| format!("{}: {e}", dir.join(file).display())), width, height, room, traced, asset == "boombox")
+        Self::with_scene_files(state, cache, &|file| std::fs::read(dir.join(file)).map_err(|e| format!("{}: {e}", dir.join(file).display())), width, height, room, traced, asset == "raytraced-showcase", asset == "boombox")
     }
 
     /// Like `new`, with the asset's files from `read`.
     pub fn with_files(state: &'static VkState, cache: Option<(&Path, &str)>, read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: u32, raytraced: bool) -> Result<Self, String> {
-        Self::with_scene_files(state, cache, read, width, height, raytraced, raytraced, false)
+        Self::with_scene_files(state, cache, read, width, height, raytraced, raytraced, false, false)
     }
 
-    fn with_scene_files(state: &'static VkState, cache: Option<(&Path, &str)>, read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: u32, room: bool, traced: bool, boombox: bool) -> Result<Self, String> {
-        let asset = scene::pbr::assets::Asset::load(read, width, height, room, traced)?;
+    fn with_scene_files(state: &'static VkState, cache: Option<(&Path, &str)>, read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: u32, room: bool, traced: bool, showcase: bool, boombox: bool) -> Result<Self, String> {
+        let asset = scene::pbr::assets::Asset::load(read, width, height, room, traced, showcase)?;
         let mut gpu = Gpu::new(state, (asset.end - BASE) as usize, cache, *super::SPEED_HACKS.lock().unwrap()).map_err(|e| format!("{e:?}"))?;
         gpu.space.map(BASE, 0, asset.end - BASE);
         for (va, data) in &asset.writes { gpu.write(*va, data).map_err(|e| format!("{e:?}"))?; }
@@ -79,7 +89,7 @@ impl<'a> Scene<'a> {
             vec![Geometry { vertices: VERTICES, stride: 48, vertex_count: asset.model_vertices as u32, indices: asset.indices_va, index_count: asset.model_indices, transform: [[0.0; 4]; 3], opaque: true },
                 Geometry { vertices: VERTICES, stride: 48, vertex_count: asset.vertex_count, indices: asset.indices_va + (u64::from(asset.model_indices) + 30) * 4, index_count: asset.index_count - asset.model_indices - 30 - asset.light_count, transform: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]], opaque: true }]
         } else { Vec::new() };
-        Ok(Self { gpu, target: asset.target, width, height, draws: asset.draws, blends: asset.blends, textures: asset.textures, fit: asset.fit, geometry, traced, room, boombox, material_count: asset.material_count, model_indices: asset.model_indices, light_first: asset.light_first, light_y: 0.7, frame: 0 })
+        Ok(Self { gpu, target: asset.target, width, height, draws: asset.draws, blends: asset.blends, textures: asset.textures, fit: asset.fit, geometry, traced, room, boombox, material_count: asset.material_count, model_indices: asset.model_indices, light_first: asset.light_first, light_position: [0.0; 3], frame: 0 })
     }
 
     /// Turns the model to `seconds` at 0.8 rad/s, draws every primitive and waits for the frame's report.
@@ -89,16 +99,11 @@ impl<'a> Scene<'a> {
             self.geometry[0].transform = std::array::from_fn(|row| std::array::from_fn(|col| model[col][row]));
             self.gpu.register_acceleration_structure(TLAS, self.geometry.clone()).map_err(|e| format!("{e:?}"))?;
         }
-        let eye = if self.room { [(seconds * 0.18).sin() * 0.55, ROOM_EYE[1], ROOM_EYE[2]] } else { EYE };
+        let (eye, head, light_position) = if self.room { scene::pbr::room_frame(seconds, self.traced, f32::sqrt) } else { (EYE, [0.0; 16], [0.0; 3]) };
         let view_proj = scene::pbr::assets::view_projection(self.width, self.height, eye);
         if self.room {
-            let (orbit, bob) = ((seconds * 0.45).sin(), (seconds * 1.4).sin());
-            let mut light = [orbit * 0.65, 0.7 + bob * 0.08, 0.55 * (seconds * 0.45).cos()];
-            let length = light.iter().map(|v| v * v).sum::<f32>().sqrt();
-            light.iter_mut().for_each(|v| *v /= length);
-            let head = [&light[..], &[3.6 + bob * 0.25, 2.55 + bob * 0.15, 1.75 + (1.0 - bob) * 0.2, 0.0], &[0.13 + 0.08 * (orbit + 1.0), 0.13 + 0.08 * (1.0 - orbit), 0.2 + 0.04 * bob, 0.0], &eye, &[1.0]].concat();
             for material in 0..self.material_count { self.gpu.write(MATERIALS + MATERIAL_STRIDE * material as u64 + MATERIAL_UNIFORMS, &floats(&head)).map_err(|e| format!("{e:?}"))?; }
-            self.light_y = 0.7 + 0.25 * bob;
+            self.light_position = light_position;
         }
         self.draw(model, view_proj, eye)
     }
@@ -118,7 +123,7 @@ impl<'a> Scene<'a> {
 
         self.frame += 1;
         let mut words = Vec::new();
-        scene::pbr::draw(&uniforms, view_proj, &self.draws, |i| self.blends[i].as_deref(), self.room, self.traced, self.model_indices, self.light_first, self.light_y, self.frame, &mut words);
+        scene::pbr::draw(&uniforms, view_proj, &self.draws, |i| self.blends[i].as_deref(), self.room, self.traced, self.model_indices, self.light_first, self.light_position, self.frame, &mut words);
         self.gpu.write(FRAME_SEGMENT, &bytes(&words)).map_err(named)?;
         self.gpu.submit(&[entry(FRAME_SEGMENT, words.len())])?;
         let mut released = [0; 4];
@@ -153,7 +158,7 @@ pub fn render_boombox_frame(seconds: f32) -> Result<(), String> {
 }
 
 pub fn render_raytraced_frame(seconds: f32) -> Result<(), String> {
-    render(if RAY_TRACING.load(Ordering::Relaxed) { "raytraced" } else { "raytraced-off" }, seconds)
+    render(if !RAY_TRACING.load(Ordering::Relaxed) { "raytraced-off" } else if SHOWCASE.load(Ordering::Relaxed) { "raytraced-showcase" } else { "raytraced" }, seconds)
 }
 
 pub fn set_raytracing_enabled(enabled: bool) {

@@ -16,6 +16,7 @@ impl<'a> Decoder<'a> {
         let mut barriers: Vec<u32> = words.iter().filter(|&&inst| opcode(inst) == BSYNC).map(|&inst| (inst >> 16 & 0xf) as u32).collect();
         barriers.sort_unstable();
         barriers.dedup();
+        let warp_only = barriers.is_empty() && !words.iter().any(|&inst| partial_warpsync(inst));
         self.active = self.ir.emit_constant_true(bool_ty);
         for barrier in barriers {
             let mut arrived = self.ir.emit_constant_false(bool_ty);
@@ -80,9 +81,12 @@ impl<'a> Decoder<'a> {
             states.push((ptr, state, arrived, pred, op, count));
         }
         let candidate = self.ir.emit_select(ty, runnable, pc, none);
-        if matches!(self.stage, Stage::Fragment { .. }) {
+        let fragment = matches!(self.stage, Stage::Fragment { .. });
+        if fragment {
             assert!(bars.is_empty(), "workgroup barrier in a fragment shader");
             self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM);
+        }
+        if fragment || self.tensor == TensorMode::Fast && warp_only && bars.is_empty() && self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle) {
             self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM_ARITHMETIC);
             let scope = self.cached_const_u32(spirv::scope::SUBGROUP);
             let scheduled = self.ir.emit_group_non_uniform_umin(ty, scope, 0, candidate);
@@ -365,11 +369,12 @@ impl<'a> Decoder<'a> {
     }
     pub fn kill(&mut self, inst: u128) {
         if matches!(self.stage, Stage::Fragment { .. }) {
-            self.ir.emit_kill();
-            self.ir.emit_label();
-        } else {
-            self.exit(inst);
+            self.ir.emit_capability(spirv::capability::DEMOTE_TO_HELPER_INVOCATION);
+            self.ir.emit_extension("SPV_EXT_demote_to_helper_invocation");
+            return self.ir.emit_demote_to_helper_invocation();
         }
+        // KILL is pixel-only on hardware, so a compute invocation that reaches one just ends like at EXIT.
+        self.exit(inst);
     }
     pub fn lepc(&mut self, inst: u128) {
         let rd = (((inst >> 16) & 0xff) << 0) as u32;
