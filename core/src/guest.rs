@@ -63,7 +63,9 @@ impl Machine {
     pub fn dungeon_capture(showcase: bool, rays: bool, late: bool, cave: bool) -> Result<Self, String> {
         stage_dungeon_assets()?;
         let name = format!("dungeon{}{}-start{}{}.nro", if showcase { "-showcase" } else { "" }, if rays { "-rays-rayfinal" } else { "" }, if late { 40 } else { 2 }, if cave { "-cave" } else { "" });
-        Self::image(&name, include_bytes!("../tests/fixtures/guest/dungeon.nro"))
+        let mut hacks = crate::gpu::SpeedHacks::none();
+        if rays { hacks.ray_budget = 8; } // Keep every dungeon query site while tiling the 1080p draw.
+        Self::image_with(&name, include_bytes!("../tests/fixtures/guest/dungeon.nro"), crate::cpu::cpu_manager::CpuManager::default_backend(), hacks)
     }
 
     #[cfg(test)]
