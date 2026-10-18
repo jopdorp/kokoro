@@ -865,6 +865,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#mandelbrot-cuda" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mandelbrot CUDA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#music" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -897,17 +908,6 @@
     <span class="md-ellipsis">
       
         Ray-traced scene
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mandelbrot-cuda" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Mandelbrot CUDA
       
     </span>
   </a>
@@ -1555,6 +1555,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#mandelbrot-cuda" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mandelbrot CUDA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#music" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1587,17 +1598,6 @@
     <span class="md-ellipsis">
       
         Ray-traced scene
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mandelbrot-cuda" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Mandelbrot CUDA
       
     </span>
   </a>
@@ -1695,6 +1695,10 @@
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-julia.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-julia.mp4" type="video/mp4"></video>
 
 <p><em>The guest sends the Julia set shader through <code>nvdrv</code> and passes time through a small block of shader input data.</em></p>
+<h3 id="mandelbrot-cuda">Mandelbrot CUDA<a class="headerlink" href="#mandelbrot-cuda" title="Permanent link">&para;</a></h3>
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-mandelbrot.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-mandelbrot.mp4" type="video/mp4"></video>
+
+<p><em>NVIDIA's CUDA sample kernel runs unchanged through the translator. The guest owns the frame memory, launches the kernel through <code>nvdrv</code> each frame with the new zoom, and presents it.</em></p>
 <h3 id="music">Music<a class="headerlink" href="#music" title="Permanent link">&para;</a></h3>
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-music.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-music.mp4" type="video/mp4"></video>
 
@@ -1706,10 +1710,6 @@
 <p><em>Light now bounces once, so the red and green walls tint the BoomBox and the tint follows the moving lamp. Soft shadows, chrome, glass and the glossy floor work as before. The shaders are Switch 2 shader machine code through the translator, but the command stream is still built on the host. This clip was rendered offline on an RTX 3090 because the Intel laptop runs this shader slowly.</em></p>
 <p><img alt="Ray-traced scene without and with bounce light" src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-gi-proof.png" /></p>
 <p><em>The top row is without bounce light and the bottom row is with it. Look at the BoomBox picking up the wall colour near the lamp.</em></p>
-<h3 id="mandelbrot-cuda">Mandelbrot CUDA<a class="headerlink" href="#mandelbrot-cuda" title="Permanent link">&para;</a></h3>
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot-zoom-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot-zoom.mp4" type="video/mp4"></video>
-
-<p><em>This is NVIDIA's CUDA Mandelbrot sample, compiled to SM86 machine code and run unchanged through oboromi's translator. The host launches the same kernel once per frame with a smaller scale.</em></p>
 <h2 id="dungeon">Dungeon<a class="headerlink" href="#dungeon" title="Permanent link">&para;</a></h2>
 <p>Dungeon is a native Vulkan tech demo. It does not use the emulated CPU or GPU, but it drives the audio renderer and sets the bar for the guest version.</p>
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon.mp4" type="video/mp4"></video>
