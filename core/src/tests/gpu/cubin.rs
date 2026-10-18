@@ -14,13 +14,19 @@ mod tests {
             let expected = u32s(&arrays(json, "outputs")[0]);
             let n = expected.len() as u32;
             let args = [Arg::Buffer(&a), Arg::Buffer(&b), Arg::Buffer(&vec![0; 4 * n as usize]), Arg::Value(&n.to_le_bytes())];
-            let Some(buffers) = run_kernel(CUBIN, "mul_add", [n.div_ceil(256), 1, 1], [256, 1, 1], &args) else {
+            let Some(buffers) = run_kernel(CUBIN, "mul_add", [n.div_ceil(256), 1, 1], [256, 1, 1], 0, &args) else {
                 return;
             };
             assert_eq!(buffers[2], bytes(&expected));
         }
-        let frame = run_kernel(CUBIN, "gradient", [120, 68, 1], [16, 16, 1], &[Arg::Buffer(&vec![0; 1920 * 1080 * 4])]).unwrap();
+        let frame = run_kernel(CUBIN, "gradient", [120, 68, 1], [16, 16, 1], 0, &[Arg::Buffer(&vec![0; 1920 * 1080 * 4])]).unwrap();
         assert_eq!(sha256(&frame[0]), string(include_str!("../../../tests/fixtures/gradient-sm86.json"), "sha256"));
+    }
+
+    #[test]
+    fn dynamic_shared_memory_reaches_16k() {
+        let Some(buffers) = run_kernel(CUBIN, "shared_16k", [1, 1, 1], [1, 1, 1], 16 * 1024, &[Arg::Buffer(&[0; 8])]) else { return };
+        assert_eq!(buffers[0], [1, 0, 0, 0, 2, 0, 0, 0]);
     }
 
     #[test]
@@ -36,7 +42,7 @@ mod tests {
             Arg::Value(&animation), Arg::Value(&grid_width), Arg::Value(&blocks), Arg::Value(&[0]),
         ];
         let name = "_Z11Mandelbrot0IfEvP6uchar4iiiT_S2_S2_S2_S2_S0_iiiib";
-        let Some(buffers) = run_kernel(MANDELBROT, name, [1900, 1, 1], [16, 16, 1], &args) else { return };
+        let Some(buffers) = run_kernel(MANDELBROT, name, [1900, 1, 1], [16, 16, 1], 0, &args) else { return };
         assert_eq!(sha256(&buffers[0]), "76d7f1e876402617f9c8a698acff40ad674c5681171a6493893a066523ef1859");
     }
 }

@@ -15,9 +15,26 @@ impl<'a> Decoder<'a> {
     pub fn ide(&mut self, _inst: u128) {}
     pub fn mufu(&mut self, inst: u128) {
         use spirv::glsl::{COS, EXP2, INVERSE_SQRT, LOG2, SIN, SQRT, TANH};
+        let op = inst >> 74 & 0xf;
+        if matches!(op, 6 | 7) {
+            let word = self.alu_src(inst);
+            let bits = self.join_u64(self.const_u32_0, word);
+            let ty = self.type_f64();
+            let x = self.bitcast_f64(bits);
+            let x = self.fp_src(ty, x, inst >> 62 & 1 != 0, inst >> 63 & 1 != 0);
+            let val = if op == 6 {
+                let one = self.ir.emit_constant_typed(ty, 1.0f64);
+                self.ir.emit_fdiv(ty, one, x)
+            } else {
+                self.glsl(INVERSE_SQRT, ty, &[x])
+            };
+            let words = self.ir.emit_bitcast(self.type_u32[2], val);
+            let high = self.ir.emit_composite_extract(self.type_u32[1], words, &[1]);
+            return self.store_register((inst >> 16 & 0xff) as u32, high);
+        }
         let ty = self.type_f32[1];
         let x = self.fp_alu_src(inst, false);
-        let val = match inst >> 74 & 0xf {
+        let val = match op {
             // Since SM70 SIN and COS take the angle in turns, nvcc scales by 1/(2*pi) first.
             op @ (0 | 1) => {
                 let tau = self.ir.emit_constant_typed(ty, std::f32::consts::TAU);
@@ -33,11 +50,11 @@ impl<'a> Decoder<'a> {
             5 => self.glsl(INVERSE_SQRT, ty, &[x]),
             8 => self.glsl(SQRT, ty, &[x]),
             9 => self.glsl(TANH, ty, &[x]),
-            op => panic!("MUFU op {op} (RCP64H, RSQ64H) is not implemented"),
+            op => panic!("MUFU op {op} is not implemented"),
         };
         let bits = self.bitcast_u32(val);
         // RCP flushes a subnormal result to zero.
-        let bits = if inst >> 74 & 0xf == 4 { self.flush_subnormal(bits) } else { bits };
+        let bits = if op == 4 { self.flush_subnormal(bits) } else { bits };
         self.store_fp_register((inst >> 16 & 0xff) as u32, bits);
     }
     pub fn nop(&mut self, _inst: u128) {

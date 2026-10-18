@@ -42,6 +42,7 @@ pub struct VkState {
     pub shader_buffer_float32_atomic_add: bool,
     pub shader_shared_float32_atomic_add: bool,
     pub subgroup_size: u32,
+    pub max_compute_shared_memory_size: u32,
     pub subgroup_shuffle: bool,
     pub subgroup_size_control_32: bool,
     /// The (M, N, K) subgroup tiles VK_KHR_cooperative_matrix multiplies f16 A and B in, and whether C is f32 rather than f16.
@@ -130,6 +131,7 @@ impl VkState {
             Vec::new()
         };
         let timestamp_period = props.properties.limits.timestamp_period;
+        let max_compute_shared_memory_size = props.properties.limits.max_compute_shared_memory_size;
         let mut state = Self {
             queue_family,
             queue: unsafe { device.get_device_queue(queue_family, 0) },
@@ -167,6 +169,7 @@ impl VkState {
             shader_buffer_float32_atomic_add,
             shader_shared_float32_atomic_add,
             subgroup_size: subgroup.subgroup_size,
+            max_compute_shared_memory_size,
             subgroup_shuffle: subgroup.supported_operations.contains(vk::SubgroupFeatureFlags::SHUFFLE),
             subgroup_size_control_32: subgroup_size_control && subgroup_sizes.min_subgroup_size <= 32 && subgroup_sizes.max_subgroup_size >= 32
                 && subgroup_sizes.required_subgroup_size_stages.contains(vk::ShaderStageFlags::COMPUTE),

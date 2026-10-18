@@ -1,12 +1,10 @@
 use super::*;
 
 impl<'a> Decoder<'a> {
-    // Silicon faults on an address past shared memory, which here wraps instead of indexing out of bounds.
     pub(super) fn shared_word_at(&mut self, address: u32) -> u32 {
-        let [two, last] = [2, SHARED_WORDS - 1].map(|c| self.cached_const_u32(c));
+        let two = self.cached_const_u32(2);
         let index = self.ir.emit_shift_right_logical(self.type_u32[1], address, two);
-        let index = self.ir.emit_bitwise_and(self.type_u32[1], index, last);
-        self.workgroup_word(ResourceKind::Shared, SHARED_WORDS, index)
+        self.workgroup_word(ResourceKind::Shared, self.shared_words, index)
     }
 
     pub(super) fn atomic_update(&mut self, ptr: u32, scope: u32, sem: u32, update: impl Fn(&mut Self, u32) -> u32) -> u32 {
