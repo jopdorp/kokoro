@@ -13,6 +13,9 @@ fn main() {
     std::fs::write(out.join("bounce-instances.bin"), bounce).unwrap();
     let (music, samples) = scene::sound::assets::place(&scene::sound::assets::instruments(), 0);
     std::fs::write(out.join("music-pcm.bin"), music).unwrap();
+    let (knock, _) = scene::sound::assets::place(&[scene::sound::assets::knock()], 0);
+    std::fs::write(out.join("bounce-pcm.bin"), knock).unwrap();
+    std::fs::write(out.join("biquad.bin"), scene::sound::assets::biquad()).unwrap();
     let pitches: Vec<f32> = (-12..=15).map(|n| 2f32.powf(n as f32 / 12.0)).collect();
     std::fs::write(out.join("music.rs"), format!("const SAMPLES: [(u64,u32); 4] = {samples:?};\nconst PITCHES: [f32; 28] = {pitches:?};\nconst BIQUAD: [u8;10] = {:?};\n", scene::sound::assets::biquad())).unwrap();
     for (name, directory) in [("boombox", "boombox"), ("helmet", "flighthelmet")] {

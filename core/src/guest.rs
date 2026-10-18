@@ -168,28 +168,36 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 
-    #[test]
-    fn guest_music_matches_host_audio() {
-        let _display = DISPLAY_TEST.lock().unwrap();
+    fn hash_audio(hash: &mut u64, samples: &[i16]) {
+        for byte in samples.iter().flat_map(|s| s.to_le_bytes()) { *hash = (*hash ^ u64::from(byte)).wrapping_mul(0x100000001b3); }
+    }
+
+    fn guest_audio(demo: Demo, frames: usize) -> (Machine, u64, usize) {
         let mut discard = vec![0; crate::audio::queued() * 2];
         crate::audio::pull(&mut discard);
-        let mut guest = Machine::demo(Demo::Music).unwrap();
+        let mut guest = Machine::demo(demo).unwrap();
         let (mut actual, mut count) = (0xcbf29ce484222325u64, 0usize);
-        let hash = |hash: &mut u64, samples: &[i16]| { for byte in samples.iter().flat_map(|s| s.to_le_bytes()) { *hash = (*hash ^ u64::from(byte)).wrapping_mul(0x100000001b3); } };
-        for _ in 0..360 {
+        for _ in 0..frames {
             guest.frame_with(|| {
                 let mut samples = [0; 480];
                 let frames = crate::audio::pull(&mut samples);
-                hash(&mut actual, &samples[..frames * 2]);
+                hash_audio(&mut actual, &samples[..frames * 2]);
                 count += frames * 2;
             }).unwrap();
         }
+        (guest, actual, count)
+    }
+
+    #[test]
+    fn guest_music_matches_host_audio() {
+        let _display = DISPLAY_TEST.lock().unwrap();
+        let (mut guest, actual, count) = guest_audio(Demo::Music, 360);
         let mut host = crate::audio::demo_music::music();
         let mut expected = 0xcbf29ce484222325u64;
         let periods = (f64::from(359f32 / 60.0) * 200.0) as usize + 10;
         for _ in 0..periods {
             crate::audio::demo_music::sequence(&mut host);
-            hash(&mut expected, host.period());
+            hash_audio(&mut expected, host.period());
         }
         assert_eq!(count, periods * 480);
         assert_eq!(actual, expected);
@@ -202,7 +210,18 @@ mod tests {
         assert_eq!(crate::audio::pull(&mut autonomous), 720);
         let expected: Vec<_> = (0..3).flat_map(|_| host.period().to_vec()).collect();
         assert_eq!(autonomous.as_slice(), expected);
+    }
 
+    #[test]
+    fn guest_bounce_matches_host_audio() {
+        let _display = DISPLAY_TEST.lock().unwrap();
+        let (_guest, actual, count) = guest_audio(Demo::Bounce, 61);
+        let mut host = crate::gpu::demo_bounce::Bounce::new();
+        let mut expected = 0xcbf29ce484222325u64;
+        for _ in 0..210 { host.step(); hash_audio(&mut expected, host.sound.period()); }
+        assert_eq!(count, 210 * 480);
+        assert_eq!(actual, expected);
+        println!("guest and host bounce PCM FNV-1a: {actual:016x}, 210 periods");
     }
 
     #[test]

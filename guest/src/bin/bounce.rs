@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use guest::{display, nv, svc};
+use guest::{audren, display, nv, svc};
 use scene::{Words, bounce::*};
 
 core::arch::global_asm!(
@@ -28,6 +28,11 @@ fn hypot(x: f32, y: f32) -> f32 {
 fn draw() -> svc::Result<()> {
     let size = [WIDTH, HEIGHT];
     let heap = svc::set_heap_size(0x200_0000)?;
+    let audio_memory = heap + 0x100_0000;
+    let samples = [(audio_memory, 6000)];
+    let mut notes = [scene::sound::Note::default(); 16];
+    let mut sound = audren::Sound::new(audio_memory, include_bytes!(concat!(env!("OUT_DIR"), "/bounce-pcm.bin")), &samples, &mut notes)?;
+    let biquad = include_bytes!(concat!(env!("OUT_DIR"), "/biquad.bin"));
     let channel = nv::Channel::new()?;
     let memory = heap + 0x10_0000;
     let (base, handle) = channel.buffer(memory, MAPPED as u32)?;
@@ -48,11 +53,19 @@ fn draw() -> svc::Result<()> {
     init_segment(base, count as u32, &mut words);
     channel.submit(base, words.len)?;
     let window = display::Window::target(&channel.nv, channel.nvmap, handle, size, TARGET as u32)?;
-    let (mut balls, mut periods, mut tick) = (balls(), 0u64, 0u64);
+    let (mut balls, mut tick) = (balls(), 0u64);
     loop {
-        while periods < (f64::from(tick as f32 / 60.0) * 200.0) as u64 + 10 {
-            physics(&mut balls, hypot, |_, _| {});
-            periods += 1;
+        while sound.periods < (f64::from(tick as f32 / 60.0) * 200.0) as u64 + 10 {
+            // The host pans impacts using the period's final positions; a second pass avoids storing an unbounded impact list.
+            let mut final_balls = balls;
+            physics(&mut final_balls, hypot, |_, _| {});
+            physics(&mut balls, hypot, |i, speed| {
+                if speed > SOFT {
+                    let ball = &final_balls[i];
+                    sound.trigger(sound.free_voice(), 0, 0.08 / ball.radius, (speed / 8.0).min(0.6), ball.at[0] / HALF[0]);
+                }
+            });
+            sound.period(biquad)?;
         }
         for (ball, quads) in balls.iter().zip(instances[count - 2 * BALLS..].chunks_exact_mut(2)) {
             quads[0][..2].copy_from_slice(&ball.at);

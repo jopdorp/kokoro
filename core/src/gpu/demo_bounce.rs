@@ -5,13 +5,12 @@
 use super::engine::Gpu;
 use super::frame::cache_root;
 use super::{VkState, device};
-use crate::audio::demo_music::{Sound, pcm};
+use crate::audio::demo_music::Sound;
 use crate::audio::play;
 use crate::tests::gpu_test::inst::bra;
 use crate::tests::gpu::engine::{bytes, entry};
 use scene::bounce::{self, assets::{walls, instances}, Ball, BALLS, HALF, SOFT};
 pub use scene::bounce::{WIDTH, HEIGHT};
-use std::f32::consts::TAU;
 use std::sync::Mutex;
 
 const BASE: u64 = 0x1000_0000;
@@ -32,8 +31,7 @@ pub struct Bounce {
 impl Bounce {
     pub fn new() -> Self {
         let balls = bounce::balls();
-        let time = (0..6000).map(|n| n as f32 / 48_000.0);
-        let knock = pcm(time.map(|t| 0.7 * (TAU * 520.0 * t).sin() * (-45.0 * t).exp() + 0.3 * (TAU * 1390.0 * t).sin() * (-70.0 * t).exp()));
+        let knock = scene::sound::assets::knock();
         Self { sound: Sound::new(&[knock], 16), balls }
     }
 
