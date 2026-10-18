@@ -1,0 +1,33 @@
+#version 450
+layout(local_size_x=256) in;
+struct Volume { uvec4 grid; };
+struct Light { vec4 position; vec4 colour; };
+layout(set=0,binding=0,std430) buffer Atlas { uint atlas[]; };
+layout(set=0,binding=1,std430) readonly buffer Volumes { Volume volumes[]; };
+layout(set=0,binding=2,std430) readonly buffer Sources { Light sources[]; };
+layout(set=0,binding=3,std430) buffer Lights { Light lights[]; };
+layout(set=0,binding=4,std430) buffer Emission { uint emission[]; };
+layout(set=0,binding=5,std140) uniform Step { uvec4 dispatch; vec4 clock; };
+uint total(){Volume v=volumes[dispatch.y-1];return v.grid.x+v.grid.y*v.grid.z*v.grid.w;}
+uint volumeOf(uint i){for(uint v=0;v<dispatch.y;v++){Volume q=volumes[v];if(i<q.grid.x+q.grid.y*q.grid.z*q.grid.w)return v;}return 0;}
+uvec3 coord(uint i,Volume v){uint n=i-v.grid.x;return uvec3(n%v.grid.y,(n/v.grid.y)%v.grid.z,n/(v.grid.y*v.grid.z));}
+vec3 velocity(uint i,uint n){return vec3(unpackHalf2x16(atlas[i*2]).xy,unpackHalf2x16(atlas[i*2+1]).x);}
+vec3 scalar(uint i,uint n){uint at=4*n+i*2;return vec3(unpackHalf2x16(atlas[at]),unpackHalf2x16(atlas[at+1]).x);}
+void storeVelocity(uint i,uint n,vec3 v){uint at=2*n+i*2;atlas[at]=packHalf2x16(v.xy);atlas[at+1]=packHalf2x16(vec2(v.z,0));}
+void storeScalar(uint i,uint n,vec3 v){uint at=6*n+i*2;atlas[at]=packHalf2x16(v.xy);atlas[at+1]=packHalf2x16(vec2(v.z,0));}
+float hash(float x){return fract(sin(x*91.3458)*47453.5453);}
+void main(){
+    uint i=gl_GlobalInvocationID.x,n=total();if(i>=n)return;uint v=volumeOf(i);Volume q=volumes[v];uvec3 p=coord(i,q);Light source=sources[v];
+    vec3 u=velocity(i,n),s=scalar(i,n);float dt=clock.x,flame=source.position.w;
+    vec2 xz=(vec2(p.x,p.z)+.5)/vec2(q.grid.y,q.grid.w)*2.-1.;float y=(float(p.y)+.5)/float(q.grid.z);
+    float flicker=.82+.18*sin(clock.y*(9.3+float(v)*.17)+float(v)*2.71)+.09*sin(clock.y*17.1+float(v));
+    float lobes=flame>1.?(.65+.35*sin(atan(xz.y,xz.x)*5.+clock.y*3.7)):1.;
+    float inject=(1.-smoothstep(.12,flame>1.?.72:.34,length(xz)))*lobes*(1.-smoothstep(.015,.09,y));
+    float fuel=inject*dt*(flame>1.?7.5:6.)*flicker;s.y+=fuel;s.x+=fuel*1.8;
+    float burn=min(s.y,max(s.x-.12,0.)*dt*2.6);s.y-=burn;s.x+=burn*5.8;s.z+=burn*.72;
+    u.y+=dt*(s.x*2.7-s.z*.48);u.xz+=vec2(hash(float(i)+clock.y)-.5,hash(float(i)*1.7-clock.y)-.5)*inject*dt*1.4;
+    s.x=max(0.,s.x-dt*(.12*s.x+.018*s.x*s.x*s.x*s.x));s.z=max(0.,s.z*(1.-dt*.08));u*=1.-dt*.025;
+    if(any(equal(p,uvec3(0)))||p.x+1==q.grid.y||p.y+1==q.grid.z||p.z+1==q.grid.w)u*=.15;
+    storeVelocity(i,n,u);storeScalar(i,n,s);
+    if(i==q.grid.x){uint e=emission[v];float ratio=float(e)/max(1.,float(q.grid.y*q.grid.z*q.grid.w)*65535.*.18);lights[v].colour.rgb=sources[v].colour.rgb*clamp(.72+ratio*.5,.72,1.25);emission[v]=0;}
+}
