@@ -2,7 +2,7 @@
 
 ## Guest programs
 
-When a demo becomes a guest program, its entry moves here.
+Everything on this page except the ray-traced scene and the dungeon now runs as a guest program. The ray-traced scene still builds its command stream on the host because the Intel GPU cannot run its shader live yet. The dungeon is native Vulkan.
 
 ### Triangle
 
@@ -18,13 +18,45 @@ When a demo becomes a guest program, its entry moves here.
 
 ### Bounce
 
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-bounce.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-bounce.mp4" type="video/mp4"></video>
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-bounce.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-bounce.mp4" type="video/mp4"></video>
 
-*The guest runs the same physics on the emulated CPU each frame and submits the particles shader through nvdrv. Its collision sounds come with the audio pass, so this clip is silent.*
+*The guest runs the physics and submits the particles shader through nvdrv. Its collision sounds go through the audio renderer service from the guest.*
 
-They run as guest programs on the emulated CPU and GPU. The other demos still build their command streams on the host and are being converted one by one.
+### BoomBox
 
-The Qt window has buttons that draw through the GPU work today. Larger scenes show post effects, sprites, particles, BoomBox, FlightHelmet, ray tracing and a dungeon. For example, the Triangle button writes GPU commands into emulated memory every frame, and the full engine draws them.
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.mp4" type="video/mp4"></video>
+
+*The guest loads the model and its textures, then sends each material through nvdrv.*
+
+### FlightHelmet
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-helmet.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-helmet.mp4" type="video/mp4"></video>
+
+*The guest draws all six materials through nvdrv, one draw for each material.*
+
+### Post
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-post.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-post.mp4" type="video/mp4"></video>
+
+*The guest draws the pinwheel into one image, then samples it in a second pass for the screen effects.*
+
+### Particles
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-particles.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-particles.mp4" type="video/mp4"></video>
+
+*The guest runs the compute update, then submits one instanced draw through nvdrv.*
+
+### Julia
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-julia.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-julia.mp4" type="video/mp4"></video>
+
+*The guest sends the Julia set shader through nvdrv and passes time through constant buffer 0.*
+
+### Music
+
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-music.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-music.mp4" type="video/mp4"></video>
+
+*The guest makes the instruments and sends the mix through the audio renderer service from the guest.*
 
 ## What runs today?
 
@@ -58,10 +90,6 @@ Every frame ends in `display::present`, which the window shows.
 ![The Render Test Frame button: a full-HD gradient](https://raw.githubusercontent.com/jopdorp/oboromi/assets/test-frame.png)
 
 *Render Test Frame: a short SASS program (S2R, IMAD, STG) writes a gradient, translated to SPIR-V and run on an Intel laptop GPU.*
-
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/julia-demo-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/julia-demo.mp4" type="video/mp4"></video>
-
-*Demo: a hand-written SM86 program, translated to SPIR-V, redrawing a Julia set every frame on an Intel laptop GPU.*
 
 ![NVIDIA's Mandelbrot sample, run through the translator](https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot.png)
 
@@ -106,29 +134,9 @@ The ray-traced scene runs through `demo::render_raytraced_frame` or the `capture
 
 ### What do the new scenes look like?
 
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-post-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-post.mp4" type="video/mp4"></video>
-
-*Post-effect: a pinwheel drawn into one image, then sampled as a texture by a second pass that adds the screen effects.*
-
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-particles-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-particles.mp4" type="video/mp4"></video>
-
-*Particles: a compute launch from the command list moves the particles, then one instanced draw shows them.*
-
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-boombox-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-boombox.mp4" type="video/mp4"></video>
-
-*BoomBox: the model turns on a turntable under a still light, so the shine and the glowing display move across it.*
-
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced.mp4" type="video/mp4"></video>
 
 *Ray-traced BoomBox: The shaders are Switch 2 shader machine code from the NVIDIA driver, run through our translator. The chrome sphere mirrors the room. The glass sphere bends the wall. Soft shadows cross the scene, and the floor is glossy. We rendered this offline on an RTX 3090 because the Intel laptop GPU cannot run this shader at full resolution yet. This demo still builds its command stream on the host. The translator bug found this round made a compare instruction write a mask instead of 1.0. It is fixed on both branches.*
-
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-helmet-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-helmet.mp4" type="video/mp4"></video>
-
-*FlightHelmet: six materials and fifteen textures through the same shaders, one draw per material.*
-
-<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-music-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-music.mp4" type="video/mp4"></video>
-
-*Music: four instruments made at startup play a looping tune through the audio renderer, with a low-pass and an echo on the mix.*
 
 ### Dungeon
 
