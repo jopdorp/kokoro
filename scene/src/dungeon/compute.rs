@@ -107,11 +107,7 @@ pub fn particles(
 
 pub fn fog(
     pass: Pass,
-    hdr: Buffer,
-    fog: Buffer,
-    uniforms: Buffer,
-    lights: Buffer,
-    bloom: Buffer,
+    [hdr, fog, uniforms, lights, bloom]: [Buffer; 5],
     size: [u32; 2],
     payload: u32,
 ) -> Encoded<32> {
@@ -133,12 +129,7 @@ pub fn fog(
 
 pub fn post(
     pass: Pass,
-    hdr: Buffer,
-    output: Buffer,
-    uniforms: Buffer,
-    lights: Buffer,
-    fog: Buffer,
-    bloom: Buffer,
+    [hdr, output, uniforms, lights, fog, bloom]: [Buffer; 6],
     size: [u32; 2],
     payload: u32,
 ) -> Encoded<36> {

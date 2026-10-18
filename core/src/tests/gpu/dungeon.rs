@@ -367,11 +367,13 @@ fn fog_matches_native_hdr_fog_and_bloom_outputs() {
     }
     let encoded = compute::fog(
         pass,
-        buffer(hdr_at, &expected[0]),
-        buffer(fog_at, &expected[1]),
-        buffer(frame_at, &expected[2]),
-        buffer(lights_at, &expected[3]),
-        buffer(bloom_at, &expected[4]),
+        [
+            buffer(hdr_at, &expected[0]),
+            buffer(fog_at, &expected[1]),
+            buffer(frame_at, &expected[2]),
+            buffer(lights_at, &expected[3]),
+            buffer(bloom_at, &expected[4]),
+        ],
         SIZE,
         1,
     );
@@ -451,22 +453,26 @@ fn post_matches_native_rgba8_after_visible_fog_pass() {
     }
     let fog = compute::fog(
         passes[0],
-        buffer(hdr_at, &expected[0]),
-        buffer(fog_at, &fogged[1]),
-        buffer(frame_at, &expected[2]),
-        buffer(lights_at, &expected[3]),
-        buffer(bloom_at, &fogged[4]),
+        [
+            buffer(hdr_at, &expected[0]),
+            buffer(fog_at, &fogged[1]),
+            buffer(frame_at, &expected[2]),
+            buffer(lights_at, &expected[3]),
+            buffer(bloom_at, &fogged[4]),
+        ],
         SIZE,
         1,
     );
     let post = compute::post(
         passes[1],
-        buffer(hdr_at, &expected[0]),
-        buffer(output_at, &expected[1]),
-        buffer(frame_at, &expected[2]),
-        buffer(lights_at, &expected[3]),
-        buffer(fog_at, &fogged[1]),
-        buffer(bloom_at, &fogged[4]),
+        [
+            buffer(hdr_at, &expected[0]),
+            buffer(output_at, &expected[1]),
+            buffer(frame_at, &expected[2]),
+            buffer(lights_at, &expected[3]),
+            buffer(fog_at, &fogged[1]),
+            buffer(bloom_at, &fogged[4]),
+        ],
         SIZE,
         2,
     );
