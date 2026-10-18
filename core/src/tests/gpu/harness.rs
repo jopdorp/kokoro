@@ -299,8 +299,9 @@ pub struct Grid<'a> {
 }
 
 impl<'a> Grid<'a> {
-    pub fn new(state: &'a VkState, instructions: &[u128], block: [u32; 3], banks: &[(u32, Vec<u8>)], regions: &[(u64, &[u8])]) -> Self {
-        let module = sm86::emit_module_hinted(Some(state), Stage::Compute { local_size: block }, Hints { translation: TRANSLATION.get(), ..Hints::default() }, |decoder| decoder.translate_program(instructions));
+    pub fn new(state: &'a VkState, instructions: &[u128], block: [u32; 3], shared_bytes: u32, banks: &[(u32, Vec<u8>)], regions: &[(u64, &[u8])]) -> Self {
+        assert!(shared_bytes <= state.max_compute_shared_memory_size, "kernel needs {shared_bytes} shared bytes, device allows {}", state.max_compute_shared_memory_size);
+        let module = sm86::emit_module_hinted(Some(state), Stage::Compute { local_size: block }, Hints { translation: TRANSLATION.get(), shared_words: shared_bytes.div_ceil(4), ..Hints::default() }, |decoder| decoder.translate_program(instructions));
         spirv_val(&module);
         let base = regions.iter().map(|&(address, _)| address).min().unwrap() & !0xf;
         let end = regions.iter().map(|&(address, bytes)| address + bytes.len() as u64).max().unwrap();
@@ -337,12 +338,15 @@ impl<'a> Grid<'a> {
 /// region's bytes after the launch, or `None` when there is no Vulkan device.
 pub fn run_grid(instructions: &[u128], block: [u32; 3], grid: [u32; 3], cbuf0: &[u8], regions: &[(u64, &[u8])]) -> Option<Vec<Vec<u8>>> {
     let state = vk_state()?;
-    Some(Grid::new(&state, instructions, block, &[(0, cbuf0.to_vec())], regions).run(grid))
+    Some(Grid::new(&state, instructions, block, 0, &[(0, cbuf0.to_vec())], regions).run(grid))
 }
 
-pub fn run_kernel(cubin: &[u8], name: &str, grid: [u32; 3], block: [u32; 3], args: &[Arg]) -> Option<Vec<Vec<u8>>> {
+/// Launches kernel `name` of `cubin` the way cuLaunchKernel does with `args` in parameter order, each buffer placed in
+/// global memory from `GLOBAL_BASE` up, returning the buffers after the launch, or `None` when there is no Vulkan device.
+pub fn run_kernel(cubin: &[u8], name: &str, grid: [u32; 3], block: [u32; 3], shared_bytes: u32, args: &[Arg]) -> Option<Vec<Vec<u8>>> {
     let kernel = Kernel::load(cubin, name).unwrap();
     let (banks, regions) = kernel.launch(grid, block, args, GLOBAL_BASE);
     let state = vk_state()?;
-    Some(Grid::new(&state, &kernel.words, block, &banks, &regions).run(grid))
+    let shared_bytes = kernel.shared_bytes.checked_add(shared_bytes).expect("shared memory size overflow");
+    Some(Grid::new(&state, &kernel.words, block, shared_bytes, &banks, &regions).run(grid))
 }

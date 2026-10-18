@@ -2,14 +2,16 @@
 
 use super::engine::{bytes, entry};
 use super::harness::shared_device;
-use crate::gpu::compute::{ComputePipeline, HostBuffer};
+use crate::gpu::compute::{AccelerationStructure, ComputePipeline, HostBuffer, HostImage, Triangles};
 use crate::gpu::engine::Gpu;
+use crate::gpu::graphics::{DrawState, GraphicsPipeline, RasterState, RenderTarget, TargetState, VertexLayout};
 use crate::gpu::guest_dungeon::{
     GuestDungeon, DATA as GRAPHICS_DATA, DEPTH, DESCRIPTORS, REFLECTION, TARGET, VERTEX_CONSTANTS,
 };
 use crate::gpu::VkState;
+use crate::gpu::texture::TexturePool;
 use crate::tests::gpu_test::inst::bra;
-use ash::vk::DescriptorType;
+use ash::vk::{self, DescriptorType};
 use scene::dungeon::compute::{self, Buffer, Encoded, Pass};
 use scene::dungeon::render::{self, DungeonResources, Mesh, SpriteResources, Target};
 
@@ -31,6 +33,9 @@ const GRAPHICS_VERTEX_DATA: u64 = GRAPHICS_DATA + 0x7000;
 const GRAPHICS_VERTICES: u64 = GRAPHICS_DATA + 0x8000;
 const GRAPHICS_INDICES: u64 = GRAPHICS_DATA + 0x9000;
 const GRAPHICS_PARTICLES: u64 = GRAPHICS_DATA + 0xa000;
+const GRAPHICS_RAY_GEOMETRY: u64 = GRAPHICS_DATA + 0xb000;
+const GRAPHICS_RAY_INDICES: u64 = GRAPHICS_DATA + 0xc000;
+const GRAPHICS_TLAS: u64 = GRAPHICS_DATA + 0xd000;
 
 fn floats(values: &[f32]) -> Vec<u8> {
     values
@@ -239,6 +244,91 @@ fn graphics_vertices(material: f32) -> Vec<u8> {
             .flat_map(f32::to_le_bytes)
         })
         .collect()
+}
+
+fn ray_geometry() -> Vec<u8> {
+    [[-0.8, -0.8, 0.5], [0.8, -0.8, 0.5], [0.0, 0.8, 0.5]]
+        .into_iter()
+        .flat_map(|position| floats(&[
+            position[0], position[1], position[2], 5.0,
+            0.0, 0.0, -1.0, 0.0,
+            1.0, 1.0, 1.0, 0.0,
+        ]))
+        .collect()
+}
+
+fn native_ray_frame(state: &VkState, frame: &[u8], geometry: &[u8], size: [u32; 2]) -> Vec<u8> {
+    let make_buffer = |data: &[u8]| {
+        let mut buffer = HostBuffer::new(state, data.len() as u64).unwrap();
+        buffer.write(data).unwrap();
+        buffer
+    };
+    let vertices_data = graphics_vertices(3.0);
+    let indices_data = bytes(&[0, 1, 2]);
+    let vertices = make_buffer(&vertices_data);
+    let indices = make_buffer(&indices_data);
+    let uniforms = make_buffer(frame);
+    let waves = make_buffer(&[0; 32]);
+    let lights = make_buffer(&floats(&[0.0, 0.0, 1.0, 0.4, 8.0, 8.0, 8.0, 0.0]));
+    let blank = make_buffer(&vec![0; (size[0] * size[1] * 8) as usize]);
+    let geometry_buffer = make_buffer(geometry);
+    let shadows = make_buffer(&[0; 8]);
+    let rooms = make_buffer(&floats(&[-10.0, -10.0, 10.0, 10.0]));
+    let positions: Vec<_> = geometry.chunks_exact(48).map(|vertex| {
+        [0, 4, 8].map(|at| f32::from_le_bytes(vertex[at..at + 4].try_into().unwrap()))
+    }).collect();
+    let structure = AccelerationStructure::new(state, &[Triangles {
+        positions: &positions,
+        indices: &[0, 1, 2],
+        transform: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]],
+        opaque: true,
+    }]).unwrap();
+    let tic = bytes(&scene::pitch_rgba8_tic(0, 1, 1, 32));
+    let tsc = bytes(&scene::NEAREST_CLAMP_TSC);
+    let pool = TexturePool { tic: &tic, tsc: &tsc };
+    let texture = HostImage::new(state, &pool.texture(0).unwrap(), &[255; 32], &pool.sampler(0).unwrap()).unwrap();
+    let vertex_bindings = [(0, DescriptorType::UNIFORM_BUFFER), (1, DescriptorType::STORAGE_BUFFER)];
+    let mut fragment_bindings = vec![(0, DescriptorType::UNIFORM_BUFFER), (1, DescriptorType::STORAGE_BUFFER)];
+    fragment_bindings.extend((2..11).map(|binding| (binding, DescriptorType::COMBINED_IMAGE_SAMPLER)));
+    fragment_bindings.extend((11..14).map(|binding| (binding, DescriptorType::STORAGE_BUFFER)));
+    fragment_bindings.extend([(14, DescriptorType::ACCELERATION_STRUCTURE_KHR), (15, DescriptorType::STORAGE_BUFFER), (16, DescriptorType::STORAGE_BUFFER)]);
+    let bindings = [vk::VertexInputBindingDescription { binding: 0, stride: 48, input_rate: vk::VertexInputRate::VERTEX }];
+    let attributes = [
+        (0, vk::Format::R32G32B32_SFLOAT, 0),
+        (1, vk::Format::R32G32B32_SFLOAT, 12),
+        (2, vk::Format::R32G32_SFLOAT, 24),
+        (3, vk::Format::R32G32B32_SFLOAT, 32),
+        (4, vk::Format::R32_SFLOAT, 44),
+    ].map(|(location, format, offset)| vk::VertexInputAttributeDescription { location, binding: 0, format, offset });
+    let blend = vk::PipelineColorBlendAttachmentState::default().color_write_mask(vk::ColorComponentFlags::RGBA);
+    let mut pipeline = GraphicsPipeline::with_format(
+        state,
+        &spirv(include_bytes!("../../../../demos/shaders/dungeon.vert.spv")),
+        None,
+        &spirv(include_bytes!("../../../../demos/shaders/dungeon_rt.frag.spv")),
+        [&vertex_bindings, &fragment_bindings],
+        &VertexLayout { bindings: &bindings, attributes: &attributes, topology: vk::PrimitiveTopology::TRIANGLE_LIST },
+        &TargetState { blend, depth: Some(vk::Format::D32_SFLOAT) },
+        vk::Format::R16G16B16A16_SFLOAT,
+    ).unwrap();
+    pipeline.descriptors[0].bind(&[(0, &uniforms), (1, &waves)]);
+    pipeline.descriptors[1].bind(&[(0, &uniforms), (1, &lights), (11, &blank), (12, &blank), (13, &geometry_buffer), (15, &shadows), (16, &rooms)]);
+    pipeline.descriptors[1].bind_images(&(2..11).map(|binding| (binding, &texture)).collect::<Vec<_>>());
+    pipeline.descriptors[1].bind_acceleration_structure(14, &structure);
+    let target = RenderTarget::with_format(state, size[0], size[1], Some(vk::Format::D32_SFLOAT), None, vk::Format::R16G16B16A16_SFLOAT).unwrap();
+    let raster = RasterState {
+        viewport: vk::Viewport { x: 0.0, y: 0.0, width: size[0] as f32, height: size[1] as f32, min_depth: 0.0, max_depth: 1.0 },
+        scissor: target.extent.into(), cull_face: vk::CullModeFlags::NONE, front_face: vk::FrontFace::COUNTER_CLOCKWISE,
+        topology: vk::PrimitiveTopology::TRIANGLE_LIST, depth_test: true, depth_write: true, depth_func: vk::CompareOp::LESS_OR_EQUAL,
+        blend_const: [0.0; 4], blend,
+    };
+    state.draw(&pipeline, &target, &DrawState {
+        vertex_buffers: &[(&vertices, 48)], index_buffer: Some((&indices, vk::IndexType::UINT32)), vertex_count: 3,
+        first_vertex: 0, first_instance: 0, instance_count: 1, clear: Some([0.008, 0.012, 0.018, 40.0]), clear_depth: Some(1.0), load: false, raster,
+    }).unwrap();
+    let mut pixels = vec![0; (size[0] * size[1] * 8) as usize];
+    target.read(&mut pixels).unwrap();
+    pixels
 }
 
 fn install_graphics(gpu: &mut GuestDungeon, mode: f32, target_size: [u32; 2]) -> Mesh {
@@ -555,6 +645,82 @@ fn sprite_pass_uses_premultiplied_blending_over_the_opaque_target() {
     );
     assert!((blended[1] - background[1] * 0.5).abs() < 0.02);
     assert!((blended[3] - background[3]).abs() < 0.02);
+}
+
+#[test]
+fn ray_pass_hits_guest_geometry_and_rebuilds_after_it_moves() {
+    let Some(state) = shared_device() else { return };
+    if !crate::gpu::demo::supports_raytraced(state) { return eprintln!("skipping: device does not support the ray-traced demo"); }
+    let mut guest = GuestDungeon::new(state);
+    let size = [4, 4];
+    let mesh = install_graphics(&mut guest, 0.0, size);
+    guest.gpu.write(GRAPHICS_VERTICES, &graphics_vertices(3.0)).unwrap();
+    let mut frame = graphics_frame(0.0, size);
+    frame[43 * 4..44 * 4].copy_from_slice(&1.0f32.to_le_bytes());
+    let geometry = ray_geometry();
+    let indices = bytes(&[0, 1, 2]);
+    guest.gpu.write(GRAPHICS_FRAME, &frame).unwrap();
+    guest.gpu.write(GRAPHICS_LIGHTS, &floats(&[0.0, 0.0, 1.0, 0.4, 8.0, 8.0, 8.0, 0.0])).unwrap();
+    guest.gpu.write(GRAPHICS_RAY_GEOMETRY, &geometry).unwrap();
+    guest.gpu.write(GRAPHICS_RAY_INDICES, &indices).unwrap();
+    let ray = render::RayGeometry {
+        vertices: render::Buffer { address: GRAPHICS_RAY_GEOMETRY, size: geometry.len() as u32 },
+        indices: render::Buffer { address: GRAPHICS_RAY_INDICES, size: indices.len() as u32 },
+        tlas: GRAPHICS_TLAS,
+    };
+    let mut registry = Vec::new();
+    render::acceleration_structure(ray, &mut registry);
+    guest.gpu.write(GRAPHICS_TLAS, &bytes(&registry)).unwrap();
+    let resources = DungeonResources {
+        frame: render::Buffer { address: GRAPHICS_FRAME, size: frame.len() as u32 },
+        lights: render::Buffer { address: GRAPHICS_LIGHTS, size: 32 },
+        reflection: render::Buffer { address: GRAPHICS_REFLECTION, size: size[0] * size[1] * 8 },
+        refraction: render::Buffer { address: GRAPHICS_REFRACTION, size: size[0] * size[1] * 8 },
+        geometry: ray.vertices,
+        shadows: render::Buffer { address: GRAPHICS_DATA + 0x5000, size: 8 },
+        rooms: render::Buffer { address: GRAPHICS_DATA + 0x6000, size: 16 },
+        vertex_data: render::Buffer { address: GRAPHICS_VERTEX_DATA, size: 32 },
+        textures: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+    };
+    guest.gpu.write(DESCRIPTORS, &bytes(&render::dungeon_ray_descriptors(resources, ray.tlas))).unwrap();
+    let draw = |target, depth, words: &mut Vec<_>| render::ray_opaque(
+        Target { colour: target, depth, size },
+        GuestDungeon::programs(), GuestDungeon::ray_programs(), GuestDungeon::tables(), mesh, 3, [6, 0], words,
+    );
+    let mut words = Vec::new();
+    draw(TARGET, DEPTH, &mut words);
+    guest.write_words(&words);
+    let mut occluded = vec![0; (size[0] * size[1] * 8) as usize];
+    guest.gpu.read(TARGET, &mut occluded).unwrap();
+    frame[43 * 4..44 * 4].copy_from_slice(&0.0f32.to_le_bytes());
+    guest.gpu.write(GRAPHICS_FRAME, &frame).unwrap();
+    words.clear();
+    draw(REFLECTION, DEPTH + 0x1000, &mut words);
+    guest.write_words(&words);
+    let mut ray_off = vec![0; occluded.len()];
+    guest.gpu.read(REFLECTION, &mut ray_off).unwrap();
+    frame[43 * 4..44 * 4].copy_from_slice(&1.0f32.to_le_bytes());
+    guest.gpu.write(GRAPHICS_FRAME, &frame).unwrap();
+    let mut moved = geometry.clone();
+    for vertex in moved.chunks_exact_mut(48) { vertex[8..12].copy_from_slice(&4.0f32.to_le_bytes()); }
+    guest.gpu.write(GRAPHICS_RAY_GEOMETRY, &moved).unwrap();
+    words.clear();
+    draw(REFLECTION, DEPTH + 0x1000, &mut words);
+    guest.write_words(&words);
+    let mut visible = vec![0; occluded.len()];
+    guest.gpu.read(REFLECTION, &mut visible).unwrap();
+    let (hit, off, miss) = (hdr_pixel(&occluded, size, 2, 2), hdr_pixel(&ray_off, size, 2, 2), hdr_pixel(&visible, size, 2, 2));
+    let native_miss = hdr_pixel(&native_ray_frame(state, &frame, &moved, size), size, 2, 2);
+    frame[43 * 4..44 * 4].copy_from_slice(&0.0f32.to_le_bytes());
+    let native_off = hdr_pixel(&native_ray_frame(state, &frame, &geometry, size), size, 2, 2);
+    frame[43 * 4..44 * 4].copy_from_slice(&1.0f32.to_le_bytes());
+    let native_hit = hdr_pixel(&native_ray_frame(state, &frame, &geometry, size), size, 2, 2);
+    assert!(hit[0] + 0.1 < miss[0], "{hit:?} !< {miss:?}");
+    assert!(off.into_iter().zip(miss).all(|(a, b)| (a - b).abs() < 0.08), "{off:?} != {miss:?}");
+    assert!((hit[3] - miss[3]).abs() < 0.05, "{hit:?} != {miss:?}");
+    for (guest, native) in [(hit, native_hit), (off, native_off), (miss, native_miss)] {
+        assert!(guest.into_iter().zip(native).all(|(a, b)| (a - b).abs() <= 0.08 * (1.0 + b.abs())), "{guest:?} != native {native:?}");
+    }
 }
 
 #[test]

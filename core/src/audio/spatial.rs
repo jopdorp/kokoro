@@ -6,7 +6,6 @@ use std::f32::consts::{FRAC_PI_2, PI, TAU};
 pub const BLOCK: usize = 240;
 const RATE: f32 = 48_000.0;
 const SPEED: f32 = 343.0;
-const HEAD_RADIUS: f32 = 0.0875;
 const HISTORY: usize = 1 << 17;
 const IMAGE_PATHS: usize = 3;
 const GEOMETRY_BLOCKS: u64 = 10;
@@ -103,20 +102,16 @@ impl Default for Mix {
 
 #[derive(Clone, Copy, Default)]
 struct Ear {
-    shadow: f32,
     air: f32,
     material: f32,
     bass: f32,
-    rear: f32,
-    notch_lo: f32,
-    notch_hi: f32,
 }
 
 #[derive(Clone, Copy, Default)]
 struct PathState {
     ears: [Ear; 2],
     gain: f32,
-    delay: [f32; 2],
+    delay: f32,
     initialized: bool,
 }
 
@@ -190,17 +185,15 @@ struct Path {
 
 #[derive(Clone, Copy, Default)]
 struct Parameters {
-    delay: [f32; 2],
+    delay: f32,
     gain: f32,
-    ear_gain: [f32; 2],
-    shadow: [f32; 2],
+    pan: [f32; 2],
+    hrir: scene::dungeon::sound::hrir::Direction,
+    headphones: bool,
     air: f32,
     material: f32,
     bass: f32,
     bass_filter: f32,
-    rear: f32,
-    rear_filter: f32,
-    notch: [f32; 2],
 }
 
 pub struct Spatializer {
@@ -424,34 +417,20 @@ fn parameters(path: &Path, source_gain: f32, listener: V3, forward: V3, up: V3, 
     let direction = scale(offset, 1.0 / distance);
     let right = unit(cross(forward, up));
     let azimuth = dot(direction, right).atan2(dot(direction, forward));
-    let elevation = dot(direction, up).clamp(-1.0, 1.0).asin();
     let side = azimuth.sin();
-    let theta = azimuth.abs();
-    // Woodworth and Schlosberg's rigid-sphere interaural delay.
-    let itd = HEAD_RADIUS / SPEED
-        * if theta <= FRAC_PI_2 {
-            theta + theta.sin()
-        } else {
-            PI - theta + theta.sin()
-        };
     let delay = distance / SPEED * RATE;
     let near = (1.0 / distance.max(0.35)).min(1.8);
-    let rear = ((-dot(direction, forward)).max(0.0) * 0.18).clamp(0.0, 0.18);
     let pan = ((side + 1.0) * PI * 0.25).clamp(0.0, FRAC_PI_2);
-    let far = [side.max(0.0), (-side).max(0.0)];
-    let notch = 8_000.0 + elevation / FRAC_PI_2 * 2_000.0;
     Parameters {
-        delay: std::array::from_fn(|ear| delay + if mode == Mode::Headphones { itd * RATE * far[ear] } else { 0.0 }),
+        delay,
         gain: path.gain * source_gain * near,
-        ear_gain: std::array::from_fn(|ear| if mode == Mode::Speakers { [pan.cos(), pan.sin()][ear] } else { 1.0 - 0.5 * far[ear] }),
-        shadow: std::array::from_fn(|ear| coefficient(14_000.0 - 11_000.0 * far[ear])),
+        pan: [pan.cos(), pan.sin()],
+        hrir: scene::dungeon::sound::hrir::Direction::new(path.position, listener, forward, up),
+        headphones: mode == Mode::Headphones,
         air: coefficient(18_000.0 / (1.0 + 0.045 * distance * distance)),
-        material: coefficient(18_000.0 * (1.0 - 0.82 * path.absorption)),
+        material: coefficient(18_000.0 * (1.0 - 1.2 * path.absorption)),
         bass: (1.0 - distance).max(0.0) * 0.45,
         bass_filter: coefficient(220.0),
-        rear,
-        rear_filter: coefficient(3_500.0),
-        notch: [coefficient(notch - 700.0), coefficient(notch + 700.0)],
     }
 }
 
@@ -465,23 +444,20 @@ fn binaural_block(parameters: &Parameters, previous: &mut PathState, history: &[
     let from_delay = previous.delay;
     let step = parameters.gain.max(previous.gain) * 0.005;
     let target_gain = parameters.gain.clamp(previous.gain - step, previous.gain + step);
+    let filter = parameters.hrir.filter();
+    let mut hrir = [[0.0; BLOCK]; 2];
+    if parameters.headphones { filter.render(history, written, from_delay, parameters.delay, &mut hrir); }
     for (n, frame) in out.iter_mut().enumerate() {
         let t = (n + 1) as f32 / BLOCK as f32;
         let gain = lerp(from_gain, target_gain, t);
         for ear in 0..2 {
-            let ear_delay = lerp(from_delay[ear], parameters.delay[ear], t);
-            let mut sample = delayed(history, written + n as u64, ear_delay);
-            sample = lowpass(sample, parameters.shadow[ear], &mut previous.ears[ear].shadow);
+            let delay = lerp(from_delay, parameters.delay, t);
+            let mut sample = if parameters.headphones { hrir[ear][n] } else { delayed(history, written + n as u64, delay) * parameters.pan[ear] };
             sample = lowpass(sample, parameters.air, &mut previous.ears[ear].air);
             sample = lowpass(sample, parameters.material, &mut previous.ears[ear].material);
             let bass = lowpass(sample, parameters.bass_filter, &mut previous.ears[ear].bass);
             sample += bass * parameters.bass;
-            let rear_low = lowpass(sample, parameters.rear_filter, &mut previous.ears[ear].rear);
-            sample -= (sample - rear_low) * parameters.rear;
-            let lo = lowpass(sample, parameters.notch[0], &mut previous.ears[ear].notch_lo);
-            let hi = lowpass(sample, parameters.notch[1], &mut previous.ears[ear].notch_hi);
-            sample -= (hi - lo) * 0.24;
-            frame[ear] += sample * gain * parameters.ear_gain[ear] * (1.0 - parameters.rear);
+            frame[ear] += sample * gain;
         }
     }
     previous.gain = target_gain;
@@ -617,54 +593,24 @@ mod tests {
         }
     }
 
-    fn impulse_blocks(spatial: &mut Spatializer, source: Source, blocks: usize) -> Vec<[f32; 2]> {
-        let mut result = Vec::new();
-        for block in 0..blocks {
-            let mut mono = [0.0; BLOCK];
-            if block == 0 {
-                mono[0] = 1.0;
-            }
-            let mut out = [[0.0; 2]; BLOCK];
-            spatial.begin_block();
-            spatial.render(&source, &mono, &mut out);
-            spatial.finish_block(&mut out);
-            result.extend(out);
-        }
-        result
-    }
-
     #[test]
-    fn right_source_has_woodworth_itd_and_quieter_far_ear() {
-        let mut spatial = Spatializer::new(&[], Mode::Headphones);
-        spatial.set_listener([0.0; 3], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]);
-        let output = impulse_blocks(
-            &mut spatial,
-            Source {
-                id: 0,
-                position: [1.0, 0.0, 0.0],
-                gain: 1.0,
-            },
-            3,
-        );
-        let peak = |ear: usize| {
-            output
-                .iter()
-                .map(|frame| frame[ear].abs())
-                .fold(0.0, f32::max)
-        };
-        let arrival = |ear: usize| {
-            output
-                .iter()
-                .position(|frame| frame[ear].abs() > peak(ear) * 0.02)
-                .unwrap()
-        };
-        let measured = arrival(0).abs_diff(arrival(1)) as f32 / RATE;
-        let expected = HEAD_RADIUS / SPEED * (FRAC_PI_2 + 1.0);
-        assert!(
-            (measured - expected).abs() <= 20e-6,
-            "measured {measured}, expected {expected}"
-        );
-        assert!(peak(0) < peak(1));
+    fn sadie_d1_left_source_has_measured_itd_and_ild() {
+        use scene::dungeon::sound::hrir::{Direction, TAPS};
+
+        let filter = Direction::new([-1.0, 0.0, 0.0], [0.0; 3], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]).filter();
+        let mut history = [0.0; 512];
+        history[0] = 1.0;
+        let mut block = [[0.0; BLOCK]; 2];
+        filter.render(&history, 0, 0.0, 0.0, &mut block);
+        let impulse: [[f32; TAPS]; 2] = block.map(|ear| ear[..TAPS].try_into().unwrap());
+        let energy = impulse.map(|ear| ear.iter().map(|sample| sample * sample).sum::<f32>());
+        let ild = 10.0 * (energy[0] / energy[1]).log10();
+        let itd = (-80..=80).max_by(|&a, &b| {
+            let correlation = |lag: i32| (0..TAPS).filter_map(|n| usize::try_from(n as i32 + lag).ok().filter(|&m| m < TAPS).map(|m| impulse[0][n] * impulse[1][m])).sum::<f32>();
+            correlation(a).total_cmp(&correlation(b))
+        }).unwrap().unsigned_abs();
+        assert!((ild - 15.73).abs() < 0.1, "{ild} dB");
+        assert_eq!(itd, 39);
     }
 
     #[test]
@@ -700,7 +646,7 @@ mod tests {
         };
         let visible = measure([-2.0, 0.0, 0.0]);
         let blocked = measure([1.2, 0.0, 0.0]);
-        assert!(blocked.0 < visible.0 && blocked.1 < visible.1);
+        assert!(blocked.0 < visible.0 && blocked.1 < visible.1, "{visible:?} {blocked:?}");
     }
 
     #[test]
