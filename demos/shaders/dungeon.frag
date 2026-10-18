@@ -175,7 +175,7 @@ vec3 illuminate(vec3 p,vec3 n,vec3 v,vec3 base,float rough,float metal,bool shad
         int i=right_quality.w>.5?j:int(j<4?fog_lights[j]:grid[j-2]);
         vec3 to=lights[i].position.xyz-p; float d2=dot(to,to);
         if(d2>min(180.,lights[i].colour.r*24.) || dot(n,to)<=0.)continue;
-        bool casts=lights[i].position.w>0. && (right_quality.w>.5 || i==int(fog_lights.x) || i==int(fog_lights.y));
+        bool casts=(lights[i].position.w>0. || up_rt.w>.5) && (right_quality.w>.5 || i==int(fog_lights.x) || i==int(fog_lights.y));
         float vis=(shadow && casts && settings.z<.5)?(up_rt.w>.5?softVisibility(p,n,to,clamp(lights[i].position.w*.32,.12,.5)):shadowMap(-to,i,n)):1.;
         c+=brdf(base,n,v,normalize(to),rough,metal)*lights[i].colour.rgb*vis*5./max(.22,d2);
     }
@@ -203,9 +203,15 @@ vec3 diffuseBounce(vec3 p,vec3 n,vec3 base) {
         vec3 hitNormal=normalize(triangles[i].normal.xyz*w.x+triangles[i+1].normal.xyz*w.y+triangles[i+2].normal.xyz*w.z);
         int m=int(triangles[i].position.w);vec2 uv=abs(hitNormal.y)>.6?hit.xz*.35:abs(hitNormal.x)>.6?hit.zy*.35:hit.xy*.35;
         vec3 hitBase=albedo(uv,m)*triangles[i].tint.rgb;if(m==1 || m>=6)hitBase=stoneMaterial(hitBase,hit,hitNormal,m,uv).rgb;
-        c+=illuminate(hit,hitNormal,-direction,hitBase,.72,0.,false)*max(dot(n,direction),0.);
+        vec3 radiance=vec3(0);
+        for(int light=0;light<lights.length();light++) {
+            vec3 to=lights[light].position.xyz-hit;float d2=dot(to,to),nl=max(dot(hitNormal,normalize(to)),0.);
+            if(d2>min(180.,lights[light].colour.r*24.) || nl<=0.)continue;
+            radiance+=hitBase*lights[light].colour.rgb*visibility(hit,hitNormal,to)*nl*5./(PI*max(.22,d2));
+        }
+        c+=min(clamp(base,0.,1.)*radiance*.48,radiance)*max(dot(n,direction),0.);
     }
-    return base*c*.48;
+    return c;
 }
 #endif
 vec3 reflectedFlames(vec3 p,vec3 direction,float limit) {
