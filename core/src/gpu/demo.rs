@@ -182,7 +182,7 @@ mod tests {
         // Replay the same draw commands with geometry outside every ray's reach.
         let mut commands = vec![0; 0x8000];
         scene.gpu.read(FRAME_SEGMENT, &mut commands).unwrap();
-        let report = ((SET_REPORT_SEMAPHORE_A / 4) | (4 << 16) | (1 << 29)).to_le_bytes();
+        let report = ((SET_REPORT_SEMAPHORE_A as u32 / 4) | (4 << 16) | (1 << 29)).to_le_bytes();
         let words = commands.chunks_exact(4).position(|word| word == report).unwrap() + 5;
         scene.gpu.submit(&[entry(FRAME_SEGMENT, words)]).unwrap();
         let mut unoccluded = vec![0; traced.len()];
