@@ -21,4 +21,5 @@ mkdir -p "$root/core/tests/fixtures/guest"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/mandelbrot" "$root/core/tests/fixtures/guest/mandelbrot.nro"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/music" "$root/core/tests/fixtures/guest/music.nro"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/tensor_upscale" "$root/core/tests/fixtures/guest/tensor-upscale.nro"
+"$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/dungeon" "$root/core/tests/fixtures/guest/dungeon.nro"
 sha256sum "$root/core/tests/fixtures/guest/"*.bin "$root/core/tests/fixtures/guest/"*.nro

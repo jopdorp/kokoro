@@ -93,6 +93,10 @@ fn dungeon(out: &std::path::Path) {
     let world = World::new(scene::dungeon::WORLD_SEED);
     let mut mesh = Builder::default();
     world.build(&mut mesh);
+    std::fs::write(out.join("dungeon-geometry.bin"), floats(mesh.indices.iter().flat_map(|&i| {
+        let v = mesh.vertices[i as usize];
+        [v.pos[0], v.pos[1], v.pos[2], v.material, v.normal[0], v.normal[1], v.normal[2], 0.0, v.tint[0], v.tint[1], v.tint[2], 0.0]
+    }))).unwrap();
     let mut constants = String::new();
     for (quality, grid) in [("realtime", [96, 24]), ("showcase", [256, 64])] {
         let first = mesh.vertices.len();

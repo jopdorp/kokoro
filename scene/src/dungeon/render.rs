@@ -30,6 +30,7 @@ pub struct Target {
 pub struct Programs {
     pub dungeon_vertex: u64,
     pub dungeon_fragment: u64,
+    pub dungeon_fragment_registers: u32,
     pub cones_vertex: u64,
     pub sprite_vertex: u64,
     pub sprite_fragment: u64,
@@ -306,7 +307,7 @@ fn mesh_state(
     inc(SET_INDEX_BUFFER_A, &[index_hi, index_lo], words);
     inc(SET_INDEX_BUFFER_E, &[2], words);
     program(1, 18, 0, programs.dungeon_vertex, words);
-    program(5, 46, 4, programs.dungeon_fragment, words);
+    program(5, programs.dungeon_fragment_registers, 4, programs.dungeon_fragment, words);
     descriptor_banks(tables, 0, words);
     inc(SET_BLEND, &[0], words);
     inc(SET_DEPTH_WRITE, &[1], words);
@@ -314,7 +315,7 @@ fn mesh_state(
 
 fn cones_state(programs: Programs, tables: Tables, words: &mut impl Extend<u32>) {
     program(1, 23, 0, programs.cones_vertex, words);
-    program(5, 46, 4, programs.dungeon_fragment, words);
+    program(5, programs.dungeon_fragment_registers, 4, programs.dungeon_fragment, words);
     descriptor_banks(tables, 48, words);
     inc(SET_BLEND, &[0], words);
     inc(SET_DEPTH_WRITE, &[1], words);

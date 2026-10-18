@@ -39,6 +39,7 @@ const FRAGMENT_CONSTANTS: u64 = BASE + 0xe_6000;
 const DRAW_PARAMETERS: u64 = BASE + 0xe_7000;
 const TIC: u64 = BASE + 0xe_8000;
 const TSC: u64 = BASE + 0xe_9000;
+const TLAS: u64 = BASE + 0xe_a000;
 const DATA: u64 = BASE + 0x10_0000;
 const MEMORY: u64 = 0x4010_0000;
 const WIDTH: u32 = 1920;
@@ -83,7 +84,7 @@ fn load_file(fs: u32, directory: &str, name: &str, extension: &str, address: u64
 
 fn cpu(address: u64) -> u64 { if address >= BASE { MEMORY + address - BASE } else { address } }
 
-fn copy<T: Copy>(address: u64, values: &[T]) {
+fn copy<T: Copy + 'static>(address: u64, values: &[T]) {
     nv::guest_slice(cpu(address), values.len()).copy_from_slice(values);
 }
 
@@ -113,6 +114,7 @@ struct Layout {
     lights: u64,
     rooms: u64,
     cones: u64,
+    geometry: u64,
     textures: [u64; 9],
     target: u64,
     target_depth: u64,
@@ -143,7 +145,8 @@ impl Layout {
         let lights = align(indices + index_bytes as u64);
         let rooms = align(lights + (LIGHT_COUNT * 32) as u64);
         let cones = align(rooms + include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-zones.bin")).len() as u64);
-        let mut at = align(cones + include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-cones.bin")).len() as u64);
+        let geometry = align(cones + include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-cones.bin")).len() as u64);
+        let mut at = align(geometry + include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-geometry.bin")).len() as u64);
         let textures = core::array::from_fn(|i| { let address = at; at = align(at + TEXTURE_BYTES[i] as u64); address });
         let target = at;
         let target_depth = target + u64::from(WIDTH * HEIGHT * 8);
@@ -161,14 +164,14 @@ impl Layout {
         let bloom = align(fog + u64::from(WIDTH / 4 * HEIGHT / 4 * 16));
         let output = align(bloom + u64::from(WIDTH / 4 * HEIGHT / 4 * 16));
         let end = align(output + u64::from(WIDTH * HEIGHT * 4));
-        Self { vertices, vertex_bytes, indices, opaque_indices, water_indices, lights, rooms, cones, textures, target, target_depth, reflection, reflection_depth, shadows, water, water_surface, water_uniforms, frame, particle_time, particles, fog, bloom, output, end, grid, reflection_size }
+        Self { vertices, vertex_bytes, indices, opaque_indices, water_indices, lights, rooms, cones, geometry, textures, target, target_depth, reflection, reflection_depth, shadows, water, water_surface, water_uniforms, frame, particle_time, particles, fog, bloom, output, end, grid, reflection_size }
     }
 }
 
 fn pose(frame: usize) -> ([f32; 3], f32, f32, f32) {
     let data = include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-poses.bin"));
     let at = frame.min(72 * 60) * 24;
-    let value = |i| f32::from_le_bytes(data[at + i * 4..at + i * 4 + 4].try_into().unwrap());
+    let value = |i: usize| f32::from_le_bytes(data[at + i * 4..at + i * 4 + 4].try_into().unwrap());
     ([value(0), value(1), value(2)], value(3), value(4), value(5))
 }
 
@@ -200,7 +203,7 @@ fn setup_graphics(fs: u32, layout: &Layout, showcase: bool, rays: bool) -> svc::
     let indices = if showcase { include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-showcase-indices.bin")).as_slice() } else { include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-realtime-indices.bin")).as_slice() };
     nv::guest_slice(cpu(layout.vertices), vertices.len()).copy_from_slice(vertices);
     nv::guest_slice(cpu(layout.indices), indices.len()).copy_from_slice(indices);
-    for (address, bytes) in [(layout.rooms, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-zones.bin")).as_slice()), (layout.cones, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-cones.bin")).as_slice())] { nv::guest_slice(cpu(address), bytes.len()).copy_from_slice(bytes); }
+    for (address, bytes) in [(layout.rooms, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-zones.bin")).as_slice()), (layout.cones, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-cones.bin")).as_slice()), (layout.geometry, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-geometry.bin")).as_slice())] { nv::guest_slice(cpu(address), bytes.len()).copy_from_slice(bytes); }
     let mut tic = [0u32; 72];
     for (i, (&address, &bytes)) in layout.textures.iter().zip(&TEXTURE_BYTES).enumerate() {
         load_file(fs, "dungeon", TEXTURE_NAMES[i], ".rgba8", cpu(address), bytes)?;
@@ -211,37 +214,53 @@ fn setup_graphics(fs: u32, layout: &Layout, showcase: bool, rays: bool) -> svc::
     copy(TSC, &[7 << 20, 2 | 2 << 4 | 3 << 6, 0xf00 << 12, 0, 0, 0, 0, 0]);
     copy(DRAW_PARAMETERS, &render::draw_parameters());
     copy(FRAGMENT_CONSTANTS, &render::fragment_constants());
+    if rays {
+        let [vertex_hi, vertex_lo] = scene::split(layout.vertices);
+        let [index_hi, index_lo] = scene::split(layout.indices);
+        let mut registry = [0u32; 22];
+        registry[..10].copy_from_slice(&[
+            scene::pbr::ACCELERATION_STRUCTURE_MAGIC, 1, vertex_hi, vertex_lo, 48,
+            (layout.vertex_bytes / 48) as u32, index_hi, index_lo, layout.opaque_indices, 1,
+        ]);
+        registry[10..].copy_from_slice(&[1.0f32.to_bits(), 0, 0, 0, 0, 1.0f32.to_bits(), 0, 0, 0, 0, 1.0f32.to_bits(), 0]);
+        copy(TLAS, &registry);
+    }
     Ok(())
 }
 
 fn render_frame(channel: &nv::Channel, layout: &Layout, showcase: bool, rays: bool, tick: u32) -> svc::Result<()> {
     frame_data(tick as usize, showcase, rays, layout);
-    let programs = render::Programs { dungeon_vertex: DUNGEON_VERTEX, dungeon_fragment: DUNGEON_FRAGMENT, cones_vertex: CONES_VERTEX, sprite_vertex: SPRITE_VERTEX, sprite_fragment: SPRITE_FRAGMENT };
+    let programs = render::Programs { dungeon_vertex: DUNGEON_VERTEX, dungeon_fragment: DUNGEON_FRAGMENT, dungeon_fragment_registers: if rays { 70 } else { 46 }, cones_vertex: CONES_VERTEX, sprite_vertex: SPRITE_VERTEX, sprite_fragment: SPRITE_FRAGMENT };
     let mesh = render::Mesh { vertices: buffer(layout.vertices, layout.vertex_bytes), indices: layout.indices };
     let target = render::Target { colour: layout.target, depth: layout.target_depth, size: [WIDTH, HEIGHT] };
     let reflection = render::Target { colour: layout.reflection, depth: layout.reflection_depth, size: layout.reflection_size };
     let tables = |descriptors, constants| render::Tables { descriptors, vertex_constants: constants, fragment_constants: FRAGMENT_CONSTANTS, draw_parameters: DRAW_PARAMETERS, textures: TIC, samplers: TSC };
-    let resources = |frame| render::DungeonResources { frame: buffer(frame, 256), lights: buffer(layout.lights, LIGHT_COUNT * 32), reflection: buffer(layout.reflection, (layout.reflection_size[0] * layout.reflection_size[1] * 8) as usize), refraction: buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), geometry: buffer(layout.vertices, layout.vertex_bytes), shadows: buffer(layout.shadows, 10 * 6 * 256 * 256 * 8), rooms: buffer(layout.rooms, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-zones.bin")).len()), vertex_data: buffer(layout.water_surface, (layout.grid[0] * layout.grid[1] * 16) as usize), textures: [0, 1, 2, 3, 4, 5, 6, 7, 8] };
+    let resources = |frame| render::DungeonResources { frame: buffer(frame, 256), lights: buffer(layout.lights, LIGHT_COUNT * 32), reflection: if rays { buffer(TLAS, 88) } else { buffer(layout.reflection, (layout.reflection_size[0] * layout.reflection_size[1] * 8) as usize) }, refraction: buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), geometry: buffer(layout.geometry, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-geometry.bin")).len()), shadows: buffer(layout.shadows, 10 * 6 * 256 * 256 * 8), rooms: buffer(layout.rooms, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-zones.bin")).len()), vertex_data: buffer(layout.water_surface, (layout.grid[0] * layout.grid[1] * 16) as usize), textures: [0, 1, 2, 3, 4, 5, 6, 7, 8] };
     let submit = |words: &mut Words<'_>| channel.submit(PUSH, words.len);
     let mut words = Words { storage: nv::guest_slice(cpu(PUSH), 0x10000), len: 0 };
-    copy(DESCRIPTORS, &render::dungeon_descriptors(resources(layout.frame)));
-    copy(VERTEX_CONSTANTS, &render::cone_constants());
-    render::shadow(render::Target { colour: layout.shadows, depth: layout.target_depth, size: [if showcase { 256 } else { 128 }; 2] }, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, [24 * 12 * 6, CONE_COUNT], &mut words);
-    submit(&mut words)?;
     if !rays {
+        copy(DESCRIPTORS, &render::dungeon_descriptors(resources(layout.frame)));
+        copy(VERTEX_CONSTANTS, &render::cone_constants());
+        render::shadow(render::Target { colour: layout.shadows, depth: layout.target_depth, size: [if showcase { 256 } else { 128 }; 2] }, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, [24 * 12 * 6, CONE_COUNT], &mut words);
+        submit(&mut words).map_err(|_| 20u32)?;
         words.len = 0;
         copy(DESCRIPTORS, &render::dungeon_descriptors(resources(layout.frame)));
         render::reflection(reflection, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, [24 * 12 * 6, CONE_COUNT], &mut words);
-        submit(&mut words)?;
+        submit(&mut words).map_err(|_| 21u32)?;
     }
     words.len = 0;
     copy(DESCRIPTORS, &render::dungeon_descriptors(resources(layout.frame + 256)));
+    copy(VERTEX_CONSTANTS, &render::cone_constants());
     render::opaque(target, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, [24 * 12 * 6, CONE_COUNT], &mut words);
+    submit(&mut words).map_err(|_| 22u32)?;
+    words.len = 0;
     render::water(target, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, layout.water_indices, &mut words);
+    submit(&mut words).map_err(|_| 24u32)?;
+    words.len = 0;
     copy(DESCRIPTORS, &render::sprite_descriptors(render::SpriteResources { frame: buffer(layout.frame + 256, 256), lights: buffer(layout.lights, LIGHT_COUNT * 32), depth: buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), particles: buffer(layout.particles, LIGHT_COUNT * 96 * 48), texture: 0 }));
     copy(VERTEX_CONSTANTS, &render::sprite_constants());
     render::sprites(target, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), (LIGHT_COUNT * if showcase { 96 } else { 24 }) as u32, &mut words);
-    submit(&mut words)?;
+    submit(&mut words).map_err(|_| 25u32)?;
 
     let seconds = tick as f32 / 60.0;
     copy(layout.water_uniforms, &[layout.grid[0] as f32, layout.grid[1] as f32, 1.0 / 60.0, 2.0, 1.0, 1.0, 0.0, seconds]);
@@ -254,7 +273,7 @@ fn render_frame(channel: &nv::Channel, layout: &Layout, showcase: bool, rays: bo
     install(&compute::post(passes[3], [compute_buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), compute_buffer(layout.output, (WIDTH * HEIGHT * 4) as usize), compute_buffer(layout.frame + 256, 256), compute_buffer(layout.lights, LIGHT_COUNT * 32), compute_buffer(layout.fog, (WIDTH / 4 * HEIGHT / 4 * 16) as usize), compute_buffer(layout.bloom, (WIDTH / 4 * HEIGHT / 4 * 16) as usize)], [WIDTH, HEIGHT], tick + 1), passes[3]);
     words.len = 0;
     for pass in passes { compute::dispatch(pass, &mut words); }
-    submit(&mut words)
+    submit(&mut words).map_err(|_| 23u32)
 }
 
 fn audio(fs: u32, memory: u64) -> svc::Result<(sound::Engine<'static>, audren::Pcm<'static>)> {
@@ -274,13 +293,13 @@ fn audio(fs: u32, memory: u64) -> svc::Result<(sound::Engine<'static>, audren::P
     for (i, voice) in voices.iter_mut().enumerate() {
         let words = core::array::from_fn::<_, 7, _>(|word| u32::from_le_bytes(config[(i * 7 + word) * 4..][..4].try_into().unwrap()));
         let sample = unsafe { core::mem::transmute::<u8, sound::Sample>(words[0] as u8) };
-        *voice = sound::Voice::new(sample, words[1..4].map(f32::from_bits).try_into().unwrap(), f32::from_bits(words[4]), f32::from_bits(words[5]), words[6] != 0);
+        *voice = sound::Voice::new(sample, [words[1], words[2], words[3]].map(f32::from_bits), f32::from_bits(words[4]), f32::from_bits(words[5]), words[6] != 0);
     }
     at = align(align(at) + (VOICE_COUNT * core::mem::size_of::<sound::Voice>()) as u64);
     let histories = nv::guest_slice::<f32>(at, sound::HISTORY * VOICE_COUNT);
     histories.fill(0.0);
     at = align(at + (histories.len() * 4) as u64);
-    let fdn = nv::guest_slice::<f32>(at, sound::FDN_SAMPLES);
+    let fdn = nv::guest_slice::<f32>(at, sound::FDN_SAMPLES * ROOM_COUNT);
     fdn.fill(0.0);
     at = align(at + (fdn.len() * 4) as u64);
     let mut host_rooms = [sound::Room::default(); ROOM_COUNT];
@@ -301,15 +320,15 @@ fn run(config: *const [u64; 3]) -> svc::Result<()> {
     let rays = has_option(config, b"-rays");
     let layout = Layout::new(showcase);
     let heap_bytes = (layout.end - BASE + 0x2000_0000).next_multiple_of(0x20_0000);
-    let heap = svc::set_heap_size(heap_bytes)?;
+    let heap = svc::set_heap_size(heap_bytes).map_err(|_| 7u32)?;
     let memory = heap + 0x10_0000;
-    let channel = nv::Channel::new()?;
-    let (_, handle) = channel.buffer_at(memory, (layout.end - BASE) as u32, BASE)?;
-    let fs = filesystem()?;
-    setup_graphics(fs, &layout, showcase, rays)?;
-    let (mut sound, mut pcm) = audio(fs, memory + layout.end - BASE + 0x10_0000)?;
-    hid::initialize()?;
-    let window = display::Window::target(&channel.nv, channel.nvmap, handle, [WIDTH, HEIGHT], (layout.output - BASE) as u32)?;
+    let channel = nv::Channel::new().map_err(|_| 8u32)?;
+    let (_, handle) = channel.buffer_at(memory, (layout.end - BASE) as u32, BASE).map_err(|_| 9u32)?;
+    let fs = filesystem().map_err(|_| 10u32)?;
+    setup_graphics(fs, &layout, showcase, rays).map_err(|_| 1u32)?;
+    let (mut sound, mut pcm) = audio(fs, memory + layout.end - BASE + 0x10_0000).map_err(|_| 2u32)?;
+    hid::initialize().map_err(|_| 3u32)?;
+    let window = display::Window::target(&channel.nv, channel.nvmap, handle, [WIDTH, HEIGHT], (layout.output - BASE) as u32).map_err(|_| 11u32)?;
     let (mut tick, mut tour, mut idle, mut blocks) = (0u32, 0usize, 180u32, 0usize);
     let (mut eye, mut yaw, _, _) = pose(0);
     loop {
@@ -324,21 +343,24 @@ fn run(config: *const [u64; 3]) -> svc::Result<()> {
             eye[0] += input.left[0] as f32 / 32767.0 / 30.0;
             eye[2] -= input.left[1] as f32 / 32767.0 / 30.0;
         }
-        render_frame(&channel, &layout, showcase, rays, tick)?;
+        render_frame(&channel, &layout, showcase, rays, tick + 1)?;
         let target = (tick as usize + 1) * 10 / 3;
         while blocks < target {
             sound.listen(eye, yaw, 0.005, sound::Mode::Headphones);
-            pcm.period(&sound.render())?;
+            pcm.period(&sound.render()).map_err(|_| 5u32)?;
             blocks += 1;
         }
-        window.present([WIDTH, HEIGHT])?;
+        window.present([WIDTH, HEIGHT]).map_err(|_| 6u32)?;
         tick += 1;
     }
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn main(config: *const [u64; 3]) -> ! {
-    if run(config).is_err() { let _ = svc::output_debug_string("dungeon failed"); }
+    if let Err(stage) = run(config) {
+        let message = match stage { 20 => "dungeon shadow failed", 21 => "dungeon reflection failed", 22 => "dungeon opaque failed", 23 => "dungeon compute failed", 24 => "dungeon water failed", 25 => "dungeon sprites failed", _ => ["dungeon failed", "dungeon graphics setup failed", "dungeon audio setup failed", "dungeon hid failed", "dungeon gpu frame failed", "dungeon pcm failed", "dungeon present failed", "dungeon heap failed", "dungeon channel failed", "dungeon mapping failed", "dungeon filesystem failed", "dungeon window failed"].get(stage as usize).copied().unwrap_or("dungeon failed") };
+        let _ = svc::output_debug_string(message);
+    }
     svc::exit_process()
 }
 

@@ -20,7 +20,7 @@ pub fn load_segments(ram: &GuestRam, base: u64, segments: &[(u64, &[u8])]) -> Op
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet, Raytraced, RaytracedShowcase, Post, Particles, Julia, Mandelbrot, Music, TensorUpscale }
+pub enum Demo { Triangle, Sprites, Bounce, BoomBox, Helmet, Raytraced, RaytracedShowcase, Post, Particles, Julia, Mandelbrot, Music, TensorUpscale, Dungeon, DungeonRays, DungeonShowcase, DungeonShowcaseRays }
 
 pub struct Machine {
     cpus: crate::cpu::cpu_manager::CpuManager,
@@ -44,7 +44,12 @@ impl Machine {
             Demo::Triangle => ("triangle.nro", include_bytes!("../tests/fixtures/guest/triangle.nro")),
             Demo::Sprites => ("sprites.nro", include_bytes!("../tests/fixtures/guest/sprites.nro")),
             Demo::TensorUpscale => ("tensor-upscale.nro", include_bytes!("../tests/fixtures/guest/tensor-upscale.nro")),
+            Demo::Dungeon => ("dungeon.nro", include_bytes!("../tests/fixtures/guest/dungeon.nro")),
+            Demo::DungeonRays => ("dungeon-rays.nro", include_bytes!("../tests/fixtures/guest/dungeon.nro")),
+            Demo::DungeonShowcase => ("dungeon-showcase.nro", include_bytes!("../tests/fixtures/guest/dungeon.nro")),
+            Demo::DungeonShowcaseRays => ("dungeon-showcase-rays.nro", include_bytes!("../tests/fixtures/guest/dungeon.nro")),
         };
+        if matches!(demo, Demo::Dungeon | Demo::DungeonRays | Demo::DungeonShowcase | Demo::DungeonShowcaseRays) { stage_dungeon_assets()?; }
         Self::image(name, image)
     }
 
@@ -77,6 +82,18 @@ impl Machine {
         }
         Ok(())
     }
+}
+
+fn stage_dungeon_assets() -> Result<(), String> {
+    let sd = crate::gpu::frame::cache_root().join("guests/sdmc");
+    std::fs::create_dir_all(&sd).map_err(|e| e.to_string())?;
+    for name in ["dungeon", "dungeon-audio"] {
+        let target = sd.join(name);
+        if !target.exists() {
+            std::os::unix::fs::symlink(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../demos/assets").join(name), target).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
 }
 
 // The kernel's Rc service graph stays on one thread even when Qt changes render workers.

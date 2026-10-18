@@ -25,6 +25,7 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
         "guest-particles" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Particles),
         "guest-julia" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Julia),
         "guest-raytraced" => oboromi_core::guest::render_demo(if demo::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) { oboromi_core::guest::Demo::RaytracedShowcase } else { oboromi_core::guest::Demo::Raytraced }),
+        "guest-dungeon" => oboromi_core::guest::render_demo(match (demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed), demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed)) { (false, false) => oboromi_core::guest::Demo::Dungeon, (false, true) => oboromi_core::guest::Demo::DungeonRays, (true, false) => oboromi_core::guest::Demo::DungeonShowcase, (true, true) => oboromi_core::guest::Demo::DungeonShowcaseRays }),
         "guest-mandelbrot" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Mandelbrot),
         "guest-triangle" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Triangle),
         "guest-sprites" => {
@@ -105,7 +106,7 @@ fn main() {
             .position(|arg| arg == name)
             .map(|i| args[i + 1].clone())
     };
-    if args[0] == "dungeon" {
+    if matches!(args[0].as_str(), "dungeon" | "guest-dungeon") {
         demo_dungeon::set_dungeon_capture();
         demo_dungeon::render::PROFILE.store(args.iter().any(|a|a=="--profile"), std::sync::atomic::Ordering::Relaxed);
         if let Some(debug) = flag("--water-debug") {
@@ -139,6 +140,7 @@ fn main() {
         "guest-music" => Some(oboromi_core::guest::Demo::Music),
         "guest-boombox" => Some(oboromi_core::guest::Demo::BoomBox),
         "guest-bounce" => Some(oboromi_core::guest::Demo::Bounce),
+        "guest-dungeon" => Some(match (demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed), demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed)) { (false, false) => oboromi_core::guest::Demo::Dungeon, (false, true) => oboromi_core::guest::Demo::DungeonRays, (true, false) => oboromi_core::guest::Demo::DungeonShowcase, (true, true) => oboromi_core::guest::Demo::DungeonShowcaseRays }),
         _ => None,
     }.map(|demo| oboromi_core::guest::Machine::demo(demo).unwrap());
     let mut pixels = Vec::new();

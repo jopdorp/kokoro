@@ -77,6 +77,7 @@ impl GuestDungeon {
         render::Programs {
             dungeon_vertex: DUNGEON_VERTEX,
             dungeon_fragment: DUNGEON_FRAGMENT,
+            dungeon_fragment_registers: 46,
             cones_vertex: CONES_VERTEX,
             sprite_vertex: SPRITE_VERTEX,
             sprite_fragment: SPRITE_FRAGMENT,

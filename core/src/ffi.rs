@@ -335,7 +335,16 @@ pub extern "C" fn oboromi_audio_test_tone(seconds: f32) -> usize {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn oboromi_render_dungeon_frame(seconds: f32) -> bool {
-    matches!(catch_unwind(|| crate::gpu::demo_dungeon::render_dungeon_frame(seconds)), Ok(Ok(())))
+    let _ = seconds;
+    use crate::gpu::demo_dungeon::render::{RAYS, SHOWCASE};
+    use std::sync::atomic::Ordering::Relaxed;
+    let demo = match (SHOWCASE.load(Relaxed), RAYS.load(Relaxed)) {
+        (false, false) => crate::guest::Demo::Dungeon,
+        (false, true) => crate::guest::Demo::DungeonRays,
+        (true, false) => crate::guest::Demo::DungeonShowcase,
+        (true, true) => crate::guest::Demo::DungeonShowcaseRays,
+    };
+    matches!(catch_unwind(|| crate::guest::render_demo(demo)), Ok(Ok(())))
 }
 
 #[unsafe(no_mangle)]
