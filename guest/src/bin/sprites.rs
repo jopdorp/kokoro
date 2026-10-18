@@ -43,18 +43,15 @@ fn draw() -> svc::Result<()> {
     channel.submit(base, words.len)?;
     let window = display::Window::target(&channel.nv, channel.nvmap, handle, size, TARGET as u32)?;
     hid::initialize()?;
-    let (mut tinted, mut previous) = (false, 0);
     loop {
         let input = hid::read();
-        if input.buttons & !previous & 1 != 0 { tinted = !tinted; }
-        previous = input.buttons;
         for (i, instance) in instances.iter_mut().enumerate() {
             if i > 0 && (i - 1) % (SPRITES_PER_LAYER + 1) == 0 { continue; }
             instance[0] += input.left[0] as f32 / 32767.0 * 4.0;
             instance[1] -= input.left[1] as f32 / 32767.0 * 4.0;
         }
         words.len = 0;
-        frame(base, 0.0, if tinted { [0.5, 0.8, 1.0, 1.0] } else { SUNSET }, &mut words);
+        frame(base, 0.0, if input.buttons & 1 != 0 { [0.5, 0.8, 1.0, 1.0] } else { SUNSET }, &mut words);
         channel.submit(base, words.len)?;
         window.present(size)?;
     }

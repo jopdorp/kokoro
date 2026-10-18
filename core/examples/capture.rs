@@ -6,6 +6,15 @@ use oboromi_core::ffi::oboromi_frame_read;
 use oboromi_core::gpu::{demo, demo_bounce, demo_dungeon, demo_particles, demo_post, demo_sprites, frame};
 use std::io::{Seek, Write};
 
+fn guest_sprites_stick(seconds: f32) -> [f32; 2] {
+    let points = [(0.0, [0.0, 0.0]), (0.7, [0.1, 0.0]), (1.6, [0.8, 0.2]), (2.2, [0.65, 0.3]), (2.8, [0.7, 0.28]), (3.5, [-0.25, 0.5]), (4.2, [-0.75, -0.15]), (4.8, [-0.68, -0.1]), (5.5, [0.15, -0.35]), (6.0, [0.0, 0.0])];
+    let segment = points.windows(2).find(|p| seconds <= p[1].0).unwrap_or(&points[points.len() - 2..]);
+    let t = ((seconds - segment[0].0) / (segment[1].0 - segment[0].0)).clamp(0.0, 1.0);
+    let eased = t * t * (3.0 - 2.0 * t);
+    let noise = (seconds * 17.0).sin() * 0.015 * (std::f32::consts::PI * t).sin();
+    [segment[0].1[0] + (segment[1].1[0] - segment[0].1[0]) * eased + noise, segment[0].1[1] + (segment[1].1[1] - segment[0].1[1]) * eased - noise * 0.6]
+}
+
 fn render(demo: &str, seconds: f32) -> Result<(), String> {
     match demo {
         "dungeon" => demo_dungeon::render_dungeon_frame(seconds),
@@ -13,8 +22,7 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
         "guest-bounce" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Bounce),
         "guest-triangle" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Triangle),
         "guest-sprites" => {
-            let phase = seconds * std::f32::consts::TAU / 6.0;
-            oboromi_core::input::set_override(Some(oboromi_core::input::InputState { left: [phase.cos(), phase.sin() * 0.4], buttons: u64::from((3.0..3.1).contains(&seconds)), connected: true, ..Default::default() }));
+            oboromi_core::input::set_override(Some(oboromi_core::input::InputState { left: guest_sprites_stick(seconds), buttons: u64::from((2.75..3.25).contains(&seconds)), connected: true, ..Default::default() }));
             oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Sprites)
         }
         "triangle" => frame::render_triangle_demo(seconds),
