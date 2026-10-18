@@ -12,6 +12,7 @@ mod access;
 mod atomics;
 mod cfg;
 pub use cfg::{plan, Translation};
+use cfg::plan_with_collectives;
 mod compare;
 mod control;
 mod convert;
@@ -722,7 +723,8 @@ impl<'a> Decoder<'a> {
             if reg != RZ { self.nan_flag(reg); }
         }
         if self.translation != Translation::ForceDispatcher {
-            match plan(words) {
+            let collectives = self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle);
+            match plan_with_collectives(words, collectives) {
                 Ok(plan) => return self.translate_structured(words, &plan),
                 Err(reason) => assert!(self.translation == Translation::Auto, "no structured translation: {reason}"),
             }
