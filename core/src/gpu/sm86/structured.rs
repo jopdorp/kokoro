@@ -7,6 +7,7 @@ use super::*;
 impl Decoder<'_> {
     pub(super) fn translate_structured(&mut self, words: &[u128], plan: &[Ast]) {
         self.locals = Some(Locals { vars: BTreeMap::new(), entry: self.entry, start: self.ir.function_len() });
+        self.active = self.ir.emit_constant_true(self.type_bool[1]);
         self.ir.emit_store(self.var_pc, self.const_u32_0);
         let [header, body, cont, merge] = [(); 4].map(|_| self.ir.alloc_id());
         let live = self.ir.emit_load(self.type_u32[1], self.var_live);
