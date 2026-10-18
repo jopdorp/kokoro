@@ -3,6 +3,18 @@ fn main() {
     println!("cargo:rerun-if-changed=../demos/assets/boombox-lofi/lofi.pcm");
     println!("cargo:rustc-link-arg-bins=-T{}/link.ld", env!("CARGO_MANIFEST_DIR"));
     let out = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
+    let dungeon = scene::dungeon::data::assets();
+    for (name, data) in [
+        ("vertices", dungeon.vertices),
+        ("indices", dungeon.indices),
+        ("lights", dungeon.lights),
+        ("zones", dungeon.zones),
+        ("props", dungeon.props),
+        ("tour", dungeon.tour),
+        ("acoustic-rooms", dungeon.acoustic_rooms),
+    ] {
+        std::fs::write(out.join(format!("dungeon-{name}.bin")), data).unwrap();
+    }
     std::fs::write(out.join("sprites-atlas.bin"), scene::sprites_assets::atlas()).unwrap();
     std::fs::write(out.join("particles.bin"), scene::particles::assets::initial_particles()).unwrap();
     std::fs::write(out.join("particles-background.bin"), scene::particles::assets::background()).unwrap();

@@ -217,3 +217,4 @@ pub mod particles;
 pub mod julia;
 
 pub mod sound;
+pub mod dungeon;
