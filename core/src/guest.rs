@@ -71,11 +71,25 @@ impl Machine {
         Self::image(&format!("raytraced-showcase-subframes={subframes}.nro"), include_bytes!("../tests/fixtures/guest/raytraced.nro"))
     }
 
+    pub fn load(path: &std::path::Path) -> Result<Self, String> {
+        let image = std::fs::read(path).map_err(|e| e.to_string())?;
+        Self::path(path, &image)
+    }
+
     fn image(name: &str, image: &[u8]) -> Result<Self, String> {
         Self::image_with(name, image, crate::cpu::cpu_manager::CpuManager::default_backend(), *crate::gpu::SPEED_HACKS.lock().unwrap())
     }
 
     fn image_with(name: &str, image: &[u8], backend: crate::cpu::cpu_manager::CpuBackend, hacks: crate::gpu::SpeedHacks) -> Result<Self, String> {
+        let path = crate::gpu::frame::cache_root().join("guests").join(name);
+        Self::path_with(&path, image, backend, hacks)
+    }
+
+    fn path(path: &std::path::Path, image: &[u8]) -> Result<Self, String> {
+        Self::path_with(path, image, crate::cpu::cpu_manager::CpuManager::default_backend(), *crate::gpu::SPEED_HACKS.lock().unwrap())
+    }
+
+    fn path_with(path: &std::path::Path, image: &[u8], backend: crate::cpu::cpu_manager::CpuBackend, hacks: crate::gpu::SpeedHacks) -> Result<Self, String> {
         use crate::nn::{hipc::Service, nvdrv::Nvdrv, vi};
         use std::{cell::RefCell, rc::Rc};
         let cpus = crate::cpu::cpu_manager::CpuManager::new_with_backend(backend);
@@ -88,8 +102,7 @@ impl Machine {
         kernel.sm.borrow_mut().0.insert("nvdrv".into(), nvdrv.clone() as Rc<RefCell<dyn Service>>);
         let (display, vsync) = vi::services(nvdrv);
         kernel.sm.borrow_mut().0.extend(display);
-        let path = crate::gpu::frame::cache_root().join("guests").join(name);
-        crate::loader::nro::load_bytes(&cpus.ram, cpus.get_core(0).unwrap(), &mut kernel, &path, image).map_err(|e| e.to_string())?;
+        crate::loader::nro::load_bytes(&cpus.ram, cpus.get_core(0).unwrap(), &mut kernel, path, image).map_err(|e| e.to_string())?;
         Ok(Self { cpus, kernel, vsync })
     }
 
