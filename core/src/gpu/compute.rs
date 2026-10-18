@@ -239,7 +239,7 @@ impl<'a> ComputePipeline<'a> {
     // All bindings live in set 0: 0 host support UBO, 1-8 guest cbufs, storage buffers 9-11, textures and surfaces from 12.
     pub fn new(
         state: &'a VkState,
-        spirv: &[u32],
+        spirv_words: &[u32],
         bindings: &[(u32, vk::DescriptorType)],
     ) -> Result<Self, VkError> {
         let d = &state.device;
@@ -255,7 +255,7 @@ impl<'a> ComputePipeline<'a> {
                 (layout, size)
             })
             .unzip();
-        let module_info = vk::ShaderModuleCreateInfo::default().code(spirv);
+        let module_info = vk::ShaderModuleCreateInfo::default().code(spirv_words);
         let mut p = Self {
             device: d,
             types: bindings.to_vec(),
@@ -271,10 +271,14 @@ impl<'a> ComputePipeline<'a> {
         let set_layouts = [p.set_layout];
         let layout_info = vk::PipelineLayoutCreateInfo::default().set_layouts(&set_layouts);
         p.layout = unsafe { d.create_pipeline_layout(&layout_info, None)? };
-        let stage = vk::PipelineShaderStageCreateInfo::default()
+        let mut stage = vk::PipelineShaderStageCreateInfo::default()
             .stage(vk::ShaderStageFlags::COMPUTE)
             .module(p.shader)
             .name(c"main");
+        let mut subgroup = vk::PipelineShaderStageRequiredSubgroupSizeCreateInfo::default().required_subgroup_size(32);
+        if state.subgroup_size_control_32 && spirv_words[5..].windows(2).any(|words| words == [2 << 16 | 17, crate::gpu::spirv::capability::GROUP_NON_UNIFORM_SHUFFLE]) {
+            stage = stage.push_next(&mut subgroup);
+        }
         let info = [vk::ComputePipelineCreateInfo::default()
             .stage(stage)
             .layout(p.layout)];
