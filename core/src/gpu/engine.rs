@@ -7,7 +7,7 @@ use super::fifo::{Event, Pusher};
 use super::graphics::{DrawState, GraphicsPipeline, RasterState, RenderTarget, TargetState, VertexLayout};
 use super::memory::{Mapping, MemoryError, MemoryTracker, PaRange, PAGE, PageMap, Writer, ZeroCopy, within};
 use super::pipeline_cache::{Disk, Lookup, PipelineBuilder, PipelinePolicy, hash};
-use super::sm86::{CBUF_BINDING, GLOBAL_BINDING, Hints, ResourceKind, SUPPORT_BINDING, Stage, TEXTURE_BINDING, Translation, acceleration_structure_binding, branch_target, emit_module_hinted};
+use super::sm86::{CBUF_BINDING, GLOBAL_BINDING, Hints, ResourceKind, SUPPORT_BINDING, Stage, TEXTURE_BINDING, acceleration_structure_binding, branch_target, emit_module_hinted};
 use super::texture::TexturePool;
 use super::threed::{Blend, ColourTarget, ConstantBuffer, DepthTarget, DrawSnapshot, MemoryLayout, PrimitiveTopology, ShaderProgram, VertexAttribute};
 use super::{SpeedHacks, VkError, VkState};
@@ -708,8 +708,7 @@ impl<'a> Gpu<'a> {
         }
         self.translated += 1;
         let (mut resources, mut stores_global) = (Vec::new(), false);
-        let translation = if matches!(stage, Stage::Compute { .. }) { Translation::default() } else { Translation::ForceDispatcher };
-        let module = emit_module_hinted(Some(self.state), stage, Hints { translation, ray_budget: self.ray_budget, ..Default::default() }, |decoder| {
+        let module = emit_module_hinted(Some(self.state), stage, Hints { ray_budget: self.ray_budget, ..Default::default() }, |decoder| {
             decoder.translate_program(code);
             resources = decoder.resources.iter().map(|r| r.kind).collect();
             stores_global = decoder.stores_global;

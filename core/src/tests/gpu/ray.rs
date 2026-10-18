@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn ray_budget_skips_later_queries_and_unlimited_keeps_the_exact_module() {
-        use crate::gpu::sm86::{Hints, Stage, Translation, emit_module, emit_module_hinted};
+        use crate::gpu::sm86::{Hints, Stage, emit_module, emit_module_hinted};
         use crate::tests::gpu::engine::{self, BIND_GROUP_CONSTANT_BUFFER, DRAW_VERTEX_ARRAY_BEGIN_END_INSTANCE_FIRST, SET_CONSTANT_BUFFER_SELECTOR_A, SET_PIPELINE_SHADER};
         use crate::tests::gpu::harness::spirv_val;
         use crate::tests::gpu_test::inst::{exit, mov_imm, mov_reg};
@@ -168,7 +168,7 @@ mod tests {
         ];
         let stage = Stage::Fragment { flat: 0, screen_linear: 0, depth: false };
         let exact = emit_module(Some(state), stage, |decoder| decoder.translate_program(&code));
-        let off = emit_module_hinted(Some(state), stage, Hints { translation: Translation::ForceDispatcher, ray_budget: u32::MAX, ..Default::default() }, |decoder| decoder.translate_program(&code));
+        let off = emit_module_hinted(Some(state), stage, Hints { ray_budget: u32::MAX, ..Default::default() }, |decoder| decoder.translate_program(&code));
         spirv_val(&off);
         assert_eq!(off.words(), exact.words());
         let mut shader = vec![0; 0x80];
