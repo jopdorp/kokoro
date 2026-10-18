@@ -96,6 +96,7 @@ impl<'a> Decoder<'a> {
         } else {
             self.store_register(rd, old);
         }
+        self.store_pred_bit(false, (inst >> 81 & 7) as u32, self.const_u32_1);
     }
     pub fn red(&mut self, inst: u128) {
         let rb = (((inst >> 32) & 0xff) << 0) as u32;

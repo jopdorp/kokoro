@@ -237,8 +237,8 @@ pub fn run_on(
         HostImage::new(state, &header, texels, &textures.pool.sampler(textures.handle).unwrap()).unwrap()
     };
     let image_types = resources.iter().filter_map(|r| match r.kind {
-        ResourceKind::Texture2D { .. } => Some((DescriptorType::COMBINED_IMAGE_SAMPLER, None)),
-        ResourceKind::Surface2D { format, .. } => Some((DescriptorType::STORAGE_IMAGE, Some(format))),
+        ResourceKind::Texture { .. } => Some((DescriptorType::COMBINED_IMAGE_SAMPLER, None)),
+        ResourceKind::Surface { format, .. } => Some((DescriptorType::STORAGE_IMAGE, Some(format))),
         _ => None,
     });
     let images: Vec<(u32, DescriptorType, HostImage)> = (TEXTURE_BINDING..).zip(image_types).map(|(b, (ty, format))| (b, ty, image(format))).collect();

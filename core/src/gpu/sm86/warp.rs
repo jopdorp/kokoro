@@ -76,8 +76,20 @@ impl<'a> Decoder<'a> {
         self.store_pred_bit(false, (inst >> 81 & 7) as u32, bit);
     }
     pub fn r2ur(&mut self, inst: u128) {
-        assert!(inst >> 81 & 7 == 7, "R2UR with a predicate destination");
         let mut value = self.load_register((inst >> 24 & 0xff) as u32);
+        let pu = (inst >> 81 & 7) as u32;
+        if pu != PT {
+            let (same, active): (Vec<_>, Vec<_>) = self.warp_values(value).into_iter().map(|[v, active]| {
+                let equal = self.ir.emit_iequal(self.type_bool[1], v, value);
+                let equal = self.bool_bit(equal);
+                (self.ir.emit_bitwise_and(self.type_u32[1], equal, active), active)
+            }).unzip();
+            let same = self.pack_lanes(same);
+            let active = self.pack_lanes(active);
+            let divergent = self.ir.emit_inot_equal(self.type_bool[1], same, active);
+            let divergent = self.bool_bit(divergent);
+            self.store_pred_bit(false, pu, divergent);
+        }
         if inst >> 84 & 1 != 0 {
             value = self.warp_values(value).into_iter().fold(self.const_u32_0, |acc, [v, _]| self.ir.emit_bitwise_or(self.type_u32[1], acc, v));
         }

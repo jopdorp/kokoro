@@ -67,6 +67,8 @@ pub mod capability {
     pub const INT16: u32 = 22;
     pub const INT8: u32 = 39;
     pub const MIN_LOD: u32 = 42;
+    pub const SAMPLED_1D: u32 = 43;
+    pub const IMAGE_1D: u32 = 44;
     pub const IMAGE_QUERY: u32 = 50;
     pub const GROUP_NON_UNIFORM_SHUFFLE: u32 = 65;
     pub const STORAGE_BUFFER_16BIT: u32 = 4433;

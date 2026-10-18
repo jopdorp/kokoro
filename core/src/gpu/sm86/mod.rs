@@ -92,8 +92,8 @@ pub enum ResourceKind {
     Global64,
     GlobalVector(u32),
     Hints,
-    Texture2D { cbuf_bank: u32, byte_offset: u32 },
-    Surface2D { cbuf_bank: u32, byte_offset: u32, format: vk::Format },
+    Texture { handle: u32, dimension: u32 },
+    Surface { cbuf_bank: u32, byte_offset: u32, dimension: u32, format: vk::Format },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -142,9 +142,9 @@ pub struct Decoder<'a> {
     pub force_cooperative_hmma: Option<bool>,
     tensor: TensorMode,
     cooperative_types: HashMap<[u32; 4], u32>,
-    type_texture_2d: u32,
-    type_sampled_texture_2d: u32,
-    type_surface_2d: [u32; 2],
+    type_texture: [u32; 3],
+    type_sampled_texture: [u32; 3],
+    type_surface: [[u32; 3]; 3],
     derivatives: bool,
     invocations: u32,
     glsl_ext: u32,
@@ -258,9 +258,10 @@ fn is_uniform(inst: u128) -> bool {
     inst >> 91 & 1 != 0 && matches!(inst >> 9 & 7, 1 | 2 | 4)
 }
 
-// VOTE, VOTEU, SHFL, MATCH, REDUX, BAR, HMMA, IMMA, DMMA, BMMA, LDSM, MOVM and R2UR.OR, which every invocation of the workgroup must reach together.
+// VOTE, VOTEU, SHFL, MATCH, REDUX, BAR, HMMA, IMMA, DMMA, BMMA, LDSM, MOVM and reducing R2UR forms, which every invocation of the workgroup must reach together.
 fn exchanges(inst: u128) -> bool {
-    matches!(opcode(inst) & 0x1ff, 0x006 | 0x086 | 0x189 | 0x1a1 | 0x1c4 | 0x11d | 0x03c | 0x037 | 0x03f | 0x03d | 0x03b | 0x03a) || opcode(inst) == R2UR && inst >> 84 & 1 != 0
+    matches!(opcode(inst) & 0x1ff, 0x006 | 0x086 | 0x189 | 0x1a1 | 0x1c4 | 0x11d | 0x03c | 0x037 | 0x03f | 0x03d | 0x03b | 0x03a)
+        || opcode(inst) == R2UR && (inst >> 84 & 1 != 0 || inst >> 81 & 7 != PT as u128)
 }
 
 fn partial_warpsync(inst: u128) -> bool {
@@ -338,9 +339,9 @@ impl<'a> Decoder<'a> {
             force_cooperative_hmma: None,
             tensor: hints.tensor,
             cooperative_types: HashMap::new(),
-            type_texture_2d: 0,
-            type_sampled_texture_2d: 0,
-            type_surface_2d: [0; 2],
+            type_texture: [0; 3],
+            type_sampled_texture: [0; 3],
+            type_surface: [[0; 3]; 3],
             derivatives: false,
             invocations: 0,
             glsl_ext: 0,
@@ -366,7 +367,7 @@ impl<'a> Decoder<'a> {
 
     pub fn emit_entry_point(&mut self, func: u32, device: Option<&VkState>, local_size: [u32; 3]) {
         if let Some(var) = self.resource(ResourceKind::Hints) {
-            let textures = self.resources.iter().filter(|r| matches!(r.kind, ResourceKind::Texture2D { .. } | ResourceKind::Surface2D { .. })).count() as u32;
+            let textures = self.resources.iter().filter(|r| matches!(r.kind, ResourceKind::Texture { .. } | ResourceKind::Surface { .. })).count() as u32;
             self.ir.emit_decorate(var, spirv::decoration::BINDING, &[TEXTURE_BINDING + textures]);
         }
         // SPIR-V 1.4+ entry points must list every global variable they use, not just Input/Output.

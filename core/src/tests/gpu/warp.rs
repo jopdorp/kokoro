@@ -132,6 +132,16 @@ mod tests {
     }
 
     #[test]
+    fn r2ur_predicate_reports_whether_active_lanes_agree() {
+        let word = 0x000ea4000000000000000000043f73c2;
+        for (different, expected) in [(false, 0), (true, 1)] {
+            let seeds = (0..32).map(|lane| seeds_with(&[(4, if different { lane } else { 7 })])).collect::<Vec<_>>();
+            let Some(lanes) = run(&[word], &seeds) else { return };
+            assert_eq!(column(&lanes, PRED), vec![expected; 32]);
+        }
+    }
+
+    #[test]
     fn voteu_writes_ballot_and_result_to_uniform_registers() {
         let program = [alu(VOTEU | VOTE_EQ | preds(2, 0, 0, 0), 5, 0, 0), alu(VOTEU | VOTE_ANY | preds(3, 0, 0, 0), 6, 0, 0)];
         let Some(lanes) = run(&program, &rig_seeds(0x8000_0003)) else { return };

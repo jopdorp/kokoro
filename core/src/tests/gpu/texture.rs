@@ -103,6 +103,18 @@ mod tests {
     }
 
     #[test]
+    fn one_and_three_dimensional_corpus_forms_pass_spirv_validation() {
+        for word in [
+            0x000fc600009e03ff100064ff0f087b66,
+            0x000f4200019e071b5000641c1a027b60,
+            0x000fe2000010ad001000600802007b9d,
+            0x000f6200001ead0070005e000c047b99,
+        ] {
+            spirv_val(&translate_module(&[word], true, None, false));
+        }
+    }
+
+    #[test]
     fn txq_returns_width_height_and_levels() {
         let program = [texture(inst::TXQ_DIMENSION, 4, 6, 0xff, 3, 0x10, 0b1011)];
         let Some(lanes) = run(&program, &[vec![]], &[0; 64], NEAREST) else { return };

@@ -233,7 +233,7 @@ impl<'a> Decoder<'a> {
     }
     pub fn bpt(&mut self, inst: u128) {
         let cop = (((inst >> 84) & 0x7) << 0);
-        panic!("BPT mode {cop} breaks into a debugger, which a compute shader has none of");
+        panic!("BPT mode {cop} terminates the dispatch: a Vulkan compute shader has no CUDA debugger target");
     }
     pub fn bra(&mut self, inst: u128) {
         let cond = (((inst >> 32) & 0x3) << 0);
