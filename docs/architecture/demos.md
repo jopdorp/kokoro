@@ -5,6 +5,8 @@ social_description: Watch graphics and sound demos running on oboromi.
 
 # Demos
 
+To make your own, see [Build a program](../build-a-program.md).
+
 This page shows oboromi's graphics and sound demos. Every clip is captured from the emulator on an Intel laptop unless its caption says otherwise.
 
 ## Running on the emulator {#guest-programs}

@@ -147,7 +147,7 @@ fn main() {
     if let Some(solo) = flag("--solo") {
         demo_dungeon::set_dungeon_audio_solo(&solo);
     }
-    let mut guest = if args[0] == "guest-raytraced" && subframes > 1 { Some(oboromi_core::guest::Machine::raytraced_showcase(subframes as u32).unwrap()) } else { match args[0].as_str() {
+    let mut guest = if args[0].ends_with(".nro") { Some(oboromi_core::guest::Machine::nro(std::path::Path::new(&args[0])).unwrap()) } else if args[0] == "guest-raytraced" && subframes > 1 { Some(oboromi_core::guest::Machine::raytraced_showcase(subframes as u32).unwrap()) } else { match args[0].as_str() {
         "guest-music" => Some(oboromi_core::guest::Demo::Music),
         "guest-raytraced" => Some(if audio_only { oboromi_core::guest::Demo::RaytracedAudio } else if demo::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) { oboromi_core::guest::Demo::RaytracedShowcase } else { oboromi_core::guest::Demo::Raytraced }),
         "guest-bounce" => Some(oboromi_core::guest::Demo::Bounce),
