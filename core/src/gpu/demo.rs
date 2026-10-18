@@ -8,7 +8,7 @@ use super::{VkState, device};
 use crate::tests::gpu::engine::{bytes, entry, inc, non_inc};
 use crate::tests::gpu_test::inst::bra;
 use std::path::Path;
-use std::sync::{Mutex, atomic::{AtomicBool, Ordering}};
+use std::sync::{Mutex, atomic::{AtomicBool, AtomicU32, Ordering}};
 
 const BASE: u64 = 0x1000_0000;
 const PUSHBUFFER: u64 = BASE;
@@ -474,7 +474,8 @@ impl<'a> Scene<'a> {
             let direction = key.map(|v| v / length);
             let light = if self.traced { [key[0], key[1], key[2], 0.32] } else { [direction[0], direction[1], direction[2], 0.0] };
             let cool = [-1.65, 0.7 + 0.25 * bob, -0.55, 0.12];
-            let head = [&light[..], &[10.5, 8.2, 5.6, 0.0], if self.traced { &cool[..] } else { &[0.17, 0.18, 0.22, 0.0] }, &eye, &[1.0]].concat();
+            let mut head = [&light[..], &[10.5, 8.2, 5.6, 0.0], if self.traced { &cool[..] } else { &[0.17, 0.18, 0.22, 0.0] }, &eye, &[1.0]].concat();
+            head[7] = SAMPLE_SEED.load(Ordering::Relaxed) as f32;
             for material in 0..self.material_count { self.gpu.write(MATERIALS + MATERIAL_STRIDE * material as u64 + MATERIAL_UNIFORMS, &floats(&head)).map_err(|e| format!("{e:?}"))?; }
             self.light_position = key;
         }
@@ -555,6 +556,7 @@ const HEIGHT: u32 = 1080;
 pub(super) static SCENE: Mutex<Option<(&str, Scene<'static>)>> = Mutex::new(None);
 static RAY_TRACING: AtomicBool = AtomicBool::new(true);
 pub static SHOWCASE: AtomicBool = AtomicBool::new(false);
+pub static SAMPLE_SEED: AtomicU32 = AtomicU32::new(0);
 
 fn render(asset: &'static str, seconds: f32) -> Result<(), String> {
     let mut slot = SCENE.lock().unwrap();
