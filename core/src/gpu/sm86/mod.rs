@@ -535,7 +535,7 @@ impl<'a> Decoder<'a> {
         let ty = self.type_u32[1];
         let val = self.ir.emit_select(ty, self.active, val, self.const_u32_0);
         let flag = self.bool_bit(self.active);
-        if self.tensor == TensorMode::Fast && self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle) {
+        if self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle) {
             self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM_SHUFFLE);
             let scope = self.cached_const_u32(spirv::scope::SUBGROUP);
             return lanes.iter().map(|&lane| [val, flag].map(|word| self.ir.emit_group_non_uniform_shuffle(ty, scope, word, lane))).collect();
