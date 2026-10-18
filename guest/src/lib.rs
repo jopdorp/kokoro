@@ -14,3 +14,6 @@ pub mod nvdrv;
 pub mod nv;
 #[cfg(target_arch = "aarch64")]
 pub mod svc;
+
+#[cfg(target_arch = "aarch64")]
+pub mod audren;

@@ -11,6 +11,10 @@ fn main() {
     std::fs::write(out.join("sprites-instances.bin"), instances).unwrap();
     let bounce: Vec<u8> = scene::bounce::assets::instances(&scene::bounce::balls(), &scene::bounce::assets::walls()).iter().flat_map(|v| v.to_le_bytes()).collect();
     std::fs::write(out.join("bounce-instances.bin"), bounce).unwrap();
+    let (music, samples) = scene::sound::assets::place(&scene::sound::assets::instruments(), 0);
+    std::fs::write(out.join("music-pcm.bin"), music).unwrap();
+    let pitches: Vec<f32> = (-12..=15).map(|n| 2f32.powf(n as f32 / 12.0)).collect();
+    std::fs::write(out.join("music.rs"), format!("const SAMPLES: [(u64,u32); 4] = {samples:?};\nconst PITCHES: [f32; 28] = {pitches:?};\nconst BIQUAD: [u8;10] = {:?};\n", scene::sound::assets::biquad())).unwrap();
     for (name, directory) in [("boombox", "boombox"), ("helmet", "flighthelmet")] {
         println!("cargo:rerun-if-changed=../demos/assets/{directory}");
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../demos/assets").join(directory);

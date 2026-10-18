@@ -358,12 +358,13 @@ impl Kernel {
             return false;
         }
         while !stop() {
+            let device_deadline = self.device_deadline(cpu);
             self.scheduler.poll(cpu);
             let Some((id, core)) = self.scheduler.select() else {
                 if self.scheduler.threads.iter().all(|t| matches!(t.state, State::Exited)) {
                     return true;
                 }
-                if let Some(end) = self.scheduler.next_deadline() {
+                if let Some(end) = self.scheduler.next_deadline().into_iter().chain(device_deadline).min().filter(|&end| end != u64::MAX) {
                     cpu.idle_until(end);
                     continue;
                 }
@@ -398,7 +399,7 @@ impl Kernel {
                 self.scheduler.cores[core].slice_end = now.saturating_add(quantum);
                 self.scheduler.cores[core].current = Some(id);
             }
-            let end = self.scheduler.cores[core].slice_end.min(self.scheduler.next_deadline().unwrap_or(u64::MAX));
+            let end = self.scheduler.cores[core].slice_end.min(self.scheduler.next_deadline().into_iter().chain(device_deadline).min().unwrap_or(u64::MAX));
             let sliced = match cpu.run_slice(end, core) {
                 Ok(sliced) => sliced,
                 Err(error) => {

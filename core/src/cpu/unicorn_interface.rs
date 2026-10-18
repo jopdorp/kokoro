@@ -14,6 +14,7 @@ const CLREX: u64 = 0xffff_0000_0000;
 struct Clock {
     epoch: Instant,
     virtual_time: Cell<bool>,
+    block_ticks: Cell<u64>,
     ticks: Cell<u64>,
     core: Cell<u32>,
 }
@@ -76,7 +77,7 @@ pub struct UnicornCPU {
 /// The interrupt hook runs under the core's lock, so it only records the SVC and stops;
 /// every other exception (BRK, faults) just stops the core.
 fn new_emu() -> Result<Emu, uc_error> {
-    let mut emu = Unicorn::new_with_data(Arch::ARM64, Mode::LITTLE_ENDIAN, RunState { svc: None, clock: Rc::new(Clock { epoch: Instant::now(), virtual_time: Cell::new(false), ticks: Cell::new(0), core: Cell::new(0) }), deadline: None, sliced: false, block_hook: None })?;
+    let mut emu = Unicorn::new_with_data(Arch::ARM64, Mode::LITTLE_ENDIAN, RunState { svc: None, clock: Rc::new(Clock { epoch: Instant::now(), virtual_time: Cell::new(false), block_ticks: Cell::new(192), ticks: Cell::new(0), core: Cell::new(0) }), deadline: None, sliced: false, block_hook: None })?;
     emu.add_intr_hook(|uc, intno| {
         if intno == EXCP_SWI {
             // QEMU raises the SVC with PC already past it (translate-a64.c, gen_exception_insn with pc_next).
@@ -107,7 +108,7 @@ fn slice_hook(uc: &mut Unicorn<'_, RunState>, _: u64, _: u32) {
         if data.clock.now() >= deadline {
             data.sliced = true;
             let _ = uc.emu_stop();
-        } else if data.clock.virtual_time.get() { data.clock.ticks.set(data.clock.ticks.get() + 192); }
+        } else if data.clock.virtual_time.get() { data.clock.ticks.set(data.clock.ticks.get() + data.clock.block_ticks.get()); }
     }
 }
 
@@ -205,6 +206,10 @@ impl UnicornCPU {
             emu.get_data_mut().block_hook = Some(hook);
         }
         emu.ctl_remove_cache(start, end).unwrap();
+    }
+
+    pub(crate) fn set_block_ticks(&self, ticks: u64) {
+        self.lock().0.get_data().clock.block_ticks.set(ticks);
     }
 
     pub(crate) fn set_virtual_time(&self, enabled: bool) {

@@ -24,7 +24,6 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
         "guest-post" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Post),
         "guest-particles" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Particles),
         "guest-julia" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Julia),
-        "guest-bounce" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Bounce),
         "guest-triangle" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Triangle),
         "guest-sprites" => {
             oboromi_core::input::set_override(Some(oboromi_core::input::InputState { left: guest_sprites_stick(seconds), buttons: u64::from((2.75..3.25).contains(&seconds)), connected: true, ..Default::default() }));
@@ -75,6 +74,10 @@ impl Wav {
     }
 
     fn finish(mut self, expected: usize) {
+        if self.frames >= expected {
+            self.frames = expected;
+            self.file.set_len(44 + (expected * CHANNELS as usize * size_of::<i16>()) as u64).unwrap();
+        }
         assert!(
             self.frames.abs_diff(expected) <= PERIOD as usize,
             "{} audio frames for {expected} expected",
@@ -124,13 +127,20 @@ fn main() {
     if let Some(solo) = flag("--solo") {
         demo_dungeon::set_dungeon_audio_solo(&solo);
     }
+    let mut guest = match args[0].as_str() {
+        "guest-music" => Some(oboromi_core::guest::Demo::Music),
+        "guest-bounce" => Some(oboromi_core::guest::Demo::Bounce),
+        _ => None,
+    }.map(|demo| oboromi_core::guest::Machine::demo(demo).unwrap());
     let mut pixels = Vec::new();
     let mut timings = Vec::new();
     let frames = (seconds * fps).round() as usize;
     for i in 0..frames {
         let tick = std::time::Instant::now();
         let seconds = start + (i + usize::from(args[0] == "dungeon")) as f32 / fps;
-        if audio_only && args[0] == "dungeon" {
+        if let Some(guest) = &mut guest {
+            guest.frame_with(|| { if let Some(wav) = &mut wav { if queued() > 0 { wav.drain(); } } }).unwrap();
+        } else if audio_only && args[0] == "dungeon" {
             demo_dungeon::render_dungeon_audio_frame(seconds).unwrap();
         } else {
             render(&args[0], seconds).unwrap();
