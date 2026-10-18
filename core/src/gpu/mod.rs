@@ -307,7 +307,8 @@ impl VkState {
         let has = |name| extensions.iter().any(|e| e.extension_name_as_c_str() == Ok(name));
         let linear_derivatives = derivatives.compute_derivative_group_linear == vk::TRUE && has(derivatives_extension);
         let atomic_float_extension = has(vk::EXT_SHADER_ATOMIC_FLOAT_NAME);
-        let cooperative_matrix = cooperative.cooperative_matrix == vk::TRUE && memory_model.vulkan_memory_model == vk::TRUE && has(vk::KHR_COOPERATIVE_MATRIX_NAME);
+        let cooperative_matrix = cooperative.cooperative_matrix == vk::TRUE && memory_model.vulkan_memory_model == vk::TRUE
+            && memory_model.vulkan_memory_model_device_scope == vk::TRUE && has(vk::KHR_COOPERATIVE_MATRIX_NAME);
         let shader_device_clock = shader_clock.shader_device_clock == vk::TRUE && has(vk::KHR_SHADER_CLOCK_NAME);
         let subgroup_size_control = subgroup_size_control.subgroup_size_control == vk::TRUE && has(vk::EXT_SUBGROUP_SIZE_CONTROL_NAME);
         let index_type_uint8 = uint8_indices.index_type_uint8 == vk::TRUE && has(vk::KHR_INDEX_TYPE_UINT8_NAME);
@@ -372,7 +373,8 @@ impl VkState {
         let mut enabled_derivatives = vk::PhysicalDeviceComputeShaderDerivativesFeaturesNV::default()
             .compute_derivative_group_linear(linear_derivatives);
         let mut enabled_cooperative = vk::PhysicalDeviceCooperativeMatrixFeaturesKHR::default().cooperative_matrix(cooperative_matrix);
-        let mut enabled_memory_model = vk::PhysicalDeviceVulkanMemoryModelFeatures::default().vulkan_memory_model(cooperative_matrix);
+        let mut enabled_memory_model = vk::PhysicalDeviceVulkanMemoryModelFeatures::default()
+            .vulkan_memory_model(cooperative_matrix).vulkan_memory_model_device_scope(cooperative_matrix);
         let mut enabled_shader_clock = vk::PhysicalDeviceShaderClockFeaturesKHR::default().shader_device_clock(shader_device_clock);
         let mut enabled_subgroup_size_control = vk::PhysicalDeviceSubgroupSizeControlFeatures::default().subgroup_size_control(subgroup_size_control);
         let mut enabled_uint8_indices = vk::PhysicalDeviceIndexTypeUint8FeaturesKHR::default().index_type_uint8(index_type_uint8);
