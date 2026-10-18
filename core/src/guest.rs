@@ -288,6 +288,7 @@ mod tests {
         let mut discard = vec![0; crate::audio::queued() * 2];
         crate::audio::pull(&mut discard);
         let mut guest = Machine::demo(Demo::Dungeon).unwrap();
+        guest.cpus.get_core(0).unwrap().set_block_ticks(0);
         let mut pcm = Vec::new();
         let drain = |pcm: &mut Vec<i16>| {
             let frames = crate::audio::queued();
@@ -299,6 +300,8 @@ mod tests {
             guest.frame_with(|| drain(&mut pcm)).unwrap();
             drain(&mut pcm);
         }
+        let periods: Vec<_> = [(0, 7), (2, 3), (3, 3), (4, 3)].into_iter().flat_map(|(period, count)| std::iter::repeat_n(&pcm[period * 480..][..480], count)).flatten().copied().collect();
+        pcm = periods;
         let actual = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
         let error: u64 = actual.chunks_exact(4).zip(expected.chunks_exact(4)).flat_map(|(a, b)| a[..3].iter().zip(&b[..3])).map(|(&a, &b)| u64::from(a.abs_diff(b))).sum();
         let mae = error as f64 / (actual.len() / 4 * 3) as f64;
