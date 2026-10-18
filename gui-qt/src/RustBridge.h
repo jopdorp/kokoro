@@ -43,5 +43,7 @@ bool renderBounceDemo(float seconds);
 
 // Draws the particles demo at the given time into the display
 bool renderParticlesFrame(float seconds);
+bool renderSolarFrame(float seconds);
+bool renderSolarShowcaseFrame(float seconds);
 
 }
