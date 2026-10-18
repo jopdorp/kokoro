@@ -364,9 +364,12 @@ impl<'a> Decoder<'a> {
         self.jump_to_register(inst, false);
     }
     pub fn kill(&mut self, inst: u128) {
-        assert!(!matches!(self.stage, Stage::Fragment { .. }), "KILL as a fragment discard is not implemented");
-        // KILL is pixel-only on hardware, so a compute invocation that reaches one just ends like at EXIT.
-        self.exit(inst);
+        if matches!(self.stage, Stage::Fragment { .. }) {
+            self.ir.emit_kill();
+            self.ir.emit_label();
+        } else {
+            self.exit(inst);
+        }
     }
     pub fn lepc(&mut self, inst: u128) {
         let rd = (((inst >> 16) & 0xff) << 0) as u32;

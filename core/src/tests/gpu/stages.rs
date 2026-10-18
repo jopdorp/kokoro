@@ -53,9 +53,11 @@ mod tests {
         ($($name:literal),*) => { [$(($name, include_bytes!(concat!("../../../tests/fixtures/driver-shaders/", $name, ".bin")).as_slice())),*] };
     }
 
-    const DRIVER_SHADERS: [(&str, &[u8]); 18] = driver_shaders!(
+    const DRIVER_SHADERS: [(&str, &[u8]); 33] = driver_shaders!(
         "triangle.vert", "triangle.frag", "particles.vert", "particles.frag", "particles_update.comp", "pbr.vert", "pbr.frag",
-        "post.vert", "post.frag", "sprite2d.vert", "sprite2d.frag", "quad.tesc", "quad.tese", "dynquad.tesc", "msaa.frag", "rt.vert", "rt.frag", "points.geom"
+        "post.vert", "post.frag", "sprite2d.vert", "sprite2d.frag", "quad.tesc", "quad.tese", "dynquad.tesc", "msaa.frag", "rt.vert", "rt.frag", "points.geom",
+        "dungeon.vert", "dungeon.frag", "dungeon_rt.vert", "dungeon_rt.frag", "dungeon_cones.vert", "dungeon_cones.frag", "dungeon_cones_rt.vert",
+        "dungeon_cones_rt.frag", "dungeon_sprite.vert", "dungeon_sprite.frag", "dungeon_water.comp", "dungeon_light.comp", "dungeon_particles.comp", "dungeon_fog.comp", "dungeon_post.comp"
     );
 
     // The code of a graphics stage follows its 0x80-byte program header, whose byte 11 is THREADS_PER_INPUT_PRIMITIVE
@@ -82,9 +84,11 @@ mod tests {
 
     #[test]
     fn driver_compiled_shaders_translate() {
-        for (name, _) in DRIVER_SHADERS {
-            eprintln!("{name}: {:?}", driver_module(None, name).1);
-        }
+        let failed: Vec<_> = DRIVER_SHADERS
+            .into_iter()
+            .filter_map(|(name, _)| std::panic::catch_unwind(|| eprintln!("{name}: {:?}", driver_module(None, name).1)).is_err().then_some(name))
+            .collect();
+        assert!(failed.is_empty(), "failed: {failed:?}");
     }
 
     // Draws `count` vertices over a white clear into a SIZE x SIZE target and reads it back.
