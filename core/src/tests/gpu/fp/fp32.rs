@@ -170,4 +170,11 @@ mod tests {
             assert!(got.abs_diff(want.to_bits()) <= 4, "output {i}: got {}, want {want}", f32::from_bits(got));
         }
     }
+
+    #[test]
+    fn mufu_rcp64h_rsq64h_unverified_on_silicon() {
+        let program = [inst::mufu(10, MUFU_RCP64H, 0), inst::mufu(11, MUFU_RSQ64H, 1)];
+        let Some((regs, _)) = run_regs(&program, &[0x4010_0000, 0x4030_0000], &[], &[]) else { return };
+        assert_eq!(regs[10..12], [0x3fd0_0000, 0x3fd0_0000]);
+    }
 }

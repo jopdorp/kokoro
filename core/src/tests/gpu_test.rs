@@ -130,6 +130,8 @@ pub mod inst {
     pub const MUFU_LG2: u32 = 3;
     pub const MUFU_RCP: u32 = 4;
     pub const MUFU_RSQ: u32 = 5;
+    pub const MUFU_RCP64H: u32 = 6;
+    pub const MUFU_RSQ64H: u32 = 7;
     pub const MUFU_SQRT: u32 = 8;
     pub const MUFU_TANH: u32 = 9;
     const LDG: u128 = 0x381;
