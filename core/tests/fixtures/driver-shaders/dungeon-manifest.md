@@ -20,7 +20,7 @@ Columns: words = 128-bit instructions; regs = highest R referenced + 1 (64/128-b
 | dungeon_water.comp | 160 | 24 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 | - | 876230f1259de6e63451428321184579205d76cdc4c21781c191d2af98df12a8 |
 | dungeon_light.comp | 80 | 10 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | b210ef77cd81aec36690528bd79122dc978509f473ff57ff3c84c08e688c7fb5 |
 | dungeon_particles.comp | 462 | 32 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 | - | 3ed28d9357b6d4fd0fa6a3809131ef3dbaa74a29eb6e4e8ac299d95c7a0b18a6 |
-| fire_force.comp | 445 | 38 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 0x80 0x88 | - | 37bb1aaeac7cec8d23fdbccce4c57b3d35eaaa86915f01b6d53a8327dc0c4d1a |
+| fire_force.comp | 454 | 38 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 0x80 0x88 | - | edb8fccb27669f3d47b936c9671a7b2fee59e3a01153ccd16bf2b6921965ba50 |
 | fire_curl.comp | 254 | 20 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | 20e6ac2f9da0f8d08a9c3dce5384af3e19a1e8630086a13506f36b483fb8bf39 |
 | fire_confine.comp | 334 | 24 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | ae2af333516fc737253a8a409238d5fbc4956faa165122c90f4a6903a10af889 |
 | fire_div.comp | 219 | 19 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | 4d9f0e7162697f541236885dd48ac00012a907358acd99fe4619814487d833f4 |
