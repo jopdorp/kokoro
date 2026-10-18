@@ -213,6 +213,8 @@ bool oboromi_render_test_frame();
 /// is missing or the dispatch fails. blocks, so call it from a worker thread.
 bool oboromi_render_demo_frame(float seconds);
 
+bool oboromi_render_mandelbrot_frame(float seconds);
+
 /// draws the pushbuffer triangle demo at `seconds` and presents it, false if
 /// vulkan is missing or the draw fails. blocks, so call it from a worker thread.
 bool oboromi_render_triangle_demo(float seconds);

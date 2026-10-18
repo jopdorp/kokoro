@@ -17,6 +17,7 @@ mkdir -p "$root/core/tests/fixtures/guest"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/post" "$root/core/tests/fixtures/guest/post.nro"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/particles" "$root/core/tests/fixtures/guest/particles.nro"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/julia" "$root/core/tests/fixtures/guest/julia.nro"
+"$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/mandelbrot" "$root/core/tests/fixtures/guest/mandelbrot.nro"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/music" "$root/core/tests/fixtures/guest/music.nro"
 "$objcopy" -O binary "$root/target/guest/aarch64-unknown-none/release/tensor_upscale" "$root/core/tests/fixtures/guest/tensor-upscale.nro"
 sha256sum "$root/core/tests/fixtures/guest/"*.bin "$root/core/tests/fixtures/guest/"*.nro
