@@ -49,6 +49,7 @@ fn reference(source: &[u8], mut target: Vec<u8>) -> Vec<u8> {
 
 #[test]
 fn tensor_upscale_matches_the_catmull_rom_reference_in_both_modes() {
+    let _hacks = crate::gpu::ExactSpeedHacks::new();
     let Some(state) = shared_device() else { return };
     let source: Vec<_> = (0..HALF[0] * HALF[1]).flat_map(|i| {
         let (x, y) = (i % HALF[0], i / HALF[0]);
@@ -79,5 +80,4 @@ fn tensor_upscale_matches_the_catmull_rom_reference_in_both_modes() {
     let pixels = frame.pixels();
     assert!((0..FULL[1]).all(|y| pixels[4 * (y * FULL[0] + FULL[0] / 2 - 2)..][..16] == [255; 16]));
     println!("guest tensor upscale sha256 {}", sha256(pixels));
-    crate::gpu::SPEED_HACKS.lock().unwrap().fast_tensor = false;
 }

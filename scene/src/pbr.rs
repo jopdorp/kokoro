@@ -98,7 +98,7 @@ pub fn multiply(a: Matrix, b: Matrix) -> Matrix {
 }
 
 pub fn view_projection(width: u32, height: u32, eye: [f32; 3], sqrt: impl Fn(f32) -> f32) -> Matrix {
-    let (near, far, focal) = (0.1, 20.0, 2.414_213_7);
+    let (near, far, focal) = (0.1, 20.0, 2.414_213_4);
     let projection = [[focal * height as f32 / width as f32, 0.0, 0.0, 0.0], [0.0, -focal, 0.0, 0.0], [0.0, 0.0, far / (near - far), -1.0], [0.0, 0.0, near * far / (near - far), 0.0]];
     let length = sqrt(eye.iter().map(|v| v * v).sum());
     let back = eye.map(|v| v / length);

@@ -88,7 +88,7 @@ fn pass(slot: u64, program: u64) -> Pass {
 }
 
 fn gpu(state: &'static VkState) -> Gpu<'static> {
-    let mut gpu = Gpu::new(state, ARENA as usize, None, Default::default()).unwrap();
+    let mut gpu = Gpu::new(state, ARENA as usize, None, crate::gpu::SpeedHacks::none()).unwrap();
     gpu.space.map(BASE, 0, ARENA);
     gpu
 }
