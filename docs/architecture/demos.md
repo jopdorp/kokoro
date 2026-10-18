@@ -31,9 +31,9 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 
 ### BoomBox
 
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.mp4" type="video/mp4"></video>
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.mp4" type="video/mp4"></video>
 
-*The guest loads the model and its textures, then draws each material through `nvdrv`.*
+*The BoomBox plays the CC0 track “Lofi Hip Hop Loop” by omfgdude. The guest places it in 3D the way a game does, through the audio renderer's voice parameters. Pitch adds Doppler as it orbits, while volumes set distance and panning, and a filter dulls it when the grille turns away. The reverb effect gives it a lively room instead of a box.*
 
 ### FlightHelmet
 

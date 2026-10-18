@@ -22,11 +22,50 @@ impl Renderer {
         svc::request(self.session, &Request { command: 5, ..Default::default() })?;
         svc::wait_event(self.event)
     }
+    pub fn wait(&self) -> svc::Result<()> { svc::wait_event(self.event) }
 }
 impl Drop for Renderer {
     fn drop(&mut self) {
         let _ = svc::request(self.session, &Request { command: 6, ..Default::default() });
         for handle in [self.event, self.session, self.work] { let _ = svc::close_handle(handle); }
+    }
+}
+
+pub struct Pcm<'a> {
+    renderer: Renderer,
+    memory: u64,
+    input: &'a mut [u8],
+    output: &'a mut [u8],
+    ring: Option<u64>,
+    started: bool,
+}
+
+impl<'a> Pcm<'a> {
+    pub fn new(memory: u64, capture: bool) -> svc::Result<Self> {
+        use scene::dungeon::sound::{PCM_BYTES, pcm_parameter, pcm_parcel_size};
+        crate::nv::guest_slice(memory, PCM_BYTES).fill(0);
+        let ring = capture.then_some(memory + 0x400);
+        let input_address = (memory + PCM_BYTES as u64).next_multiple_of(0x1000);
+        let input = crate::nv::guest_slice(input_address, pcm_parcel_size(1 + usize::from(capture)));
+        let output_address = (input_address + input.len() as u64).next_multiple_of(0x1000);
+        let output = crate::nv::guest_slice(output_address, 0x4000);
+        let renderer = Renderer::open(&pcm_parameter(1 + u32::from(capture)), output_address + 0x4000)?;
+        Ok(Self { renderer, memory, input, output, ring, started: false })
+    }
+
+    pub fn period(&mut self, pcm: &[[i16; 2]; scene::dungeon::sound::BLOCK]) -> svc::Result<Option<&[i16]>> {
+        for channel in 0..2 {
+            let out = crate::nv::guest_slice::<i16>(self.memory + channel as u64 * 0x200, scene::dungeon::sound::BLOCK);
+            for (out, frame) in out.iter_mut().zip(pcm) { *out = frame[channel]; }
+        }
+        if self.started {
+            self.renderer.wait()?;
+        } else {
+            let len = scene::dungeon::sound::pcm_parcel(self.input, self.memory, true, self.ring);
+            self.renderer.update(&self.input[..len], self.output)?;
+            self.started = true;
+        }
+        Ok(self.ring.map(|ring| &*crate::nv::guest_slice::<i16>(ring, 2 * scene::dungeon::sound::BLOCK)))
     }
 }
 
