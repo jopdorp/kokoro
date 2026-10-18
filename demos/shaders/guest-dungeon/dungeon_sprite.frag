@@ -22,16 +22,19 @@ float noise(vec2 p) {
 void main(){
     float seed=kind_seed.y,kind=kind_seed.x, a; vec3 c=colour.rgb;
     if(kind<.5){
-        float y=uv.y*.5+.5;float distortion=(noise(vec2(y*8.-eye_time.w*2.3,seed))-.5)*y*.45+sin(y*11.-eye_time.w*9.+seed)*.12*y+sin(y*23.-eye_time.w*13.+seed)*.055;
-        float width=(1.-y)*.65+.03;
-        float body=1.-smoothstep(width*.35,width,abs(uv.x+distortion));
-        vec2 flow=vec2((uv.x+distortion)*6.+seed,y*12.-eye_time.w*3.);
-        float turbulence=noise(flow)*.5+noise(flow*2.03)*.3+noise(flow*4.07)*.2;
-        a=body*smoothstep(0.,.12,y)*(1.-smoothstep(.7,1.,y))*smoothstep(.3,.72,turbulence+(1.-y)*.2);
-        float core=pow(max(0.,1.-abs(uv.x+distortion)/max(width,.01)),3.)*(1.-y);
-        c=mix(vec3(1.5,.025,.001),vec3(4.,.7,.025),clamp(turbulence+core,0.,1.));
-        c=mix(c,vec3(6.,4.8,2.6),clamp(core*.8,0.,1.));a*=colour.a;
-    }else if(kind<1.5){a=exp(-dot(uv,uv)*5.)*(1.-smoothstep(.6,1.,length(uv)))*colour.a;c*=12.;}
+        float y=uv.y*.5+.5,draught=sin(eye_time.w*4.+world.x*.07+world.z*.05)*.11;
+        float bend=(draught+sin(eye_time.w*7.7+seed)*.025)*y*y;
+        vec2 flow=vec2((uv.x+bend)*5.+seed,y*10.-eye_time.w*3.2);
+        float turbulence=noise(flow)*.55+noise(flow*2.03)*.3+noise(flow*4.07)*.15;
+        float flicker=.5+.5*sin(eye_time.w*(8.+noise(vec2(seed))*2.)+seed),top=.72+.12*flicker+(turbulence-.5)*.13;
+        float width=mix(.58,.055,y)*( .78+.42*turbulence),x=abs(uv.x+bend+(turbulence-.5)*y*.22);
+        float body=1.-smoothstep(width*.55,width,x),edge=1.-smoothstep(top-.035,top+.008,y);
+        float tip=(1.-smoothstep(width*.3,width*.62,x))*smoothstep(top+.018,top+.055,y)*(1.-smoothstep(top+.1,top+.18,y))*smoothstep(.52,.72,turbulence);
+        a=(body*edge+tip*.72)*smoothstep(0.,.055,y)*colour.a;
+        float core=pow(max(0.,1.-x/max(width,.01)),3.)*(1.-smoothstep(.46,.82,y));
+        c=mix(vec3(.9,.012,.001),vec3(4.8,.55,.015),smoothstep(0.,.72,body));
+        c=mix(c,vec3(7.,5.4,2.8),core);c*=.84+.2*flicker;
+    }else if(kind<1.5){a=exp(-dot(uv,uv)*6.)*(1.-smoothstep(.62,1.,length(uv)))*colour.a;c*=8.;}
     else if(kind<2.5){vec2 q=uv+vec2(noise(uv*2.7+seed+eye_time.w*.13),noise(uv*3.1-seed-eye_time.w*.09))*.22-.11;a=texture(web_alpha,q*.5+.5).g*colour.a*(.45+.55*noise(uv*3.+seed));}
     else if(kind<3.5) { a=pow(max(0.,1.-dot(uv,uv)),3.)*colour.a; }
     else if(kind<4.5) { a=pow(max(0.,1.-dot(uv,uv)),2.)*colour.a; c=vec3(.15,.3,.35)+pow(max(0.,1.-length(uv-vec2(-.2,.25))*3.),8.)*3.; }
@@ -63,7 +66,7 @@ void main(){
     if((kind>=2. && kind<9.) || kind>10.5) {
         vec3 illumination=vec3(.1,.13,.16);
         for(int i=0;i<lights.length();i++) {vec3 to=lights[i].position.xyz-world;illumination+=lights[i].colour.rgb*1.4/max(1.,dot(to,to));}
-        c*=kind==2.?mix(illumination,vec3(.65),smoothstep(0.,.03,c.b-c.r)*.85):illumination;
+        c*=kind==2.?vec3(.72,.68,.64)+illumination*.08:illumination;
     }
     if(settings.z<.5 && kind<10.5) {
         ivec2 pixel=ivec2(gl_FragCoord.xy);float depth=unpackHalf2x16(background[pixel.y*int(settings.x)+pixel.x].y).y;
@@ -75,5 +78,5 @@ void main(){
         c+=vec3(unpackHalf2x16(refracted_pixel.x),unpackHalf2x16(refracted_pixel.y).x)*.65;
     }
     if(a<.001)discard;
-    output_colour=vec4(c*a,a);
+    output_colour=vec4(c*a,kind<1.5?0.:a);
 }

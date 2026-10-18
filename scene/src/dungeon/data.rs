@@ -2266,7 +2266,7 @@ pub fn assets() -> Assets {
         .flat_map(|(i, light)| {
             floats(&[
                 light.pos[0],
-                light.pos[1],
+                light.pos[1] + light.flame * 0.5,
                 light.pos[2],
                 light.flame,
                 light.colour[0],
@@ -2331,6 +2331,6 @@ mod tests {
     fn assets_match_pinned_native_generator() {
         let assets = assets();
         assert_eq!(assets, super::assets());
-        assert_eq!(digest(&assets), 0x3e8b_42fe_9056_7e1a);
+        assert_eq!(digest(&assets), 0xfebe_e34b_1eb8_a867);
     }
 }
