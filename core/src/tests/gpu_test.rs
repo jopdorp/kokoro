@@ -52,6 +52,7 @@ pub mod inst {
     const ISBERD: u128 = 0x923;
     const LDTRAM: u128 = 0x3ad | 1 << 91;
     const PIXLD: u128 = 0x925;
+    const OUT_I: u128 = 0x924;
     pub const IPA_CONSTANT: u128 = 1 << 78;
     pub const FP_ABS_B: u128 = 1 << 62;
     pub const FP_NEG_B: u128 = 1 << 63;
@@ -572,6 +573,10 @@ pub mod inst {
 
     pub fn pixld(rd: u32, pu: u32, mode: u32) -> u128 {
         PIXLD | PT_GUARD | (rd as u128) << 16 | (mode as u128) << 78 | (pu as u128) << 81
+    }
+
+    pub fn out_imm(rd: u32, ra: u32, stream: u32, kind: u32) -> u128 {
+        OUT_I | PT_GUARD | (rd as u128) << 16 | (ra as u128) << 24 | (stream as u128) << 32 | (kind as u128) << 78
     }
 
     pub mod cvt {
@@ -1153,6 +1158,8 @@ fn fixtures_match_nvdisasm() {
         (inst::pixld(4, 0, 0), "PIXLD R4, P0 ;"),
         (inst::pixld(5, 1, 2), "PIXLD.CENTROID_OFFSET R5, P1 ;"),
         (inst::pixld(6, 2, 4), "PIXLD.INNER_COVERAGE R6, P2 ;"),
+        (inst::out_imm(4, 2, 3, 1), "OUT.EMIT R4, R2, 0x3 ;"),
+        (inst::out_imm(6, 4, 2, 3), "OUT.EMIT_THEN_CUT R6, R4, 0x2 ;"),
     ];
     use crate::tests::gpu::fp::fp16::tests as fp16;
     for (word, expected) in fixtures.iter().copied().chain(fp16::arith()).chain(fp16::compare()).chain(fp16::convert()) {

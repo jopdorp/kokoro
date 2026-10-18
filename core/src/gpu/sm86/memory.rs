@@ -235,8 +235,44 @@ impl<'a> Decoder<'a> {
         let semantics = self.cached_const_u32(semantics);
         self.ir.emit_memory_barrier(scope, semantics);
     }
-    pub fn out(&mut self, _inst: u128) {
-        todo!("OUT emits and cuts geometry shader primitives, which are not implemented");
+    pub fn out(&mut self, inst: u128) {
+        assert!(self.stage == Stage::Geometry, "OUT in a {:?} module", self.stage);
+        let kind = (inst >> 78 & 3) as u32;
+        if kind == 0 {
+            return;
+        }
+        let rd = (inst >> 16 & 0xff) as u32;
+        let ra = (inst >> 24 & 0xff) as u32;
+        let stream = if kind == 2 {
+            self.load_register(ra)
+        } else {
+            match opcode(inst) {
+                0x924 => self.cached_const_u32((inst >> 32) as u32),
+                0x1324 => self.load_ureg((inst >> 32 & 0x3f) as u32),
+                0x324 => self.load_register((inst >> 32 & 0xff) as u32),
+                op => panic!("OUT opcode {op:#x}"),
+            }
+        };
+        let mask = self.cached_const_u32(3);
+        let stream = self.ir.emit_bitwise_and(self.type_u32[1], stream, mask);
+        self.ir.emit_capability(spirv::capability::GEOMETRY_STREAMS);
+        for index in 0..4 {
+            let literal = self.cached_const_u32(index);
+            let selected = self.ir.emit_iequal(self.type_bool[1], stream, literal);
+            let [emit, merge] = [(); 2].map(|_| self.ir.alloc_id());
+            self.ir.emit_selection_merge(merge, 0);
+            self.ir.emit_branch_conditional(selected, emit, merge);
+            self.ir.emit_label_id(emit);
+            if kind & 1 != 0 {
+                self.ir.emit_stream_vertex(literal);
+            }
+            if kind & 2 != 0 {
+                self.ir.emit_end_stream_primitive(literal);
+            }
+            self.ir.emit_branch(merge);
+            self.ir.emit_label_id(merge);
+        }
+        self.store_register(rd, stream);
     }
     pub fn pixld(&mut self, inst: u128) {
         use spirv::BuiltIn;

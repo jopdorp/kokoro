@@ -62,6 +62,7 @@ fn encode_string(buf: &mut Vec<u32>, s: &str) {
 pub mod capability {
     pub const SHADER: u32 = 1;
     pub const GEOMETRY: u32 = 2;
+    pub const GEOMETRY_STREAMS: u32 = 54;
     pub const FLOAT16: u32 = 9;
     pub const FLOAT64: u32 = 10;
     pub const INT64: u32 = 11;
@@ -1075,6 +1076,14 @@ impl Emitter {
 
     pub fn emit_kill(&mut self) {
         self.inst(252, &[]);
+    }
+
+    pub fn emit_stream_vertex(&mut self, stream: u32) {
+        self.inst(220, &[stream]);
+    }
+
+    pub fn emit_end_stream_primitive(&mut self, stream: u32) {
+        self.inst(221, &[stream]);
     }
 
     pub fn validate(&self) {

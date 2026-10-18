@@ -2,7 +2,7 @@
 mod tests {
     use crate::gpu::sm86::{ResourceKind, Stage, emit_module};
     use crate::tests::gpu::harness::spirv_val;
-    use crate::tests::gpu_test::inst::{ald, ald_phys, ast, ast_phys, exit, fmul, ipa, ldtram, mov_cbuf, pixld};
+    use crate::tests::gpu_test::inst::{ald, ald_phys, ast, ast_phys, exit, fmul, ipa, ldtram, mov_cbuf, out_imm, pixld};
 
     const SCALE: u32 = 8;
 
@@ -66,5 +66,11 @@ mod tests {
             ResourceKind::FragmentOutput { location: 0 },
         ];
         assert_eq!(stage_interface(Stage::Fragment, &program), expected);
+    }
+
+    #[test]
+    fn out_emits_and_cuts_nonzero_geometry_streams() {
+        let program = [out_imm(0, 1, 3, 1), out_imm(0, 1, 2, 3), exit()];
+        assert_eq!(stage_interface(Stage::Geometry, &program), []);
     }
 }
