@@ -51,6 +51,7 @@ pub mod inst {
     const IPA: u128 = 0x326 | 0xff << 32 | 7 << 81;
     const ISBERD: u128 = 0x923;
     const LDTRAM: u128 = 0x3ad | 1 << 91;
+    const PIXLD: u128 = 0x925;
     pub const IPA_CONSTANT: u128 = 1 << 78;
     pub const FP_ABS_B: u128 = 1 << 62;
     pub const FP_NEG_B: u128 = 1 << 63;
@@ -567,6 +568,10 @@ pub mod inst {
 
     pub fn ldtram(rd: u32, attr: u32, vertex_c: bool) -> u128 {
         LDTRAM | PT_GUARD | (rd as u128) << 16 | 63 << 24 | ((attr / 4) as u128) << 64 | (vertex_c as u128) << 72
+    }
+
+    pub fn pixld(rd: u32, pu: u32, mode: u32) -> u128 {
+        PIXLD | PT_GUARD | (rd as u128) << 16 | (mode as u128) << 78 | (pu as u128) << 81
     }
 
     pub mod cvt {
@@ -1145,6 +1150,9 @@ fn fixtures_match_nvdisasm() {
         (inst::isberd(4, 2, 0x10, 0, 2, true, false), "ISBERD.SKEW.32 R4, [R2+0x10] ;"),
         (inst::ldtram(4, 0x80, false), "LDTRAM.AB R4, a[0x80] ;"),
         (inst::ldtram(6, 0x90, true), "LDTRAM.C R6, a[0x90] ;"),
+        (inst::pixld(4, 0, 0), "PIXLD R4, P0 ;"),
+        (inst::pixld(5, 1, 2), "PIXLD.CENTROID_OFFSET R5, P1 ;"),
+        (inst::pixld(6, 2, 4), "PIXLD.INNER_COVERAGE R6, P2 ;"),
     ];
     use crate::tests::gpu::fp::fp16::tests as fp16;
     for (word, expected) in fixtures.iter().copied().chain(fp16::arith()).chain(fp16::compare()).chain(fp16::convert()) {

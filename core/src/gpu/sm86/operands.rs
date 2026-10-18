@@ -347,12 +347,20 @@ impl<'a> Decoder<'a> {
         if matches!(builtin, BuiltIn::SubgroupLocalInvocationId) {
             self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM);
         }
+        if matches!(builtin, BuiltIn::SampleId | BuiltIn::SamplePosition) {
+            self.ir.emit_capability(spirv::capability::SAMPLE_RATE_SHADING);
+        }
+        if matches!(builtin, BuiltIn::FullyCovered) {
+            self.ir.emit_extension("SPV_EXT_fragment_fully_covered");
+            self.ir.emit_capability(spirv::capability::FRAGMENT_FULLY_COVERED);
+        }
         let compute_only = matches!(builtin, BuiltIn::LocalInvocationIndex | BuiltIn::LocalInvocationId | BuiltIn::WorkgroupId);
         assert!(!compute_only || matches!(self.stage, Stage::Compute { .. }), "{builtin:?} is not an input of a {:?} module", self.stage);
         let ty = match builtin {
-            BuiltIn::LocalInvocationIndex | BuiltIn::SubgroupLocalInvocationId | BuiltIn::VertexIndex | BuiltIn::InstanceIndex => self.type_u32[1],
+            BuiltIn::LocalInvocationIndex | BuiltIn::SubgroupLocalInvocationId | BuiltIn::VertexIndex | BuiltIn::InstanceIndex | BuiltIn::SampleId => self.type_u32[1],
+            BuiltIn::SamplePosition => self.type_f32[2],
             BuiltIn::FragCoord => self.type_f32[4],
-            BuiltIn::FrontFacing => self.type_bool[1],
+            BuiltIn::FrontFacing | BuiltIn::FullyCovered => self.type_bool[1],
             _ => self.type_u32[3],
         };
         let builtin = builtin as u32;
@@ -362,11 +370,34 @@ impl<'a> Decoder<'a> {
                 let ptr = self.ir.emit_type_pointer(INPUT, ty);
                 let var = self.ir.emit_variable(ptr, INPUT);
                 self.ir.emit_decorate(var, decoration::BUILTIN, &[builtin]);
+                if builtin == BuiltIn::SampleId as u32 {
+                    self.ir.emit_decorate(var, decoration::FLAT, &[]);
+                }
                 self.resources.push(Resource { kind: ResourceKind::BuiltIn(builtin), var });
                 var
             }
         };
         self.ir.emit_load(ty, var)
+    }
+
+    pub(super) fn sample_mask(&mut self) -> u32 {
+        use spirv::{BuiltIn, decoration::BUILTIN, storage_class::INPUT};
+        let kind = ResourceKind::BuiltIn(BuiltIn::SampleMask as u32);
+        let var = match self.resource(kind) {
+            Some(var) => var,
+            None => {
+                let one = self.cached_const_u32(1);
+                let array = self.ir.emit_type_array(self.type_u32[1], one);
+                let ptr = self.ir.emit_type_pointer(INPUT, array);
+                let var = self.ir.emit_variable(ptr, INPUT);
+                self.ir.emit_decorate(var, BUILTIN, &[BuiltIn::SampleMask as u32]);
+                self.resources.push(Resource { kind, var });
+                var
+            }
+        };
+        let ptr = self.ir.emit_type_pointer(INPUT, self.type_u32[1]);
+        let ptr = self.ir.emit_access_chain(ptr, var, &[self.const_u32_0]);
+        self.ir.emit_load(self.type_u32[1], ptr)
     }
 
     pub(super) fn interface_vec4(&mut self, kind: ResourceKind, storage: u32) -> u32 {

@@ -2,7 +2,7 @@
 mod tests {
     use crate::gpu::sm86::{ResourceKind, Stage, emit_module};
     use crate::tests::gpu::harness::spirv_val;
-    use crate::tests::gpu_test::inst::{ald, ald_phys, ast, ast_phys, exit, fmul, ipa, ldtram, mov_cbuf};
+    use crate::tests::gpu_test::inst::{ald, ald_phys, ast, ast_phys, exit, fmul, ipa, ldtram, mov_cbuf, pixld};
 
     const SCALE: u32 = 8;
 
@@ -52,6 +52,19 @@ mod tests {
         use ResourceKind::AttributeMap;
         let program = [ldtram(0, 0x80, false), ldtram(2, 0x84, true), exit()];
         let expected = [AttributeMap { output: false, per_vertex: true }, ResourceKind::FragmentOutput { location: 0 }];
+        assert_eq!(stage_interface(Stage::Fragment, &program), expected);
+    }
+
+    #[test]
+    fn pixld_reads_fragment_sample_state() {
+        let program = [pixld(0, 0, 0), pixld(1, 1, 1), pixld(2, 2, 2), pixld(3, 3, 3), pixld(4, 4, 4), exit()];
+        let expected = [
+            ResourceKind::BuiltIn(crate::gpu::spirv::BuiltIn::SampleMask as u32),
+            ResourceKind::BuiltIn(crate::gpu::spirv::BuiltIn::SamplePosition as u32),
+            ResourceKind::BuiltIn(crate::gpu::spirv::BuiltIn::SampleId as u32),
+            ResourceKind::BuiltIn(crate::gpu::spirv::BuiltIn::FullyCovered as u32),
+            ResourceKind::FragmentOutput { location: 0 },
+        ];
         assert_eq!(stage_interface(Stage::Fragment, &program), expected);
     }
 }

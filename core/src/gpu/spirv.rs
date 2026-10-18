@@ -67,6 +67,7 @@ pub mod capability {
     pub const INT64: u32 = 11;
     pub const INT16: u32 = 22;
     pub const INT8: u32 = 39;
+    pub const SAMPLE_RATE_SHADING: u32 = 35;
     pub const MIN_LOD: u32 = 42;
     pub const IMAGE_QUERY: u32 = 50;
     pub const GROUP_NON_UNIFORM: u32 = 61;
@@ -76,6 +77,7 @@ pub mod capability {
     pub const PHYSICAL_STORAGE_BUFFER_ADDRESSES: u32 = 5348;
     pub const COMPUTE_DERIVATIVE_GROUP_LINEAR: u32 = 5350;
     pub const FRAGMENT_BARYCENTRIC: u32 = 5284;
+    pub const FRAGMENT_FULLY_COVERED: u32 = 5265;
     pub const VARIABLE_POINTERS: u32 = 4442;
     pub const DENORM_PRESERVE: u32 = 4464;
     pub const SIGNED_ZERO_INF_NAN_PRESERVE: u32 = 4466;
@@ -160,6 +162,9 @@ pub enum BuiltIn {
     InstanceIndex = 43,
     FragCoord = 15,
     FrontFacing = 17,
+    SampleId = 18,
+    SamplePosition = 19,
+    SampleMask = 20,
     FragDepth = 22,
     NumWorkgroups = 24,
     WorkgroupSize = 25,
@@ -169,6 +174,7 @@ pub enum BuiltIn {
     LocalInvocationIndex = 29,
     SubgroupSize = 36,
     SubgroupLocalInvocationId = 41,
+    FullyCovered = 5264,
 }
 
 #[derive(Debug, Clone)]

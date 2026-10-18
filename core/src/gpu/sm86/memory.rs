@@ -238,8 +238,47 @@ impl<'a> Decoder<'a> {
     pub fn out(&mut self, _inst: u128) {
         todo!("OUT emits and cuts geometry shader primitives, which are not implemented");
     }
-    pub fn pixld(&mut self, _inst: u128) {
-        todo!("PIXLD needs SampleId or SampleMask inputs, which are not implemented");
+    pub fn pixld(&mut self, inst: u128) {
+        use spirv::BuiltIn;
+        assert!(self.stage == Stage::Fragment, "PIXLD in a {:?} module", self.stage);
+        let mode = (inst >> 78 & 7) as u32;
+        let (value, predicate) = match mode {
+            0 => (self.const_u32_1, None),
+            1 => (self.sample_mask(), None),
+            2 => {
+                let position = self.builtin(BuiltIn::SamplePosition);
+                let [half, sixteen] = [0.5f32, 16.0].map(|v| self.ir.emit_constant_typed(self.type_f32[1], v));
+                let mask = self.cached_const_u32(0xf);
+                let mut packed = self.const_u32_0;
+                for component in 0..2 {
+                    let value = self.ir.emit_composite_extract(self.type_f32[1], position, &[component]);
+                    let value = self.ir.emit_fsub(self.type_f32[1], value, half);
+                    let value = self.ir.emit_fmul(self.type_f32[1], value, sixteen);
+                    let value = self.ir.emit_convert_f_to_s(self.type_s32[1], value);
+                    let value = self.ir.emit_bitcast(self.type_u32[1], value);
+                    let value = self.ir.emit_bitwise_and(self.type_u32[1], value, mask);
+                    let shift = self.cached_const_u32(4 * component);
+                    let value = self.ir.emit_shift_left_logical(self.type_u32[1], value, shift);
+                    packed = self.ir.emit_bitwise_or(self.type_u32[1], packed, value);
+                }
+                (packed, None)
+            }
+            3 => (self.builtin(BuiltIn::SampleId), None),
+            4 => {
+                let covered = self.builtin(BuiltIn::FullyCovered);
+                (self.bool_bit(covered), Some(covered))
+            }
+            _ => panic!("PIXLD mode {mode}"),
+        };
+        self.store_register((inst >> 16 & 0xff) as u32, value);
+        let bit = match predicate {
+            Some(predicate) => self.bool_bit(predicate),
+            None => {
+                let nonzero = self.ir.emit_inot_equal(self.type_bool[1], value, self.const_u32_0);
+                self.bool_bit(nonzero)
+            }
+        };
+        self.store_pred_bit(false, (inst >> 81 & 7) as u32, bit);
     }
     pub fn setlmembase(&mut self, _inst: u128) {}
     pub fn st(&mut self, inst: u128) {
