@@ -86,8 +86,22 @@ impl<'a> Decoder<'a> {
         let bits = self.fp_arith_result(inst, sum, ftz);
         self.store_fp_register((inst >> 16 & 0xff) as u32, bits);
     }
-    pub fn fchk(&mut self, _inst: u128) {
-        panic!("FCHK is not implemented: NAK, Ryujinx and Eden have no lowering for it, so it waits for silicon fixtures");
+    pub fn fchk(&mut self, inst: u128) {
+        let a = self.fp_reg(inst, 24, 73, 72, false);
+        let b = self.fp_alu_src(inst, false);
+        let special = |this: &mut Self, val| {
+            let bits = this.bitcast_u32(val);
+            let mask = this.cached_const_u32(0x7f80_0000);
+            let exponent = this.ir.emit_bitwise_and(this.type_u32[1], bits, mask);
+            let zero = this.ir.emit_iequal(this.type_bool[1], exponent, this.const_u32_0);
+            let max = this.ir.emit_iequal(this.type_bool[1], exponent, mask);
+            this.ir.emit_logical_or(this.type_bool[1], zero, max)
+        };
+        let check = special(self, a);
+        let other = special(self, b);
+        let check = self.ir.emit_logical_or(self.type_bool[1], check, other);
+        let check = self.bool_bit(check);
+        self.store_pred_bit(false, (inst >> 81 & 7) as u32, check);
     }
     pub fn ffma(&mut self, inst: u128) {
         let fmz = inst >> 76 & 1 != 0;

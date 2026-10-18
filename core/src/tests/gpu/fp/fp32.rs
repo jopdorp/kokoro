@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::tests::gpu::harness::run_regs;
+    use crate::tests::gpu::harness::{PRED, run_regs};
     use crate::tests::gpu_test::inst::{self, *};
 
     fn bits(values: &[f32]) -> Vec<u32> {
@@ -176,5 +176,16 @@ mod tests {
         let program = [inst::mufu(10, MUFU_RCP64H, 0), inst::mufu(11, MUFU_RSQ64H, 1)];
         let Some((regs, _)) = run_regs(&program, &[0x4010_0000, 0x4030_0000], &[], &[]) else { return };
         assert_eq!(regs[10..12], [0x3fd0_0000, 0x3fd0_0000]);
+    }
+
+    #[test]
+    fn fchk_flags_non_normal_division_operands() {
+        const FCHK: u128 = 0x004fc800000000000000000000007302;
+        let fchk = |pred: u128, a: u128, b: u128| FCHK | pred << 81 | a << 24 | b << 32;
+        let mut seed = bits(&[1.0, 2.0, 0.0, 1.0, f32::from_bits(1), 1.0, f32::INFINITY, 1.0, f32::NAN]);
+        seed.resize(PRED + 1, 0);
+        let program = [fchk(0, 0, 1), fchk(1, 2, 3), fchk(2, 3, 4), fchk(3, 6, 7), fchk(4, 7, 8)];
+        let Some((regs, _)) = run_regs(&program, &seed, &[], &[]) else { return };
+        assert_eq!(regs[PRED] & 0x1f, 0x1e);
     }
 }
