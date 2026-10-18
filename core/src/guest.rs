@@ -48,6 +48,10 @@ impl Machine {
         Self::image(name, image)
     }
 
+    pub fn raytraced_showcase(subframes: u32) -> Result<Self, String> {
+        Self::image(&format!("raytraced-showcase-subframes={subframes}.nro"), include_bytes!("../tests/fixtures/guest/raytraced.nro"))
+    }
+
     fn image(name: &str, image: &[u8]) -> Result<Self, String> {
         use crate::nn::{hipc::Service, nvdrv::Nvdrv, vi};
         use std::{cell::RefCell, rc::Rc};
