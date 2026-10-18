@@ -344,10 +344,13 @@ impl<'a> Decoder<'a> {
 
     pub(super) fn builtin(&mut self, builtin: spirv::BuiltIn) -> u32 {
         use spirv::{BuiltIn, decoration, storage_class::INPUT};
+        if matches!(builtin, BuiltIn::SubgroupLocalInvocationId) {
+            self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM);
+        }
         let compute_only = matches!(builtin, BuiltIn::LocalInvocationIndex | BuiltIn::LocalInvocationId | BuiltIn::WorkgroupId);
         assert!(!compute_only || matches!(self.stage, Stage::Compute { .. }), "{builtin:?} is not an input of a {:?} module", self.stage);
         let ty = match builtin {
-            BuiltIn::LocalInvocationIndex | BuiltIn::VertexIndex | BuiltIn::InstanceIndex => self.type_u32[1],
+            BuiltIn::LocalInvocationIndex | BuiltIn::SubgroupLocalInvocationId | BuiltIn::VertexIndex | BuiltIn::InstanceIndex => self.type_u32[1],
             BuiltIn::FragCoord => self.type_f32[4],
             BuiltIn::FrontFacing => self.type_bool[1],
             _ => self.type_u32[3],

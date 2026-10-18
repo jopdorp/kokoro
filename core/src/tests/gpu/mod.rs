@@ -16,6 +16,7 @@ mod shared;
 pub mod silicon;
 mod special;
 mod stages;
+mod stage_buffer;
 mod tensor;
 mod texture;
 mod uniform;

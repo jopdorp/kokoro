@@ -125,8 +125,32 @@ impl<'a> Decoder<'a> {
         };
         self.store_register(rd, val);
     }
-    pub fn isberd(&mut self, _inst: u128) {
-        todo!("ISBERD reads the internal stage buffer of geometry and tessellation stages, which are not implemented");
+    pub fn isberd(&mut self, inst: u128) {
+        let [rd, ra] = [16, 24].map(|bit| (inst >> bit & 0xff) as u32);
+        let offset = self.cached_const_u32((inst >> 40 & 0xffff) as u32);
+        let base = if ra == RZ { self.const_u32_0 } else { self.load_register(ra) };
+        let mut address = self.ir.emit_iadd(self.type_u32[1], base, offset);
+        let size = (inst >> 74 & 3) as u32;
+        assert!(size < 3, "ISBERD size {size}");
+        if inst >> 78 & 1 != 0 {
+            let lane = self.builtin(spirv::BuiltIn::SubgroupLocalInvocationId);
+            let shift = self.cached_const_u32(size);
+            let skew = self.ir.emit_shift_left_logical(self.type_u32[1], lane, shift);
+            address = self.ir.emit_iadd(self.type_u32[1], address, skew);
+        }
+        if inst >> 79 & 1 != 0 {
+            return self.load_memory(ResourceKind::Global, address, [0, 2, 4][size as usize], rd);
+        }
+        let value = match inst >> 76 & 3 {
+            0 => address,
+            1..=3 => {
+                let ptr = self.attribute_component(false, address, None);
+                let value = self.ir.emit_load(self.type_f32[1], ptr);
+                self.bitcast_u32(value)
+            }
+            _ => unreachable!(),
+        };
+        self.store_register(rd, value);
     }
     pub fn isbewr(&mut self, _inst: u128) {
         todo!("ISBEWR writes the internal stage buffer of geometry and tessellation stages, which are not implemented");
