@@ -15,6 +15,7 @@ mod program;
 mod shared;
 pub mod silicon;
 mod special;
+mod stages;
 mod tensor;
 mod texture;
 mod uniform;

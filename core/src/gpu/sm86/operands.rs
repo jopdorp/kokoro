@@ -344,8 +344,12 @@ impl<'a> Decoder<'a> {
 
     pub(super) fn builtin(&mut self, builtin: spirv::BuiltIn) -> u32 {
         use spirv::{BuiltIn, decoration, storage_class::INPUT};
+        let compute_only = matches!(builtin, BuiltIn::LocalInvocationIndex | BuiltIn::LocalInvocationId | BuiltIn::WorkgroupId);
+        assert!(!compute_only || matches!(self.stage, Stage::Compute { .. }), "{builtin:?} is not an input of a {:?} module", self.stage);
         let ty = match builtin {
-            BuiltIn::LocalInvocationIndex => self.type_u32[1],
+            BuiltIn::LocalInvocationIndex | BuiltIn::VertexIndex | BuiltIn::InstanceIndex => self.type_u32[1],
+            BuiltIn::FragCoord => self.type_f32[4],
+            BuiltIn::FrontFacing => self.type_bool[1],
             _ => self.type_u32[3],
         };
         let builtin = builtin as u32;
@@ -360,6 +364,64 @@ impl<'a> Decoder<'a> {
             }
         };
         self.ir.emit_load(ty, var)
+    }
+
+    pub(super) fn interface_vec4(&mut self, kind: ResourceKind, storage: u32) -> u32 {
+        use spirv::decoration::{BUILTIN, FLAT, LOCATION};
+        if let Some(var) = self.resource(kind) {
+            return var;
+        }
+        let ptr = self.ir.emit_type_pointer(storage, self.type_f32[4]);
+        let var = self.ir.emit_variable(ptr, storage);
+        match kind {
+            ResourceKind::BuiltIn(builtin) => self.ir.emit_decorate(var, BUILTIN, &[builtin]),
+            ResourceKind::VertexInput { location } | ResourceKind::Varying { location, .. } | ResourceKind::FragmentOutput { location } => self.ir.emit_decorate(var, LOCATION, &[location]),
+            _ => unreachable!("{kind:?} is not a stage interface"),
+        }
+        if let ResourceKind::Varying { flat: true, .. } = kind {
+            self.ir.emit_decorate(var, FLAT, &[]);
+        }
+        self.resources.push(Resource { kind, var });
+        var
+    }
+
+    pub(super) fn interface_component(&mut self, kind: ResourceKind, storage: u32, attr: u32) -> u32 {
+        let var = self.interface_vec4(kind, storage);
+        let ptr = self.ir.emit_type_pointer(storage, self.type_f32[1]);
+        let component = self.cached_const_u32(attr / 4 % 4);
+        self.ir.emit_access_chain(ptr, var, &[component])
+    }
+
+    pub(super) fn attribute_component(&mut self, output: bool, address: u32, vertex: Option<u32>) -> u32 {
+        use spirv::{decoration::LOCATION, storage_class::{INPUT, OUTPUT}};
+        let storage = if output { OUTPUT } else { INPUT };
+        let per_vertex = vertex.is_some();
+        let kind = ResourceKind::AttributeMap { output, per_vertex };
+        let var = match self.resource(kind) {
+            Some(var) => var,
+            None => {
+                let locations = self.cached_const_u32(32);
+                let mut ty = self.ir.emit_type_array(self.type_f32[4], locations);
+                if per_vertex {
+                    let vertices = self.cached_const_u32(3);
+                    ty = self.ir.emit_type_array(ty, vertices);
+                }
+                let ptr = self.ir.emit_type_pointer(storage, ty);
+                let var = self.ir.emit_variable(ptr, storage);
+                self.ir.emit_decorate(var, LOCATION, &[0]);
+                self.resources.push(Resource { kind, var });
+                var
+            }
+        };
+        let base = self.cached_const_u32(0x80);
+        let offset = self.ir.emit_isub(self.type_u32[1], address, base);
+        let [two, four, three] = [2, 4, 3].map(|v| self.cached_const_u32(v));
+        let location = self.ir.emit_shift_right_logical(self.type_u32[1], offset, four);
+        let component = self.ir.emit_shift_right_logical(self.type_u32[1], offset, two);
+        let component = self.ir.emit_bitwise_and(self.type_u32[1], component, three);
+        let ptr = self.ir.emit_type_pointer(storage, self.type_f32[1]);
+        let indexes = if let Some(vertex) = vertex { vec![vertex, location, component] } else { vec![location, component] };
+        self.ir.emit_access_chain(ptr, var, &indexes)
     }
 
     pub(super) fn special_register(&mut self, index: u32) -> u32 {

@@ -61,6 +61,7 @@ fn encode_string(buf: &mut Vec<u32>, s: &str) {
 
 pub mod capability {
     pub const SHADER: u32 = 1;
+    pub const GEOMETRY: u32 = 2;
     pub const FLOAT16: u32 = 9;
     pub const FLOAT64: u32 = 10;
     pub const INT64: u32 = 11;
@@ -113,6 +114,7 @@ pub mod memory_semantics {
 
 pub mod execution_model {
     pub const VERTEX: u32 = 0;
+    pub const GEOMETRY: u32 = 3;
     pub const FRAGMENT: u32 = 4;
     pub const GLCOMPUTE: u32 = 5;
 }
@@ -120,6 +122,9 @@ pub mod execution_model {
 pub mod execution_mode {
     pub const LOCAL_SIZE: u32 = 17;
     pub const ORIGIN_UPPER_LEFT: u32 = 7;
+    pub const INPUT_POINTS: u32 = 19;
+    pub const OUTPUT_VERTICES: u32 = 26;
+    pub const OUTPUT_POINTS: u32 = 27;
     pub const DENORM_PRESERVE: u32 = 4459;
     pub const SIGNED_ZERO_INF_NAN_PRESERVE: u32 = 4461;
     pub const DERIVATIVE_GROUP_LINEAR: u32 = 5290;

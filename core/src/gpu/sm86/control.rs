@@ -289,6 +289,16 @@ impl<'a> Decoder<'a> {
     // The host driver owns dependency scoreboarding.
     pub fn depbar(&mut self, _inst: u128) {}
     pub fn exit(&mut self, _inst: u128) {
+        if self.stage == Stage::Fragment {
+            // One render target until the PS header's OMAP is read: its colour is R0-R3 at EXIT.
+            let target = self.interface_vec4(ResourceKind::FragmentOutput { location: 0 }, spirv::storage_class::OUTPUT);
+            let colour: Vec<u32> = (0..4).map(|reg| {
+                let bits = self.load_register(reg);
+                self.bitcast_f32(bits)
+            }).collect();
+            let colour = self.ir.emit_composite_construct(self.type_f32[4], &colour);
+            self.ir.emit_store(target, colour);
+        }
         let ptr = self.barrier_token(ATEXIT_PC);
         let atexit = self.ir.emit_load(self.type_u32[1], ptr);
         self.ir.emit_store(ptr, self.const_u32_0);
@@ -332,6 +342,7 @@ impl<'a> Decoder<'a> {
         self.jump_to_register(inst, false);
     }
     pub fn kill(&mut self, inst: u128) {
+        assert!(self.stage != Stage::Fragment, "KILL as a fragment discard is not implemented");
         // KILL is pixel-only on hardware, so a compute invocation that reaches one just ends like at EXIT.
         self.exit(inst);
     }
