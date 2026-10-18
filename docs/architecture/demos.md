@@ -16,7 +16,13 @@ When a demo becomes a guest program, its entry moves here.
 
 *The stick moves the layers through the hid service. Halfway, a button press flashes the scene.*
 
-Both run as guest programs on the emulated CPU and GPU. The other demos still build their command streams on the host and are being converted one by one.
+### Bounce
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-bounce.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-bounce.mp4" type="video/mp4"></video>
+
+*The guest runs the same physics on the emulated CPU each frame and submits the particles shader through nvdrv. Its collision sounds come with the audio pass, so this clip is silent.*
+
+They run as guest programs on the emulated CPU and GPU. The other demos still build their command streams on the host and are being converted one by one.
 
 The Qt window has buttons that draw through the GPU work today. Larger scenes show post effects, sprites, particles, BoomBox, FlightHelmet, ray tracing and a dungeon. For example, the Triangle button writes GPU commands into emulated memory every frame, and the full engine draws them.
 
@@ -123,10 +129,6 @@ The ray-traced scene runs through `demo::render_raytraced_frame` or the `capture
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-music-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-music.mp4" type="video/mp4"></video>
 
 *Music: four instruments made at startup play a looping tune through the audio renderer, with a low-pass and an echo on the mix.*
-
-<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-bounce-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-bounce.mp4" type="video/mp4"></video>
-
-*Bounce: every hit plays a knock, higher for small balls and louder for hard hits, panned to where it happened.*
 
 ### Dungeon
 
