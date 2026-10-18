@@ -1,3 +1,8 @@
+---
+social_title: oboromi Switch 2 emulator
+social_description: See oboromi run Switch 2 graphics demos through its emulator.
+---
+
 # oboromi
 
 This is the documentation of oboromi, an early Nintendo Switch 2 emulator written in Rust. An emulator is a program that lets a PC act like the console. It builds on the foundations its maintainer and contributors laid down. Most of the recent work is on the graphics chip, the GPU, with the CPU, services and audio in progress.

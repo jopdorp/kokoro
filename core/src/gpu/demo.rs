@@ -135,6 +135,7 @@ const HEIGHT: u32 = 1080;
 
 pub(super) static SCENE: Mutex<Option<(&str, Scene<'static>)>> = Mutex::new(None);
 static RAY_TRACING: AtomicBool = AtomicBool::new(true);
+pub static SHOWCASE: AtomicBool = AtomicBool::new(false);
 
 fn render(asset: &'static str, seconds: f32) -> Result<(), String> {
     let mut slot = SCENE.lock().unwrap();
