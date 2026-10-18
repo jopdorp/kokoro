@@ -41,3 +41,13 @@ fetch_dungeon_audio() {
     tar -xJf "$dir/audio.tar.xz" -C "$dir" && rm "$dir/audio.tar.xz"
 }
 fetch_dungeon_audio
+
+fetch_hrir() {
+    dir=$(dirname "$0")/hrir
+    [ -f "$dir/d1.bin" ] && return
+    mkdir -p "$dir"
+    curl -fL https://raw.githubusercontent.com/jopdorp/oboromi/c0f3f7d917634f085cef1c41da0880e56ddb716d/sadie-d1-hrir.tar.xz -o "$dir/hrir.tar.xz"
+    echo "258a8b442cc0589cc6d069654c5535a8eb5926f2d3620b13ae4586f2961ca1ec  $dir/hrir.tar.xz" | sha256sum -c -
+    tar -xJf "$dir/hrir.tar.xz" -C "$(dirname "$dir")" && rm "$dir/hrir.tar.xz"
+}
+fetch_hrir
