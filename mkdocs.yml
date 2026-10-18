@@ -60,6 +60,7 @@ hooks:
 
 nav:
   - Home: index.md
+  - Build a program: build-a-program.md
   - Architecture:
       - architecture/README.md
       - Emulator overview: architecture/oboromi-overview.md

@@ -29,6 +29,11 @@ pub struct Machine {
 }
 
 impl Machine {
+    pub fn nro(path: &std::path::Path) -> Result<Self, String> {
+        let image = std::fs::read(path).map_err(|e| e.to_string())?;
+        Self::image(path.file_name().and_then(|name| name.to_str()).unwrap_or("program.nro"), &image)
+    }
+
     fn demo_image(demo: Demo) -> (&'static str, &'static [u8]) {
         match demo {
             Demo::Helmet => ("helmet.nro", include_bytes!("../tests/fixtures/guest/helmet.nro")),
