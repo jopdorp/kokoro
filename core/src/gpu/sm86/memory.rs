@@ -225,8 +225,8 @@ impl<'a> Decoder<'a> {
         const LDC_UR_BANK: u32 = 0x1582;
         let bindless = opcode(inst) == LDC_UR_BANK;
         let base = self.load_register(if bindless { (inst >> 64) as u32 & 0xff } else { ra });
-        let mut bank = if bindless { self.load_ureg(ra & 0x3f) } else { self.cached_const_u32(sc_bank) };
-        let base = if stride >= 2 {
+        let mut bank = self.cached_const_u32(sc_bank);
+        let base = if !bindless && stride >= 2 {
             let sixteen = self.cached_const_u32(16);
             let segment = self.ir.emit_shift_right_logical(self.type_u32[1], base, sixteen);
             bank = self.ir.emit_iadd(self.type_u32[1], bank, segment);
@@ -238,7 +238,9 @@ impl<'a> Decoder<'a> {
         for i in 0..access_words(sz) {
             let offset = self.cached_const_u32(ra_offset.wrapping_add(4 * i));
             let addr = self.ir.emit_iadd(self.type_u32[1], base, offset);
-            let word = if bindless || stride >= 2 {
+            let word = if bindless {
+                self.load_bindless_cbuf_at(ra & 0x3f, addr)
+            } else if stride >= 2 {
                 self.load_dynamic_cbuf(bank, addr)
             } else {
                 self.load_cbuf(ResourceKind::Cbuf(sc_bank), addr)
