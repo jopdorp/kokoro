@@ -213,3 +213,4 @@ pub const NEAREST_CLAMP_TSC: [u32; 8] = [2 | 2 << 3, 1 | 1 << 4, 0, 0, 0, 0, 0, 
 
 pub mod pbr;
 pub mod post;
+pub mod particles;
