@@ -53,7 +53,10 @@ fn romfs(nro: &[u8], size: usize) -> Rc<[u8]> {
 
 /// Loads the NRO at `path` at the start of the code region and points the kernel's thread at it.
 pub fn load(ram: &GuestRam, cpu: &UnicornCPU, kernel: &mut Kernel, path: &Path) -> Result<()> {
-    let nro = fs::read(path)?;
+    load_bytes(ram, cpu, kernel, path, &fs::read(path)?)
+}
+
+pub fn load_bytes(ram: &GuestRam, cpu: &UnicornCPU, kernel: &mut Kernel, path: &Path, nro: &[u8]) -> Result<()> {
     if nro.get(0x10..0x14) != Some(b"NRO0") {
         return Err(invalid());
     }

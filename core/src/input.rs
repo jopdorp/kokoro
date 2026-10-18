@@ -43,11 +43,13 @@ struct Host {
     keys: u64,
     typed: bool,
     pad: InputState,
+    injected: Option<InputState>,
     pad_name: String,
 }
 
 static HOST: Mutex<Host> = Mutex::new(Host {
     keys: 0,
+    injected: None,
     typed: false,
     pad: InputState { buttons: 0, left: [0.0; 2], right: [0.0; 2], connected: false },
     pad_name: String::new(),
@@ -85,7 +87,12 @@ pub fn state() -> (InputState, String) {
     static START: Once = Once::new();
     START.call_once(|| drop(std::thread::Builder::new().name("gamepad".into()).spawn(gamepad_thread)));
     let host = HOST.lock().unwrap();
-    (merge(host.keys, host.typed, host.pad), host.pad_name.clone())
+    (host.injected.unwrap_or_else(|| merge(host.keys, host.typed, host.pad)), host.pad_name.clone())
+}
+
+/// Overrides live input for deterministic offline captures and guest contract tests.
+pub fn set_override(input: Option<InputState>) {
+    HOST.lock().unwrap().injected = input;
 }
 
 fn merge(keys: u64, typed: bool, pad: InputState) -> InputState {

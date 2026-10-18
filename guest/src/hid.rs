@@ -32,7 +32,7 @@ pub fn service(name: [u8; 8]) -> Result<u32> {
     call(sm, Request { command: 1, data: &name, ..Default::default() })
 }
 
-pub fn read_full_key() -> Result<FullKey> {
+pub fn initialize() -> Result<()> {
     let hid = service(*b"hid\0\0\0\0\0")?;
     let resource = call(hid, Request { command: 0, send_pid: true, data: &ARUID, ..Default::default() })?;
     let shared = call(resource, Request { command: 0, ..Default::default() })?;
@@ -43,12 +43,21 @@ pub fn read_full_key() -> Result<FullKey> {
     call(hid, Request { command: 102, send_pid: true, data: &ARUID, pointer: &pointer, ..Default::default() })?;
     call(hid, Request { command: 109, send_pid: true, data: &with_aruid(5), ..Default::default() })?;
 
+    Ok(())
+}
+
+pub fn read_full_key() -> Result<FullKey> {
+    initialize()?;
+    Ok(read())
+}
+
+pub fn read() -> FullKey {
     let npad = SHARED_MEMORY + 0x9A00;
     let read = |at: u64| unsafe { core::ptr::read_volatile(at as *const u64) };
     let state = npad + 0x28 + 0x20 + read(npad + 0x28 + 0x10) * 0x30 + 8;
     let word = |at: u64| unsafe { core::ptr::read_volatile((state + at) as *const i32) };
     if read(npad) as u32 & FULL_KEY == 0 || word(0x20) as u32 & IS_CONNECTED == 0 {
-        return Ok(FullKey { buttons: 0, left: [0; 2], right: [0; 2] });
+        return FullKey { buttons: 0, left: [0; 2], right: [0; 2] };
     }
-    Ok(FullKey { buttons: read(state + 8), left: [word(0x10), word(0x14)], right: [word(0x18), word(0x1c)] })
+    FullKey { buttons: read(state + 8), left: [word(0x10), word(0x14)], right: [word(0x18), word(0x1c)] }
 }

@@ -312,6 +312,7 @@ mod tests {
 
     #[test]
     fn a_core_stores_the_vertices_the_gpu_draws_and_loads_the_report_the_gpu_wrote() {
+        let _display = crate::guest::DISPLAY_TEST.lock().unwrap();
         let Some(state) = shared_device() else { return };
         let mut gpu = triangle_guest(state, None, SIZE, SIZE, &[(CORNERS[0], WHITE); 3]).unwrap();
         let mapped = gpu.memory.generation(physical(&gpu, VERTICES), PAGE);
@@ -322,6 +323,9 @@ mod tests {
         cpu.set_pc(GUEST_LOAD);
         assert_eq!(cpu.run(), 1);
         assert_eq!(cpu.get_x(5), 0x1234_5678);
+        cpu.write_u32(physical(&gpu, TARGET), 0xff11_2233);
+        gpu.present(TARGET, SIZE, SIZE).unwrap();
+        assert_eq!(&crate::display::DISPLAY.lock().unwrap().pixels()[..4], &[0x33, 0x22, 0x11, 0xff]);
     }
 
     #[test]

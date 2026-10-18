@@ -465,6 +465,12 @@ impl<'a> Gpu<'a> {
         Ok(())
     }
 
+    fn cpu_writes(&mut self) {
+        for pa in self.ram.take_cpu_written() {
+            self.memory.mark_cpu_written(pa, PAGE);
+        }
+    }
+
     pub fn map(&mut self, va: u64, pa: u64, len: u64) {
         self.space.map(va, pa, len);
         self.memory.mark_cpu_written(pa, len);
@@ -481,6 +487,7 @@ impl<'a> Gpu<'a> {
     pub fn read(&mut self, va: u64, out: &mut [u8]) -> Result<(), MemoryError> {
         let ram = Arc::clone(&self.ram);
         let _turn = ram.turn();
+        self.cpu_writes();
         self.settle(va, out.len() as u64)?;
         gather(&self.space, unsafe { self.ram.slice(0, self.ram.size()) }, va, out)
     }
@@ -511,9 +518,7 @@ impl<'a> Gpu<'a> {
     pub fn submit(&mut self, entries: &[[u8; 8]]) -> Result<(), String> {
         let ram = Arc::clone(&self.ram);
         let _turn = ram.turn();
-        for pa in ram.take_cpu_written() {
-            self.memory.mark_cpu_written(pa, PAGE);
-        }
+        self.cpu_writes();
         let space = &self.space;
         let events = self.pusher.submit(entries.iter().copied(), |va, len| {
             let mut pieces = space.resolve(va, len as u64).map_err(named)?;
@@ -575,6 +580,7 @@ impl<'a> Gpu<'a> {
     pub fn present(&mut self, va: u64, width: u32, height: u32) -> Result<(), String> {
         let ram = Arc::clone(&self.ram);
         let _turn = ram.turn();
+        self.cpu_writes();
         let len = u64::from(width * height * 4);
         let ranges: Vec<_> = self.space.resolve(va, len).map_err(named)?.collect();
         let current = generation(&self.memory, &ranges);

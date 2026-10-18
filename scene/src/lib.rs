@@ -3,6 +3,11 @@
 //! addresses; allocation, submission and presentation stay with the caller.
 #![no_std]
 
+#[cfg(feature = "std")]
+extern crate std;
+#[cfg(feature = "std")]
+pub mod sprites_assets;
+pub mod sprites;
 pub mod sass;
 pub mod threed;
 
@@ -165,9 +170,9 @@ pub struct Scene<'a> {
     pub vertices: &'a mut [u8],
 }
 
-struct Words<'a> {
-    storage: &'a mut [u32],
-    len: usize,
+pub struct Words<'a> {
+    pub storage: &'a mut [u32],
+    pub len: usize,
 }
 
 impl Extend<u32> for Words<'_> {

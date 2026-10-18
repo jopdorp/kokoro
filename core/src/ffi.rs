@@ -85,12 +85,12 @@ pub extern "C" fn oboromi_render_demo_frame(seconds: f32) -> bool {
     )
 }
 
-/// draws the pushbuffer triangle demo at `seconds` and presents it, false if
+/// runs the triangle guest to its next present, false if
 /// vulkan is missing or the draw fails. blocks, so call it from a worker thread.
 #[unsafe(no_mangle)]
-pub extern "C" fn oboromi_render_triangle_demo(seconds: f32) -> bool {
+pub extern "C" fn oboromi_render_triangle_demo(_seconds: f32) -> bool {
     matches!(
-        catch_unwind(|| crate::gpu::frame::render_triangle_demo(seconds)),
+        catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::Triangle)),
         Ok(Ok(()))
     )
 }
@@ -135,12 +135,12 @@ pub extern "C" fn oboromi_render_post_frame(seconds: f32) -> bool {
     )
 }
 
-/// draws the sprites demo at `seconds` and presents it, false if vulkan is
+/// runs the sprites guest to its next present, false if vulkan is
 /// missing or the draw fails. blocks, so call it from a worker thread.
 #[unsafe(no_mangle)]
-pub extern "C" fn oboromi_render_sprites_frame(seconds: f32) -> bool {
+pub extern "C" fn oboromi_render_sprites_frame(_seconds: f32) -> bool {
     matches!(
-        catch_unwind(|| crate::gpu::demo_sprites::render_sprites_frame(seconds)),
+        catch_unwind(|| crate::guest::render_demo(crate::guest::Demo::Sprites)),
         Ok(Ok(()))
     )
 }

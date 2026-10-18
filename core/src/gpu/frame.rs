@@ -164,7 +164,7 @@ pub fn render_demo_frame(seconds: f32) -> Result<(), VkError> {
 static TRIANGLE_DEMO: Mutex<Option<Gpu<'static>>> = Mutex::new(None);
 
 /// `$XDG_CACHE_HOME/oboromi`, or `~/.cache/oboromi`, or the temp dir's when there is no home.
-pub(super) fn cache_root() -> PathBuf {
+pub(crate) fn cache_root() -> PathBuf {
     let home = || std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache"));
     std::env::var_os("XDG_CACHE_HOME").map(PathBuf::from).or_else(home).unwrap_or_else(std::env::temp_dir).join("oboromi")
 }

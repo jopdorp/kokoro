@@ -28,12 +28,14 @@ struct Display {
 }
 
 /// The root services by name, all sharing one producer.
-pub fn services(nvmap: Rc<dyn NvmapResolve>) -> impl Iterator<Item = (String, Rc<RefCell<dyn Service>>)> {
+pub fn services(nvmap: Rc<dyn NvmapResolve>) -> (impl Iterator<Item = (String, Rc<RefCell<dyn Service>>)>, Rc<Cell<bool>>) {
     let binder = Rc::new(RefCell::new(HosBinderDriver::new(nvmap)));
-    ["vi:u", "vi:s", "vi:m"].into_iter().zip(0..).map(move |(name, cmd)| {
+    let vsync = binder.borrow().vsync.clone();
+    let roots = ["vi:u", "vi:s", "vi:m"].into_iter().zip(0..).map(move |(name, cmd)| {
         let root: Rc<RefCell<dyn Service>> = Rc::new(RefCell::new(Display { interface: Interface::Root(cmd), binder: binder.clone() }));
         (name.into(), root)
-    })
+    });
+    (roots, vsync)
 }
 
 impl Display {

@@ -10,6 +10,12 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
     match demo {
         "dungeon" => demo_dungeon::render_dungeon_frame(seconds),
         "julia" => frame::render_demo_frame(seconds).map_err(|e| format!("{e:?}")),
+        "guest-triangle" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Triangle),
+        "guest-sprites" => {
+            let phase = seconds * std::f32::consts::TAU / 6.0;
+            oboromi_core::input::set_override(Some(oboromi_core::input::InputState { left: [phase.cos(), phase.sin() * 0.4], buttons: u64::from((3.0..3.1).contains(&seconds)), connected: true, ..Default::default() }));
+            oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Sprites)
+        }
         "triangle" => frame::render_triangle_demo(seconds),
         "sprites" => demo_sprites::render_sprites_frame(seconds),
         "post" => demo_post::render_post_frame(seconds),
