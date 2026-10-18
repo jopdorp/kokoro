@@ -1,5 +1,5 @@
-//! A deterministic protoplanetary disk in star-mass, AU and year / 2pi units. CUDA advances softened all-pairs gravity
-//! with velocity-staggered leapfrog, merges sorted uniform-grid cells, applies a clearing gas disk and records trails.
+//! A deterministic protoplanetary disk in star-mass, AU and year / 2pi units. CUDA applies a democratic-heliocentric
+//! Kepler split with tiled mutual kicks, sorted-cell accretion, a clearing gas disk and trails.
 use crate::{header, host::SET_OBJECT, inc, non_inc, particles, split, threed::*};
 
 pub const WIDTH: u32 = 1920;
@@ -10,9 +10,10 @@ pub const TRAIL_COUNT: u32 = 6 * 32;
 pub const STAR_COUNT: u32 = 512;
 pub const EXTRA_COUNT: u32 = TRAIL_COUNT + STAR_COUNT;
 pub const BODY_BYTES: u32 = 48;
-pub const DUST_MASS: f32 = 0.003 / SHOWCASE_COUNT as f32;
-pub const CELLS: u32 = 128 * 128;
+pub const DUST_MASS: f32 = 0.000_018 / SHOWCASE_COUNT as f32;
+pub const CELLS: u32 = 64 * 64;
 pub const CELL_CAPACITY: u32 = 8;
+pub const THREADS: u32 = 64;
 
 pub const BASE: u64 = 0x2000_0000;
 pub const INIT_SEGMENT: u64 = BASE;
@@ -20,7 +21,7 @@ pub const STEP_SEGMENT: u64 = BASE + 0x1000;
 pub const DRAW_SEGMENT: u64 = BASE + 0x4_0000;
 pub const VERTEX_PROGRAM: u64 = BASE + 0x1_0000;
 pub const PIXEL_PROGRAM: u64 = BASE + 0x1_4000;
-pub const STEP_PROGRAM: u64 = BASE + 0x1_8000;
+pub const STEP_PROGRAM: u64 = BASE + 0x4000;
 pub const VS_POINTERS: u64 = BASE + 0x2_0000;
 pub const VS_UNIFORMS: u64 = BASE + 0x2_1000;
 pub const CS_C0: u64 = BASE + 0x2_3000;
@@ -36,7 +37,7 @@ pub const MAPPED: u64 = 0xc1_0000;
 
 pub fn cbuf0(out: &mut [u8], count: u32) {
     out.fill(0);
-    for (offset, value) in [(0, 256u32), (4, 1), (8, 1), (12, 64), (16, 1), (20, 1), (0x28, 0x1000)] {
+    for (offset, value) in [(0, THREADS), (4, 1), (8, 1), (12, 64), (16, 1), (20, 1), (0x28, 0x1000)] {
         out[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
     }
     for (offset, value) in [(0x160, BODIES), (0x168, SCRATCH), (0x170, CELL_COUNTS), (0x178, CELL_SLOTS)] {
@@ -51,7 +52,7 @@ pub fn qmd(grid: u32) -> [u32; 64] {
     let mut qmd = [0; 64];
     [qmd[4], qmd[5]] = [0x40, 0xfc00_0000];
     [qmd[12], qmd[13], qmd[14]] = [grid, 1, 1];
-    [qmd[17], qmd[18], qmd[19], qmd[20], qmd[23]] = [1024, 256 << 16 | 3 << 4, 1 << 16 | 1, 40 << 8 | 1, 1 << 27];
+    [qmd[17], qmd[18], qmd[19], qmd[20], qmd[23]] = [THREADS * 16, THREADS << 16 | 3 << 4, 1 << 16 | 1, 40 << 8 | 1, 1 << 27];
     [qmd[32], qmd[33]] = [CS_C0 as u32, 0x200 >> 4 << 19];
     qmd[48] = STEP_PROGRAM as u32;
     qmd
@@ -171,15 +172,29 @@ pub mod assets {
         let mut momentum = [0.0; 3];
         let mut seed = 0x6d2b_79f5;
         for i in 0..SHOWCASE_COUNT - 1 {
-            let unit = random(&mut seed);
-            let radius = 0.5 + 3.0 * unit.sqrt();
+            let root_radius = 0.3f32.sqrt() + random(&mut seed) * (4.0f32.sqrt() - 0.3f32.sqrt());
+            let semimajor = root_radius * root_radius;
             let angle = random(&mut seed) * core::f32::consts::TAU;
+            let node = random(&mut seed) * core::f32::consts::TAU;
+            let anomaly = random(&mut seed) * core::f32::consts::TAU;
+            let rayleigh = |seed: &mut u32, sigma: f32| sigma * (-2.0 * (1.0 - random(seed)).ln()).sqrt();
+            let eccentricity = rayleigh(&mut seed, 0.01);
+            let inclination = rayleigh(&mut seed, 0.005);
             let (sin, cos) = crate::pbr::sin_cos(angle);
+            let (node_sin, node_cos) = crate::pbr::sin_cos(node);
+            let (anomaly_sin, anomaly_cos) = crate::pbr::sin_cos(anomaly);
+            let (inclination_sin, inclination_cos) = crate::pbr::sin_cos(inclination);
+            let radial = semimajor * (1.0 - eccentricity * anomaly_cos);
             let seed_body = i < 6;
             let mass = if seed_body { DUST_MASS * (24.0 + 5.0 * i as f32) } else { DUST_MASS * (0.7 + 0.6 * random(&mut seed)) };
-            let speed = radius.sqrt().recip() * (0.985 + 0.03 * random(&mut seed));
-            let position = [radius * cos, (random(&mut seed) - 0.5) * radius * 0.012, radius * sin];
-            let velocity = [-speed * sin, (random(&mut seed) - 0.5) * 0.004, speed * cos];
+            let plane_x = [node_cos, 0.0, node_sin];
+            let plane_y = [-node_sin * inclination_sin, inclination_cos, node_cos * inclination_sin];
+            let orbit: [f32; 3] = core::array::from_fn(|axis| cos * plane_x[axis] + sin * plane_y[axis]);
+            let tangent: [f32; 3] = core::array::from_fn(|axis| -sin * plane_x[axis] + cos * plane_y[axis]);
+            let radial_speed = eccentricity * anomaly_sin / semimajor.sqrt();
+            let tangential_speed = (1.0 + eccentricity * anomaly_cos) / semimajor.sqrt();
+            let position = orbit.map(|value| value * radial);
+            let velocity = core::array::from_fn(|axis| orbit[axis] * radial_speed + tangent[axis] * tangential_speed);
             for axis in 0..3 { momentum[axis] += velocity[axis] * mass; }
             let scale = if seed_body { 4.0 + i as f32 * 0.3 } else { 1.0 + 2.5 * (mass / DUST_MASS).sqrt() };
             let colour = if seed_body { [0.45, 0.7, 1.0, 0.9] } else { [0.72, 0.46, 0.24, 0.35] };

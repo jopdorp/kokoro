@@ -34,7 +34,7 @@ fn showcase(config: *const [u64; 3]) -> bool {
 }
 
 fn draw(showcase: bool) -> svc::Result<()> {
-    let (count, steps, dt) = if showcase { (SHOWCASE_COUNT, 3, 0.006) } else { (REALTIME_COUNT, 1, 0.01) };
+    let (count, steps, dt) = if showcase { (SHOWCASE_COUNT, 3, 0.015) } else { (REALTIME_COUNT, 1, 0.02) };
     let size = [WIDTH, HEIGHT];
     let heap = svc::set_heap_size(0x100_0000)?;
     let memory = heap + 0x10_0000;
@@ -50,8 +50,8 @@ fn draw(showcase: bool) -> svc::Result<()> {
     }
     nv::guest_slice(memory + VS_POINTERS - BASE, 2).copy_from_slice(&handle(VS_UNIFORMS, 0x100));
     cbuf0(nv::guest_slice(memory + CS_C0 - BASE, 0x200), count);
-    nv::guest_slice(memory + BODY_QMD - BASE, 64).copy_from_slice(&qmd(count.div_ceil(256)));
-    nv::guest_slice(memory + CELL_QMD - BASE, 64).copy_from_slice(&qmd(CELLS / 256));
+    nv::guest_slice(memory + BODY_QMD - BASE, 64).copy_from_slice(&qmd(count.div_ceil(THREADS)));
+    nv::guest_slice(memory + CELL_QMD - BASE, 64).copy_from_slice(&qmd(CELLS / THREADS));
     let bodies = include_bytes!(concat!(env!("OUT_DIR"), "/solar-bodies.bin"));
     nv::guest_slice(memory + BODIES - BASE, count as usize * BODY_BYTES as usize).copy_from_slice(&bodies[..count as usize * BODY_BYTES as usize]);
     nv::guest_slice::<u8>(memory + BODIES - BASE + u64::from(count * BODY_BYTES), (TRAIL_COUNT * BODY_BYTES) as usize).fill(0);
