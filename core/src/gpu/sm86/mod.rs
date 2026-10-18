@@ -337,11 +337,7 @@ fn guest_barriers(words: &[u128]) -> Vec<u32> {
 }
 
 pub fn emit_module(device: Option<&VkState>, stage: Stage, body: impl FnOnce(&mut Decoder)) -> spirv::Emitter {
-    let mut hints = Hints::default();
-    if !matches!(stage, Stage::Compute { .. }) {
-        hints.translation = Translation::ForceDispatcher;
-    }
-    emit_module_hinted(device, stage, hints, body)
+    emit_module_hinted(device, stage, Hints::default(), body)
 }
 
 pub fn emit_module_hinted(device: Option<&VkState>, stage: Stage, hints: Hints, body: impl FnOnce(&mut Decoder)) -> spirv::Emitter {
