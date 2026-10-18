@@ -134,8 +134,6 @@ fn unsupported(pc: usize, inst: u128, collectives: bool) -> Option<String> {
         "dynamic branch target"
     } else if matches!(op, 0x1478 | 0x1878 | 0x1a78 | 0x1c78) {
         "indexed register"
-    } else if op == KILL {
-        "KILL"
     } else {
         return None;
     };
@@ -143,10 +141,12 @@ fn unsupported(pc: usize, inst: u128, collectives: bool) -> Option<String> {
 }
 
 pub fn plan(words: &[u128]) -> Result<Vec<Ast>, String> {
-    plan_with_collectives(words, false)
+    plan_with_collectives(words, false, false)
 }
 
-pub(super) fn plan_with_collectives(words: &[u128], collectives: bool) -> Result<Vec<Ast>, String> {
+// A fragment's KILL demotes it to a helper invocation that runs on, so it ends no block there.
+pub(super) fn plan_with_collectives(words: &[u128], collectives: bool, demotes: bool) -> Result<Vec<Ast>, String> {
+    let ends_block = |inst: u128| ends_block(inst) && !(demotes && opcode(inst) == KILL);
     if let Some(reason) = (0..).zip(words).find_map(|(pc, &inst)| unsupported(pc, inst, collectives)) {
         return Err(reason);
     }
