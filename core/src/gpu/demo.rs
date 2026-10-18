@@ -5,6 +5,8 @@ use super::engine::{Geometry, Gpu};
 use super::frame::cache_root;
 use super::{VkState, device};
 use crate::tests::gpu::engine::{bytes, entry};
+#[cfg(test)]
+use crate::tests::gpu_test::inst::bra;
 use std::path::Path;
 use std::sync::{Mutex, atomic::{AtomicBool, Ordering}};
 
@@ -47,11 +49,19 @@ pub struct Scene<'a> {
     material_count: usize,
     model_indices: u32,
     light_first: u32,
-    light_y: f32,
+    light_position: [f32; 3],
     frame: u32,
 }
 
 impl<'a> Scene<'a> {
+    #[cfg(test)]
+    pub(crate) fn replace_programs(&mut self, programs: [&[u8]; 2]) -> Result<(), String> {
+        for (va, program) in [VERTEX_PROGRAM, PIXEL_PROGRAM].into_iter().zip(programs) {
+            self.gpu.write(va, &[program, &bra(-16).to_le_bytes()].concat()).map_err(|e| format!("{e:?}"))?;
+        }
+        Ok(())
+    }
+
     /// Lays the asset in demos/assets/`asset` out in guest memory and runs the init segment.
     pub fn new(state: &'static VkState, cache: Option<(&Path, &str)>, asset: &str, width: u32, height: u32) -> Result<Self, String> {
         let room = asset.starts_with("raytraced");
@@ -79,7 +89,7 @@ impl<'a> Scene<'a> {
             vec![Geometry { vertices: VERTICES, stride: 48, vertex_count: asset.model_vertices as u32, indices: asset.indices_va, index_count: asset.model_indices, transform: [[0.0; 4]; 3], opaque: true },
                 Geometry { vertices: VERTICES, stride: 48, vertex_count: asset.vertex_count, indices: asset.indices_va + (u64::from(asset.model_indices) + 30) * 4, index_count: asset.index_count - asset.model_indices - 30 - asset.light_count, transform: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]], opaque: true }]
         } else { Vec::new() };
-        Ok(Self { gpu, target: asset.target, width, height, draws: asset.draws, blends: asset.blends, textures: asset.textures, fit: asset.fit, geometry, traced, room, boombox, material_count: asset.material_count, model_indices: asset.model_indices, light_first: asset.light_first, light_y: 0.7, frame: 0 })
+        Ok(Self { gpu, target: asset.target, width, height, draws: asset.draws, blends: asset.blends, textures: asset.textures, fit: asset.fit, geometry, traced, room, boombox, material_count: asset.material_count, model_indices: asset.model_indices, light_first: asset.light_first, light_position: [0.0; 3], frame: 0 })
     }
 
     /// Turns the model to `seconds` at 0.8 rad/s, draws every primitive and waits for the frame's report.
@@ -89,11 +99,11 @@ impl<'a> Scene<'a> {
             self.geometry[0].transform = std::array::from_fn(|row| std::array::from_fn(|col| model[col][row]));
             self.gpu.register_acceleration_structure(TLAS, self.geometry.clone()).map_err(|e| format!("{e:?}"))?;
         }
-        let (eye, head, light_y) = if self.room { scene::pbr::room_frame(seconds, self.traced, f32::sqrt) } else { (EYE, [0.0; 16], 0.0) };
+        let (eye, head, light_position) = if self.room { scene::pbr::room_frame(seconds, self.traced, f32::sqrt) } else { (EYE, [0.0; 16], [0.0; 3]) };
         let view_proj = scene::pbr::assets::view_projection(self.width, self.height, eye);
         if self.room {
             for material in 0..self.material_count { self.gpu.write(MATERIALS + MATERIAL_STRIDE * material as u64 + MATERIAL_UNIFORMS, &floats(&head)).map_err(|e| format!("{e:?}"))?; }
-            self.light_y = light_y;
+            self.light_position = light_position;
         }
         self.draw(model, view_proj, eye)
     }
@@ -113,7 +123,7 @@ impl<'a> Scene<'a> {
 
         self.frame += 1;
         let mut words = Vec::new();
-        scene::pbr::draw(&uniforms, view_proj, &self.draws, |i| self.blends[i].as_deref(), self.room, self.traced, self.model_indices, self.light_first, self.light_y, self.frame, &mut words);
+        scene::pbr::draw(&uniforms, view_proj, &self.draws, |i| self.blends[i].as_deref(), self.room, self.traced, self.model_indices, self.light_first, self.light_position, self.frame, &mut words);
         self.gpu.write(FRAME_SEGMENT, &bytes(&words)).map_err(named)?;
         self.gpu.submit(&[entry(FRAME_SEGMENT, words.len())])?;
         let mut released = [0; 4];
