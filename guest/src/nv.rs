@@ -66,11 +66,11 @@ impl Nv {
 const BUFFER: u64 = 0x1_0000;
 
 /// Allocates and maps guest memory, returning its GPU address and nvmap handle.
-fn buffer(nv: &Nv, [nvmap, space]: [u32; 2], address: u64, size: u32) -> svc::Result<(u64, u32)> {
+fn buffer(nv: &Nv, [nvmap, space]: [u32; 2], address: u64, size: u32, fixed: Option<u64>) -> svc::Result<(u64, u32)> {
     let mut create = NvmapCreate { size, handle: 0 };
     nv.ioctl(nvmap, NVMAP_CREATE, &mut create)?;
     nv.ioctl(nvmap, NVMAP_ALLOC, &mut NvmapAlloc { handle: create.handle, heapmask: 0, flags: 1, align: 0x1000, kind: 0, pad: [0; 7], address })?;
-    let mut reserved = AsAllocSpace { pages: size / BUFFER as u32, page_size: BUFFER as u32, flags: 0, pad: 0, offset_or_align: BUFFER };
+    let mut reserved = AsAllocSpace { pages: size / BUFFER as u32, page_size: BUFFER as u32, flags: u32::from(fixed.is_some()), pad: 0, offset_or_align: fixed.unwrap_or(BUFFER) };
     nv.ioctl(space, AS_ALLOC_SPACE, &mut reserved)?;
     // SwitchBrew documents no Switch 2 replacement for MapBufferEx.
     let mut map = AsMapBufferEx { flags: 1, kind: 0, nvmap_handle: create.handle, page_size: BUFFER as u32, buffer_offset: 0, mapping_size: u64::from(size), offset: reserved.offset_or_align };
@@ -116,7 +116,11 @@ impl Channel {
     }
 
     pub fn buffer(&self, address: u64, size: u32) -> svc::Result<(u64, u32)> {
-        buffer(&self.nv, [self.nvmap, self.space], address, size)
+        buffer(&self.nv, [self.nvmap, self.space], address, size, None)
+    }
+
+    pub fn buffer_at(&self, address: u64, size: u32, gpu_address: u64) -> svc::Result<(u64, u32)> {
+        buffer(&self.nv, [self.nvmap, self.space], address, size, Some(gpu_address))
     }
 
     pub fn submit(&self, address: u64, words: usize) -> svc::Result<()> {
