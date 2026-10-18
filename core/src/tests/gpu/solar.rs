@@ -34,7 +34,7 @@ fn solar_merges_conserve_mass_and_momentum_deterministically_for_100_steps() {
         Arg::Buffer(&body), Arg::Buffer(&body), Arg::Buffer(&counts), Arg::Buffer(&slots),
         Arg::Value(&1u32.to_le_bytes()), Arg::Value(&1u32.to_le_bytes()), Arg::Value(&0.01f32.to_le_bytes()),
         Arg::Value(&0.0f32.to_le_bytes()), Arg::Value(&1e-6f32.to_le_bytes()), Arg::Value(&0u32.to_le_bytes()),
-    ]) { assert!(output[2].iter().all(|&byte| byte == 0)); }
+    ]) { assert!(output[2].iter().all(|&byte| byte == 0), "first uncleared byte {:?}", output[2].iter().position(|&byte| byte != 0)); }
     let input = bytes(&[
         [-0.20, 0.00, 0.00, 0.0, 0.20, 0.10, 0.00, 2.0, 0.0, 0.0, 0.0, 0.0],
         [ 0.20, 0.00, 0.00, 0.0,-0.20,-0.10, 0.00, 3.0, 0.0, 0.0, 0.0, 0.0],
