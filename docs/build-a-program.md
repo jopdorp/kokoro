@@ -2,7 +2,9 @@
 
 The triangle is the smallest of the project's own test programs that runs on the emulator. Its source is [`guest/src/bin/triangle.rs`](https://github.com/jopdorp/oboromi/blob/guest-path/guest/src/bin/triangle.rs).
 
-## What you need
+## Set up
+
+The emulator needs 64-bit Linux and a Vulkan 1.3 driver. Intel, AMD and NVIDIA drivers work. An NVIDIA card is not required: use lavapipe to run on the CPU when no Vulkan GPU is available.
 
 These versions are known to work:
 
@@ -13,21 +15,67 @@ These versions are known to work:
 | Rust LLVM `objcopy` | 21.1.3 |
 | glslangValidator | 16.2.0 |
 | Mesa NAK | 25.2.7 |
-| CUDA tools for the NVIDIA path | 13.1 |
+| CUDA tools | 13.1 |
 
-Install the Rust target and LLVM tools:
+### From the release
+
+Download the [demos-2026-10-18 release](https://github.com/jopdorp/oboromi/releases/tag/demos-2026-10-18), check it, then unpack it:
+
+```sh
+url=https://github.com/jopdorp/oboromi/releases/download/demos-2026-10-18
+curl -LO "$url/SHA256SUMS"
+curl -LO "$url/oboromi-sdk-demos-2026-10-18.tar.gz"
+curl -LO "$url/oboromi-linux-x86_64-demos-2026-10-18.tar.gz"
+curl -LO "$url/oboromi-demos-demos-2026-10-18.tar.gz"
+sha256sum -c SHA256SUMS
+tar xzf oboromi-sdk-demos-2026-10-18.tar.gz
+tar xzf oboromi-linux-x86_64-demos-2026-10-18.tar.gz
+tar xzf oboromi-demos-demos-2026-10-18.tar.gz
+```
+
+- The SDK contains the Rust runtime, triangle template, linker script, shared scene code and NAK tools.
+- The emulator contains `bin/oboromi`, `bin/oboromi-gui` and its README.
+- The demos archive contains fourteen NROs, their checksums and asset-fetch scripts.
+
+Install Rust, then build the SDK template:
 
 ```sh
 rustup target add aarch64-unknown-none
 rustup component add llvm-tools
-./demos/assets/fetch.sh
+cd oboromi-sdk-demos-2026-10-18
+make
 ```
 
-The build runs on a Linux x86-64 host. The asset fetch is needed because the crate's build script prepares data shared by all its binaries.
+The result is `build/triangle.nro`. Use `make BIN=name` for another file under `guest/src/bin`.
+
+### From source
+
+```sh
+git clone --branch guest-path https://github.com/jopdorp/oboromi.git
+cd oboromi
+rustup target add aarch64-unknown-none
+rustup component add llvm-tools
+./demos/assets/fetch.sh
+cargo build --release -p oboromi-core --bin oboromi -j 4
+```
+
+The asset fetch supplies the models and audio used by the larger programs. The emulator is `target/release/oboromi`.
+
+### Choose how it runs
+
+Speed hacks and the Dynarmic CPU backend are the defaults.
+
+| Choice | Switch |
+| --- | --- |
+| Speed hacks | no switch |
+| Exact | `OBOROMI_EXACT=1` |
+| Dynarmic CPU | no switch |
+| Unicorn CPU | `OBOROMI_CPU=unicorn` |
+| lavapipe CPU Vulkan | `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json` |
 
 ## Build the CPU program
 
-The program is `no_std` and starts at `_start`. It asks `sm` for services, then sends IPC requests to `nvdrv` and `vi` to allocate GPU memory, submit work and present a frame. Programs that need controls or sound use the same path to reach `hid` and `audren`.
+The program is `no_std` and starts at `_start`. It asks `sm` for services, then sends IPC requests to `nvdrv` and `vi` to allocate GPU memory, submit work and present a frame. Programs that need controls or sound reach `hid` and `audren` the same way.
 
 ```sh
 cargo build --release --target aarch64-unknown-none \
@@ -38,36 +86,100 @@ objcopy="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p
 
 ## Build shaders
 
-The repository's exact fixtures come from GLSL compiled through the NVIDIA driver on an NVIDIA card. For a local build, Mesa's NAK compiler produces the shader header and SM86 SASS:
+CUDA C compute kernels compile to Switch 2 machine code on any machine with the CUDA toolkit; no card is needed. `nvcc` runs `ptxas`:
 
 ```sh
+/usr/local/cuda-13.1/bin/nvcc -arch=sm_86 -cubin \
+  core/tests/fixtures/cuda-seed.cu -o cuda-seed.cubin
+```
+
+Graphics and ray shaders use one of the following paths.
+
+### With an NVIDIA card
+
+This path needs an Ampere or newer card and the proprietary Linux driver. The driver compiles GLSL to exact Switch 2 machine code when the capture tool creates a Vulkan pipeline. Ray queries are supported.
+
+```sh
+glslangValidator -V shader.vert -o vert.spv
+glslangValidator -V shader.frag -o frag.spv
+gcc -O2 -o vk_cache_dump vk_cache_dump.c -lvulkan
+./vk_cache_dump pipeline-cache.bin vert.spv frag.spv
+python3 scan_blob.py sass-out pipeline-cache.bin
+```
+
+Use the `.sph.bin` header followed by `.words.bin` as the graphics program.
+
+### Without an NVIDIA card
+
+Mesa's NAK compiler works offline with any Vulkan GPU, or no GPU. Its raster output differs from the driver's output by at most one bit. NAK ray-query support is in progress, so ray shaders need the card path until it lands.
+
+Linux distributions do not package Mesa's internal NAK library or `nak-offline`. Build the compiler from Mesa 25.2.7. On Ubuntu, install the normal Mesa build packages plus Rust 1.92, `bindgen` and `cbindgen`:
+
+```sh
+sudo apt install build-essential meson ninja-build pkg-config python3-mako \
+  python3-yaml bison flex libdrm-dev libudev-dev libelf-dev libzstd-dev \
+  zlib1g-dev libglvnd-dev llvm-21-dev glslang-tools
+cargo install bindgen-cli --version 0.71.1
+cargo install cbindgen --version 0.29.4
+```
+
+Build only the Nouveau compiler and the offline wrapper:
+
+```sh
+curl -LO https://archive.mesa3d.org/mesa-25.2.7.tar.xz
+tar xf mesa-25.2.7.tar.xz
+cp tools/nak-offline.c mesa-25.2.7/src/nouveau/compiler/nak_offline.c
+cd mesa-25.2.7
+sed -i 's/with_gallium_rusticl or with_nouveau_vk or/with_gallium_rusticl or with_any_nouveau or/' meson.build
+sed -i '0,/if with_nouveau_vk/s//if with_any_nouveau/' src/compiler/meson.build
+sed -i '0,/if with_nouveau_vk/s//if with_any_nouveau/' src/nouveau/meson.build
+sed -i '0,/if with_nouveau_vk/s//if with_any_nouveau/' src/nouveau/headers/meson.build
+printf '%s\n' "executable('nak-offline', files('nak_offline.c'), include_directories : [inc_include, inc_src], dependencies : [idep_nak, idep_vtn, idep_mesautil])" >> src/nouveau/compiler/meson.build
+export BINDGEN_EXTRA_CLANG_ARGS="-isystem $(ls -d /usr/lib/gcc/x86_64-linux-gnu/*/include | tail -1)"
+meson setup build . -Dgallium-drivers=nouveau -Dvulkan-drivers= \
+  -Dplatforms= -Dglx=disabled -Dopengl=false -Dbuild-tests=false -Dmesa-clc=auto
+ninja -C build -j 4 src/nouveau/compiler/nak-offline
+```
+
+Allow about two minutes for the clean compiler build. `tools/nak-compile.sh` finds `nak-offline` and `nvdisasm` on `PATH`, or uses `NAK_OFFLINE` and `NVDISASM`:
+
+```sh
+cd ..
 TMPDIR="$HOME/.cache/tmp" \
-NAK_OFFLINE=/path/to/mesa-25.2.7/build/src/nouveau/compiler/nak-offline \
+NAK_OFFLINE="$PWD/mesa-25.2.7/build/src/nouveau/compiler/nak-offline" \
 NVDISASM=/usr/local/cuda-13.1/bin/nvdisasm \
 BINDINGS=u1,s2 tools/nak-compile.sh demos/shaders/post.vert sass-out
 ```
 
-`BINDINGS` is the descriptor shim: `u` is a uniform buffer, `s` a sampler, `b` a storage buffer and `a` an acceleration structure. Omit it for shaders without bindings. Put the resulting `.bin` files under `core/tests/fixtures/driver-shaders`; programs such as `guest/src/bin/dungeon.rs` copy them to mapped GPU memory with `shader(address, bytes)`. The triangle is smaller and writes its built-in shader bytes through `scene::triangle_scene` instead.
+`BINDINGS` is the descriptor shim: `u` is a uniform buffer, `s` a sampler, `b` a storage buffer and `a` an acceleration structure. Omit it for shaders without bindings. Put the resulting `.bin` files under `core/tests/fixtures/driver-shaders`; programs such as `guest/src/bin/dungeon.rs` copy them to mapped GPU memory with `shader(address, bytes)`. The triangle writes its built-in shader bytes through `scene::triangle_scene`.
 
-## Run it
+## Run a demo
 
-Capture one frame from the NRO:
+Run the shipped triangle:
+
+```sh
+cd oboromi-demos-demos-2026-10-18
+../oboromi-linux-x86_64-demos-2026-10-18/bin/oboromi run demos/triangle.nro
+```
+
+It draws a red, green and blue triangle on white at 1920×1080, then prints the first-frame digest. The packaged Qt application provides a window:
+
+```sh
+../oboromi-linux-x86_64-demos-2026-10-18/bin/oboromi-gui
+```
+
+From a source checkout, capture one frame or encode a clip:
 
 ```sh
 cargo run --release -p oboromi-core --example capture -- \
-  ./triangle.nro --seconds 1 --fps 1 --out "$HOME/.cache/oboromi-triangle"
-```
-
-For parity checks, use exact mode and compare the CPU path with the reference renderer:
-
-```sh
-OBOROMI_EXACT=1 cargo test -p oboromi-core guest_triangle_end_to_end -- --nocapture
-cargo test -p oboromi-core nak_compiled_triangle_matches_driver -- --nocapture
+  /path/to/demos/triangle.nro --seconds 1 --fps 1 --out "$HOME/.cache/triangle"
+cargo run --release -p oboromi-core --example capture -- \
+  /path/to/demos/triangle.nro --seconds 8 --fps 60 --out "$HOME/.cache/triangle-clip"
+ffmpeg -framerate 60 -i "$HOME/.cache/triangle-clip/frame_%04d.ppm" \
+  -c:v libx264 -crf 20 -pix_fmt yuv420p triangle.mp4
 ```
 
 ## Limits
 
-- NAK does not compile ray queries; use the NVIDIA driver path for them.
-- Speed hacks are enabled by default. Set `OBOROMI_EXACT=1` for exact results.
-- The supported host is Linux x86-64.
+- NAK does not compile ray queries; use the NVIDIA card path for them.
 - The loader accepts NRO and flat AArch64 images, including an optional NRO RomFS. It does not load retail game formats.
