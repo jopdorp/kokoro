@@ -22,6 +22,7 @@ const RECORDS: u64 = 17;
 const RECORD_SIZE: u64 = 0x30;
 const FULL_KEY: u32 = 1;
 const CONNECTED_WIRED: u32 = 0b11;
+pub const ARUID: u64 = 0;
 
 pub struct State {
     pub input: fn() -> InputState,
@@ -33,7 +34,7 @@ pub struct State {
 
 impl Default for State {
     fn default() -> Self {
-        Self { input: input::state, shared: Rc::default(), style_set: 0, ids: vec![], sampling: 0 }
+        Self { input: || input::state().0, shared: Rc::default(), style_set: 0, ids: vec![], sampling: 0 }
     }
 }
 

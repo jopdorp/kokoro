@@ -3,6 +3,12 @@
 //! addresses; allocation, submission and presentation stay with the caller.
 #![no_std]
 
+#[cfg(feature = "std")]
+extern crate std;
+#[cfg(feature = "std")]
+pub mod sprites_assets;
+pub mod sprites;
+pub mod bounce;
 pub mod sass;
 pub mod threed;
 
@@ -20,7 +26,9 @@ use threed::*;
 
 pub type Vertex = ([f32; 2], [u8; 4]);
 
-const fn header(op: u32, method: usize, count: u32) -> u32 {
+pub const TRIANGLE_VERTICES: [Vertex; 3] = [([0.0, -0.8], [255, 0, 0, 255]), ([0.7, 0.4], [0, 255, 0, 255]), ([-0.7, 0.4], [0, 0, 255, 255])];
+
+pub const fn header(op: u32, method: usize, count: u32) -> u32 {
     op << 29 | count << 16 | (method / 4) as u32
 }
 
@@ -163,9 +171,9 @@ pub struct Scene<'a> {
     pub vertices: &'a mut [u8],
 }
 
-struct Words<'a> {
-    storage: &'a mut [u32],
-    len: usize,
+pub struct Words<'a> {
+    pub storage: &'a mut [u32],
+    pub len: usize,
 }
 
 impl Extend<u32> for Words<'_> {
@@ -202,3 +210,10 @@ pub const fn pitch_rgba8_tic(address: u64, width: u32, height: u32, pitch: u32) 
 
 /// Nearest filtering clamped to the edge.
 pub const NEAREST_CLAMP_TSC: [u32; 8] = [2 | 2 << 3, 1 | 1 << 4, 0, 0, 0, 0, 0, 0];
+
+pub mod pbr;
+pub mod post;
+pub mod particles;
+pub mod julia;
+
+pub mod sound;

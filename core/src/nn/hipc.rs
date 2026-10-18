@@ -2,8 +2,10 @@
 
 use crate::cpu::UnicornCPU;
 use crate::kernel::Object;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::collections::HashSet;
 use std::rc::Rc;
+use std::sync::{Mutex, OnceLock};
 
 pub const MESSAGE_SIZE: usize = 0x100;
 pub const CLOSE: u16 = 2;
@@ -17,6 +19,7 @@ const SFCO: u32 = u32::from_le_bytes(*b"SFCO");
 /// sf result descriptions (module 10), Ryujinx.Horizon/Sdk/Sf/SfResult.cs.
 #[derive(Debug, Clone, Copy)]
 pub enum SfError {
+    NotSupported = 1,
     InvalidHeaderSize = 202,
     InvalidInHeader = 211,
     UnknownCommandId = 221,
@@ -37,6 +40,7 @@ pub struct Request<'a> {
     pub mem: &'a UnicornCPU,
     pub send_pid: bool,
     pub copy_handles: Vec<u32>,
+    pub transfers: Vec<(u64, u64, u32)>,
     pub move_handles: Vec<u32>,
     pub x: Vec<Buffer>,
     pub a: Vec<Buffer>,
@@ -66,10 +70,22 @@ impl Response {
         log::warn!("command {cmd}: {:?}", SfError::UnknownCommandId);
         Self::error(SfError::UnknownCommandId.code())
     }
+
+    pub fn not_implemented(service: &'static str, cmd: u32) -> Self {
+        static SEEN: OnceLock<Mutex<HashSet<(&'static str, u32)>>> = OnceLock::new();
+        if SEEN.get_or_init(Mutex::default).lock().unwrap().insert((service, cmd)) {
+            log::warn!("{service} command {cmd}: {:?}", SfError::NotSupported);
+        }
+        Self::error(SfError::NotSupported.code())
+    }
 }
 
 pub trait Service {
     fn dispatch(&mut self, cmd: u32, request: &mut Request) -> Response;
+    fn deadline(&self) -> Option<u64> { None }
+    fn advance(&mut self, _cpu: &UnicornCPU) {}
+    /// Periodic device signals use guest ticks, so waits can shorten CPU slices.
+    fn event_period(&self, _event: &Rc<Cell<bool>>) -> Option<u64> { None }
 }
 
 pub enum ParsedRequest<'a> {
@@ -163,7 +179,7 @@ impl<'a> Request<'a> {
             return Err(SfError::InvalidInHeader);
         }
         let args = cmif[4..].iter().flat_map(|w| w.to_le_bytes()).collect();
-        Ok(ParsedRequest::Invoke { command: cmif[2], object, request: Self { mem, send_pid, copy_handles, move_handles, x, a, b, w, c, objects, args } })
+        Ok(ParsedRequest::Invoke { command: cmif[2], object, request: Self { mem, send_pid, transfers: Vec::new(), copy_handles, move_handles, x, a, b, w, c, objects, args } })
     }
 }
 

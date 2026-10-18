@@ -1,4 +1,5 @@
 /target
+/guest/target
 /oboromi.log
 /third_party/boost_1_89_0
 .vscode/
@@ -6,4 +7,8 @@ rad/
 research/
 build/
 /site
+/demos/assets/boombox/
 /demos/assets/flighthelmet/
+
+/demos/assets/dungeon/
+/demos/assets/dungeon-audio/

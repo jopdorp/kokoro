@@ -1,4 +1,5 @@
 //! Horizon supervisor calls: arguments in x0-x7, the result code back in w0 and outputs from x1 on.
+use crate::cmif;
 use core::arch::asm;
 use core::ffi::CStr;
 
@@ -43,6 +44,15 @@ pub fn send_sync_request(session: u32) -> Result<()> {
     unsafe { call::<0x21>(u64::from(session), 0, 0, 0) }.map(drop)
 }
 
+/// Sends `request` and returns its reply, once the reply's result is zero.
+pub fn request(session: u32, request: &cmif::Request) -> Result<cmif::Reply<'static>> {
+    let ipc = unsafe { &mut *ipc_buffer() };
+    cmif::write_request(ipc, request);
+    send_sync_request(session)?;
+    let reply = cmif::read_reply(ipc).ok_or(u32::MAX)?;
+    if reply.result != 0 { Err(reply.result) } else { Ok(reply) }
+}
+
 pub fn output_debug_string(text: &str) -> Result<()> {
     unsafe { call::<0x27>(text.as_ptr() as u64, text.len() as u64, 0, 0) }.map(drop)
 }
@@ -60,4 +70,8 @@ pub fn ipc_buffer() -> *mut [u32; 64] {
     let tls: u64;
     unsafe { asm!("mrs {}, tpidrro_el0", out(reg) tls, options(nomem, nostack, preserves_flags)) };
     tls as *mut [u32; 64]
+}
+
+pub fn wait_event(event: u32) -> Result<()> {
+    unsafe { call::<0x18>(0, core::ptr::from_ref(&event) as u64, 1, u64::MAX)?; call::<0x17>(u64::from(event), 0, 0, 0) }.map(drop)
 }

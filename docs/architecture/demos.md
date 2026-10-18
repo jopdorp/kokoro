@@ -1,100 +1,106 @@
 # Demos
 
-The Qt window has buttons that draw through the GPU work today. Six bigger scenes are prepared, and the first, a lit 3D model, is being wired now. For example, the Triangle button writes GPU commands into emulated memory every frame, and the full engine draws them.
+This page shows oboromi's graphics and sound demos. Every clip is captured from the emulator on an Intel laptop unless its caption says otherwise.
 
-## What runs today?
+## Guest programs
 
-| Button | Code | What it proves |
-|---|---|---|
-| Render Test Frame | `frame::render_test_frame` | A translated SASS program (S2R, IMAD, STG) writes a 1080p gradient as a compute shader |
-| Demo | `frame::render_demo_frame` | A hand-written SASS Julia set animates every frame; the time arrives through constant buffer 0 |
-| Triangle | `frame::render_triangle_demo` | A command list in guest memory draws a turning triangle through the whole engine |
+Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the emulated ARM CPU. It calls the kernel and services, draws through the `nvdrv` GPU driver service on the emulated GPU with Switch 2 shader machine code, and presents through the display service. A controller reaches it through the `hid` input service, while sound goes through the audio renderer.
 
-The Julia set program loops with a predicated branch, a jump taken only where a one-bit flag is set. It reuses one pipeline built once, so a frame costs a dispatch, a readback and a present.
+### Triangle
 
-| Julia set uses | Instructions |
-|---|---|
-| Float maths | FFMA, FMUL, FADD, FSETP |
-| Special functions | MUFU.COS, SIN and LG2 |
-| Conversions | I2F, F2I |
-| Integer maths | IADD3, IMAD, LOP3 |
-| Memory and flow | STG, predicated BRA |
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-triangle.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-triangle.mp4" type="video/mp4"></video>
 
-Every frame ends in `display::present`, which the window shows.
+*The guest asks the kernel and services for memory and a display, writes a command list, sends it through `nvdrv`, and presents the triangle.*
 
-## What does it look like?
+### Sprites
 
-![The Render Test Frame button: a full-HD gradient](https://raw.githubusercontent.com/jopdorp/oboromi/assets/test-frame.png)
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-sprites.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-sprites.mp4" type="video/mp4"></video>
 
-*Render Test Frame: a short SASS program (S2R, IMAD, STG) writes a gradient, translated to SPIR-V and run on an Intel laptop GPU.*
+*The stick moves the layers through the `hid` service. Halfway through, a button press flashes the scene.*
 
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/julia-demo-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/julia-demo.mp4" type="video/mp4"></video>
+### Bounce
 
-*Demo: a hand-written SM86 program, translated to SPIR-V, redrawing a Julia set every frame on an Intel laptop GPU.*
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-bounce.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-bounce.mp4" type="video/mp4"></video>
 
-<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/triangle-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/triangle.mp4" type="video/mp4"></video>
+*The guest runs the physics and submits the particle shader through `nvdrv`. Collision sounds go through the audio renderer.*
 
-*Triangle: GPU commands written into emulated memory every frame, drawn through the whole engine on an Intel laptop GPU.*
+### BoomBox
 
-![NVIDIA's Mandelbrot sample, run through the translator](https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot.png)
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-boombox.mp4" type="video/mp4"></video>
 
-*NVIDIA's cuda-samples Mandelbrot kernel, compiled by nvcc for SM86 and run unchanged through the translator on an Intel laptop GPU.*
+*The guest loads the model and its textures, then draws each material through `nvdrv`.*
+
+### FlightHelmet
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-helmet.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-helmet.mp4" type="video/mp4"></video>
+
+*The guest draws all six materials through `nvdrv`, one draw for each material.*
+
+### Post
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-post.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-post.mp4" type="video/mp4"></video>
+
+*The guest draws the pinwheel into one image, then samples it in a second pass for the screen effects.*
+
+### Particles
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-particles.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-particles.mp4" type="video/mp4"></video>
+
+*The guest runs the compute update, then submits one instanced draw through `nvdrv`.*
+
+### Julia
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-julia.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-julia.mp4" type="video/mp4"></video>
+
+*The guest sends the Julia set shader through `nvdrv` and passes time through a small block of shader input data.*
+
+### Music
+
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-music.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-music.mp4" type="video/mp4"></video>
+
+*The guest makes the instruments and sends the mix through the audio renderer.*
+
+## Still driven from the host
+
+### Ray-traced scene
+
+<video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced.mp4" type="video/mp4"></video>
+
+*The scene uses Switch 2 shader machine code through the translator, but its command stream is still built on the host. This clip was rendered offline on an RTX 3090. The Intel laptop runs the scene slowly with a lighter shader.*
+
+### Mandelbrot CUDA
 
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot-zoom-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/cuda-mandelbrot-zoom.mp4" type="video/mp4"></video>
 
-*The same CUDA kernel, launched once per frame with a smaller scale, zooming into the edge of the set.*
+*This is NVIDIA's CUDA Mandelbrot sample, compiled to SM86 machine code and run unchanged through oboromi's translator. The host launches the same kernel once per frame with a smaller scale.*
 
-Measured on an Intel Arc (MTL), p50 per frame:
+## Dungeon
+
+Dungeon is a native Vulkan tech demo. It does not use the emulated CPU or GPU, but it drives the audio renderer and sets the bar for the guest version.
+
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon.mp4" type="video/mp4"></video>
+
+*Showcase: ray queries add soft shadows, reflections and darker crevices. This clip was rendered offline on the Intel laptop.*
+
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime.mp4" type="video/mp4"></video>
+
+*Realtime: baked shadows and planar reflections make the same tour lighter to render. This clip was rendered offline on the Intel laptop.*
+
+![Raster and ray-query dungeon frame](https://raw.githubusercontent.com/jopdorp/oboromi/assets/dungeon-v6-rt-compare.png)
+
+*Raster is left and ray queries are right. The difference is small in this frame and clearest in the water.*
+
+## Measured
+
+Median frame times on the Intel Arc laptop used for the captures:
 
 | Demo | Time |
 |---|---|
 | Test frame, 1080p | 4.2 ms |
 | Julia set | 4.7 ms |
-| Pushbuffer triangle, 1080p | 6.6 ms |
+| Triangle, 1080p | 6.6 ms |
+| CUDA Mandelbrot, 800x600 | 10.2 ms |
+| Dungeon realtime | 23.8 ms |
+| Dungeon showcase | 144.5 ms |
 
-## Which scenes come next?
-
-```mermaid
-flowchart LR
-    TRI["Triangle<br/>Runs today"] --> PBR["pbr-boombox<br/>A lit 3D model, being wired"]
-    PBR --> POST["post-effect<br/>The model, then screen filters"]
-    PBR --> FH["pbr-flighthelmet<br/>A heavy model, to time throughput"]
-    PBR --> RT["raytraced<br/>Shadows and reflections by ray queries"]
-    TRI --> SPR["sprites2d<br/>Layered 2D sprites"]
-    TRI --> PART["particles<br/>Particles moved by a compute launch"]
-    RT -.->|"Still needs"| N1["Acceleration structures,<br/>Depth kept in guest memory"]
-```
-
-*The six prepared scenes. The engine has what they need, except two features for the ray-traced one.*
-
-| Scene | Content | Shaders |
-|---|---|---|
-| pbr-boombox | The BoomBox or Avocado model, lit with physically based materials and normal maps, one light | pbr.vert, pbr.frag |
-| post-effect | The PBR scene drawn offscreen, then colour fringing, scanlines and a vignette | post.vert, post.frag |
-| particles | Particles moved by a compute shader, drawn as glowing instanced squares | particles_update.comp, particles.vert, particles.frag |
-| sprites2d | Scrolling layers and floating sprites, blended over a generated texture sheet | sprite2d.vert, sprite2d.frag |
-| pbr-flighthelmet | The FlightHelmet model through the same PBR shaders, one draw per material, timed against pbr-boombox | pbr.vert, pbr.frag |
-| raytraced | BoomBox on a ground plane with ray-query shadows and reflections, plus ray-traced ambient occlusion | rt.frag, rt_ao.comp |
-
-Each scene document in `demos/scenes` lists its guest memory layout and the register writes it sends. Every convention not yet confirmed is tagged "(verify)". The shaders are GLSL that `glslangValidator -V` accepts. The plan is to compile them with NVIDIA's driver on a rented card, which yields the SM86 programs the scenes load.
-
-Why compile GLSL on a desktop card: it yields real SM86 code for each stage. But it does not yield the Switch 2's shader header or attribute conventions, so those stay tagged until a real game shows them.
-
-## Where do the assets come from?
-
-```mermaid
-flowchart LR
-    GLB["glTF-Binary model<br/>Khronos sample assets"] --> PY["Scripts/gltf_to_raw.py<br/>Converter"]
-    PY --> V["vertices.bin<br/>Position, normal, tangent, uv"]
-    PY --> I["indices.bin<br/>Which vertices form each triangle"]
-    PY --> T["slot.rgba8<br/>Textures, NVIDIA-tiled, with mip levels"]
-    PY --> M["manifest.json<br/>Layout, materials, source, licence"]
-```
-
-*The converter turns a standard 3D model file into raw files the scenes copy into guest memory.*
-
-BoomBox, Avocado and FlightHelmet are CC0 1.0 by Microsoft, from KhronosGroup's glTF-Sample-Assets. FlightHelmet is too big for the code branches, so `demos/assets/fetch.sh` pulls it from the assets branch. Base colour and emissive textures are sRGB, the others linear. DamagedHelmet is avoided because its source carries a non-commercial licence.
-
-Verified by: an offscreen screenshot of each button's output, the engine acceptance test for the triangle, the Julia centre test, and the block-linear tiling matching the converter.
-
-Sources: core/src/gpu/frame.rs, core/src/ffi.rs, gui-qt/src/MainWindow.cpp, demos/README, demos/scenes/*.md, demos/assets/README, scripts/gltf_to_raw.py, core/examples/perf.rs.
+These are laptop measurements, not native Switch 2 measurements.

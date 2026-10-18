@@ -4,7 +4,16 @@
 
 pub mod cmif;
 #[cfg(target_arch = "aarch64")]
+pub mod am_time;
+#[cfg(target_arch = "aarch64")]
+pub mod display;
+#[cfg(target_arch = "aarch64")]
 pub mod hid;
 pub mod nvdrv;
 #[cfg(target_arch = "aarch64")]
+pub mod nv;
+#[cfg(target_arch = "aarch64")]
 pub mod svc;
+
+#[cfg(target_arch = "aarch64")]
+pub mod audren;
