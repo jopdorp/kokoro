@@ -60,6 +60,12 @@ impl Machine {
         Self::image(name, image)
     }
 
+    pub fn dungeon_capture(showcase: bool, rays: bool, late: bool, cave: bool) -> Result<Self, String> {
+        stage_dungeon_assets()?;
+        let name = format!("dungeon{}{}-start{}{}.nro", if showcase { "-showcase" } else { "" }, if rays { "-rays" } else { "" }, if late { 40 } else { 2 }, if cave { "-cave" } else { "" });
+        Self::image(&name, include_bytes!("../tests/fixtures/guest/dungeon.nro"))
+    }
+
     #[cfg(test)]
     fn demo_exact(demo: Demo) -> Result<Self, String> {
         let (name, image) = Self::demo_image(demo);

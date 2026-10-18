@@ -59,6 +59,29 @@ fn encode<const N: usize>(
     Encoded { qmd, cbuf }
 }
 
+pub fn linear<const N: usize>(
+    pass: Pass,
+    buffers: [Buffer; N],
+    uniforms: Buffer,
+    count: u32,
+    registers: u32,
+    payload: u32,
+) -> Encoded<64> {
+    let mut cbuf = [0; 64];
+    cbuf[12..14].copy_from_slice(&handle(uniforms.address, uniforms.size));
+    for (i, buffer) in buffers.into_iter().enumerate() {
+        ssbo(&mut cbuf, 16 + i * 4, buffer);
+    }
+    encode(
+        pass,
+        [count.div_ceil(256), 1, 1],
+        [256, 1, 1],
+        registers,
+        payload,
+        cbuf,
+    )
+}
+
 pub fn water(
     pass: Pass,
     previous: Buffer,
@@ -145,6 +168,31 @@ pub fn post(
         [size[0].div_ceil(8), size[1].div_ceil(8), 1],
         [8, 8, 1],
         70,
+        payload,
+        cbuf,
+    )
+}
+
+pub fn post_volume(
+    pass: Pass,
+    [hdr, output, uniforms, lights, fog, bloom, volume]: [Buffer; 7],
+    size: [u32; 2],
+    registers: u32,
+    payload: u32,
+) -> Encoded<40> {
+    let mut cbuf = [0; 40];
+    cbuf[12..14].copy_from_slice(&handle(uniforms.address, uniforms.size));
+    for (i, buffer) in [hdr, output, lights, fog, bloom, volume]
+        .into_iter()
+        .enumerate()
+    {
+        ssbo(&mut cbuf, 16 + i * 4, buffer);
+    }
+    encode(
+        pass,
+        [size[0].div_ceil(8), size[1].div_ceil(8), 1],
+        [8, 8, 1],
+        registers,
         payload,
         cbuf,
     )

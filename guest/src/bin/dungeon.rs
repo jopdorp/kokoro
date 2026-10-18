@@ -35,7 +35,7 @@ const COMPUTE_PROGRAMS: [u64; 14] = [
     BASE + 0x11_0000, BASE + 0x12_0000, BASE + 0x13_0000, BASE + 0x14_0000,
     BASE + 0x15_0000, BASE + 0x16_0000,
 ];
-const COMPUTE_REGISTERS: [u32; 14] = [24, 32, 33, 20, 24, 19, 20, 20, 46, 35, 62, 38, 43, 70];
+const COMPUTE_REGISTERS: [u32; 14] = [24, 32, 37, 20, 24, 19, 20, 20, 46, 35, 62, 38, 43, 70];
 const QMD: u64 = BASE + 0x17_0000;
 const CBUF: u64 = BASE + 0x17_2000;
 const RELEASE: u64 = BASE + 0x17_4000;
@@ -434,6 +434,8 @@ fn audio(fs: u32, memory: u64) -> svc::Result<(sound::Engine<'static>, audren::P
 fn run(config: *const [u64; 3]) -> svc::Result<()> {
     let showcase = has_option(config, b"-showcase");
     let rays = has_option(config, b"-rays");
+    let cave = has_option(config, b"-cave");
+    let start: u32 = if has_option(config, b"-start40") { 40 * 60 } else if has_option(config, b"-start2") { 2 * 60 } else { 0 };
     let present_every = if has_option(config, b"-capture4") { 4 } else { 1 };
     let layout = Layout::new(showcase);
     let heap_bytes = (layout.end - BASE + 0x2000_0000).next_multiple_of(0x20_0000);
@@ -446,11 +448,13 @@ fn run(config: *const [u64; 3]) -> svc::Result<()> {
     let (mut sound, mut pcm) = audio(fs, memory + layout.end - BASE + 0x10_0000).map_err(|_| 2u32)?;
     hid::initialize().map_err(|_| 3u32)?;
     let window = display::Window::target(&channel.nv, channel.nvmap, handle, [WIDTH, HEIGHT], (layout.output - BASE) as u32).map_err(|_| 11u32)?;
-    let (mut tick, mut tour, mut idle, mut blocks) = (0u32, 0usize, 180u32, 0usize);
-    let (mut eye, mut yaw, mut pitch, _) = pose(0);
+    let (mut tick, mut tour, mut idle, mut blocks) = (start, start as usize, 180u32, start as usize * 10 / 3);
+    let (mut eye, mut yaw, mut pitch, _) = pose(tour);
+    if cave { (eye, yaw, pitch) = CAVE_CAMERA; }
     let mut fade;
     loop {
         let input = hid::read();
+        if cave { idle = 0; }
         let moving = input.left.into_iter().chain(input.right).any(|axis| axis.unsigned_abs() > 3276);
         idle = if moving { 0 } else { idle.saturating_add(1) };
         if idle >= 180 {

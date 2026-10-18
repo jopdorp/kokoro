@@ -9,4 +9,12 @@ glslangValidator -V --target-env vulkan1.2 -DRAY_QUERY demos/shaders/dungeon.fra
 for shader in dungeon_water; do
     glslangValidator -V --target-env vulkan1.2 "demos/shaders/$shader.comp" -o "demos/shaders/$shader.spv"
 done
+for shader in fire_force fire_curl fire_confine fire_div fire_jacobi fire_project fire_advect smoke_light volume_march volume_resolve; do
+    glslangValidator -V --target-env vulkan1.2 "demos/shaders/guest-dungeon/$shader.comp" -o "demos/shaders/$shader.comp.spv"
+    spirv-val --target-env vulkan1.2 "demos/shaders/$shader.comp.spv"
+done
+for shader in dungeon_particles dungeon_post; do
+    glslangValidator -V --target-env vulkan1.2 "demos/shaders/guest-dungeon/$shader.comp" -o "demos/shaders/${shader}_f9.comp.spv"
+    spirv-val --target-env vulkan1.2 "demos/shaders/${shader}_f9.comp.spv"
+done
 spirv-val --target-env vulkan1.2 demos/shaders/dungeon_rt.frag.spv

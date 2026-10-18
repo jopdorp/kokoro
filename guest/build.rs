@@ -50,7 +50,7 @@ fn main() {
 }
 
 fn dungeon(out: &std::path::Path) {
-    use scene::dungeon::data::{Builder, Sfx, UP, Vertex, WATER, World, cross, dot, scale, sub, tour_pose};
+    use scene::dungeon::data::{Builder, EYE, Sfx, UP, Vertex, WATER, World, cross, dot, scale, sub, tour_pose};
     use scene::dungeon::sound::Sample;
     use scene::pbr::{Matrix, multiply};
 
@@ -162,7 +162,9 @@ fn dungeon(out: &std::path::Path) {
     voices.extend([Sample::Drip, Sample::Drip, Sample::Drip, Sample::Drip, Sample::Scream, Sample::Step, Sample::Step].into_iter().enumerate().map(|(i, sample)| (sample, positions.get(i).copied().unwrap_or(cave.centre()), 0.0, 1.0, false)));
     std::fs::write(out.join("dungeon-voices.bin"), voices.iter().flat_map(|(sample, position, gain, pitch, active)| [*sample as u32, position[0].to_bits(), position[1].to_bits(), position[2].to_bits(), gain.to_bits(), pitch.to_bits(), u32::from(*active)].into_iter().flat_map(u32::to_le_bytes)).collect::<Vec<_>>()).unwrap();
     let rooms = world.acoustic_rooms();
-    constants.push_str(&format!("const VOICE_COUNT: usize = {};\nconst LIGHT_COUNT: usize = {};\nconst CONE_COUNT: u32 = {};\nconst BRIDGE: [[f32; 3]; 2] = {:?};\nconst REVEAL: [[f32; 3]; 2] = {:?};\n", voices.len(), world.lights.len(), cones.len(), [world.bridge.lo, world.bridge.hi], [cave.lo, cave.hi]));
+    let cave_eye = [cave.lo[0] + 2.0, EYE, world.river.lo[2] - 0.9];
+    let cave_look = sub([world.bridge.centre()[0], EYE, world.river.centre()[2]], cave_eye);
+    constants.push_str(&format!("const VOICE_COUNT: usize = {};\nconst LIGHT_COUNT: usize = {};\nconst CONE_COUNT: u32 = {};\nconst BRIDGE: [[f32; 3]; 2] = {:?};\nconst REVEAL: [[f32; 3]; 2] = {:?};\nconst CAVE_CAMERA: ([f32; 3], f32, f32) = {:?};\n", voices.len(), world.lights.len(), cones.len(), [world.bridge.lo, world.bridge.hi], [cave.lo, cave.hi], (cave_eye, cave_look[0].atan2(-cave_look[2]), -0.14)));
     constants.push_str(&format!("const ROOM_COUNT: usize = {};\nconst DOORWAY_COUNT: usize = {};\n", rooms.len(), rooms.iter().map(|room| room.doorways.len()).sum::<usize>()));
     let audio = ["torch", "fire", "river", "wind", "heart", "creak", "room", "drip0", "drip1", "drip2", "stone0", "stone1", "stone2", "stone3", "stone4", "stone5", "wet0", "wet1", "wet2", "wet3", "wet4", "wet5", "gravel0", "gravel1", "gravel2", "gravel3", "gravel4", "gravel5", "wood0", "wood1", "wood2", "wood3", "wood4", "wood5"];
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../demos/assets");

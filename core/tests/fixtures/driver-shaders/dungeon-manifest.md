@@ -19,9 +19,20 @@ Columns: words = 128-bit instructions; regs = highest R referenced + 1 (64/128-b
 | dungeon_sprite.frag | 1097 | 38 | 0/0 | 0x1d: 0x8 0x10 0x18 0x20 0x28 | - | 862409ca3ab36ceda979039c2a041bb6dfca78753b1d579d3fd1c594e9461ed6 |
 | dungeon_water.comp | 160 | 24 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 | - | 876230f1259de6e63451428321184579205d76cdc4c21781c191d2af98df12a8 |
 | dungeon_light.comp | 80 | 10 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | b210ef77cd81aec36690528bd79122dc978509f473ff57ff3c84c08e688c7fb5 |
-| dungeon_particles.comp | 1872 | 62 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | a2936a12913d4e9c2490de715c32c0f97efb1e1cf0b0af3b564b4e718c06664b |
+| dungeon_particles.comp | 462 | 32 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 | - | 3ed28d9357b6d4fd0fa6a3809131ef3dbaa74a29eb6e4e8ac299d95c7a0b18a6 |
+| fire_force.comp | 402 | 37 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 0x80 0x88 | - | bf3173247720f7c4ac40bde7eb11ab31bb2c89dcd8c676801bc168157073bf89 |
+| fire_curl.comp | 254 | 20 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | 20e6ac2f9da0f8d08a9c3dce5384af3e19a1e8630086a13506f36b483fb8bf39 |
+| fire_confine.comp | 334 | 24 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | ae2af333516fc737253a8a409238d5fbc4956faa165122c90f4a6903a10af889 |
+| fire_div.comp | 219 | 19 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | 4d9f0e7162697f541236885dd48ac00012a907358acd99fe4619814487d833f4 |
+| fire_jacobi.comp | 251 | 20 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | 70b28e4ad71907e59e2c743de2f54afff621e810001b0cc4fd9eb7a424efa354 |
+| fire_project.comp | 229 | 20 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 | - | 10754437614a22be5a860d8aa952d13f61493577d6b988e71c9957508d6ea9e9 |
+| fire_advect.comp | 1211 | 46 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x64 0x68 | - | e53d69a48534748fb0422309edab38137e367fdf31c372d1a93c8fe38e7a8b04 |
+| smoke_light.comp | 230 | 35 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 | - | 18204eafd2c87ca34c3f7e6293ef7916be0db2d282596bb4ec58fd488122353e |
+| volume_march.comp | 552 | 62 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 0x80 0x88 0x90 0x98 | - | e222c8e24be1e0781837984ba73978401c4abc4e7c3fe0d3ec736c49196841d0 |
+| volume_resolve.comp | 544 | 38 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 0x80 0x88 | - | 194c78ac8fb97524973d97ffd1cf193fa86bbbe05515b457851a25c93837e9d5 |
 | dungeon_fog.comp | 598 | 43 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 | - | 1316c063061a3c21f1b16e0f7883c0ec0ea77171a7030d972a46fd24cba9ecd3 |
-| dungeon_post.comp | 841 | 70 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 0x80 0x88 | - | 1380632ffe4e70b5a095ffb2c588a4c51d58c5dadcd9fdc5030d793cea4c64fd |
+| dungeon_post.comp | 852 | 70 | 0/0 | 0x0: 0x30 0x40 0x48 0x50 0x58 0x60 0x68 0x70 0x78 0x80 0x88 0x90 0x98 | - | 4c4105ff03abc398afb7f922eeed7d36b3732da363e619ed82065743d92ae290 |
 
 Notes: dungeon.frag and dungeon_cones.frag are byte-identical, as are dungeon_rt.frag and dungeon_cones_rt.frag (same frag source per pair). Multi-EXIT programs were taken whole (the longest nvdisasm-clean run). No stage spills.
 The fire sprite and particle stages were rebuilt on pod f8d7yaymimfujn, A40 SM86, driver 580.159.03.
+The fluid fire compute stages were rebuilt on an A40 SM86 pod with driver 580.159.03.

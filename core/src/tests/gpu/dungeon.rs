@@ -816,19 +816,86 @@ fn water_ping_pong_matches_native_and_releases_each_visible_step() {
 }
 
 #[test]
+fn fluid_fire_step_matches_native_packed_fields() {
+    let Some(state) = shared_device() else { return };
+    let cells = 4 * 8 * 4;
+    let volumes = bytes(&[0u32, 4, 8, 4]);
+    let sources = lights()[..32].to_vec();
+    let mut expected_atlas = vec![0; cells * 13 * 4];
+    let mut expected_lights = sources.clone();
+    let mut expected_emission = vec![0; 4];
+    let step = |phase: u32| bytes(&[cells as u32, 1, phase, 0, (1.0f32 / 60.0).to_bits(), 0.5f32.to_bits(), 0, 0]);
+    let force = native(state, include_bytes!("../../../../demos/shaders/fire_force.comp.spv"), &[expected_atlas, volumes.clone(), sources.clone(), expected_lights, expected_emission, step(0)], 5, [1, 1, 1]);
+    expected_atlas = force[0].clone(); expected_lights = force[3].clone(); expected_emission = force[4].clone();
+    for code in [include_bytes!("../../../../demos/shaders/fire_curl.comp.spv").as_slice(), include_bytes!("../../../../demos/shaders/fire_confine.comp.spv"), include_bytes!("../../../../demos/shaders/fire_div.comp.spv")] { expected_atlas = native(state, code, &[expected_atlas, volumes.clone(), step(0)], 2, [1, 1, 1])[0].clone(); }
+    for phase in 0..8 { expected_atlas = native(state, include_bytes!("../../../../demos/shaders/fire_jacobi.comp.spv"), &[expected_atlas, volumes.clone(), step(phase)], 2, [1, 1, 1])[0].clone(); }
+    expected_atlas = native(state, include_bytes!("../../../../demos/shaders/fire_project.comp.spv"), &[expected_atlas, volumes.clone(), step(0)], 2, [1, 1, 1])[0].clone();
+    let advected = native(state, include_bytes!("../../../../demos/shaders/fire_advect.comp.spv"), &[expected_atlas, volumes.clone(), expected_emission, step(0)], 3, [1, 1, 1]);
+    expected_atlas = advected[0].clone(); expected_emission = advected[2].clone();
+    let program = BASE + 0x8_0000; let data = BASE + 0x10_0000;
+    let (atlas_at, volumes_at, sources_at, lights_at, emission_at, uniforms_at) = (data, data + 0x20000, data + 0x21000, data + 0x22000, data + 0x23000, data + 0x24000);
+    let shaders = [include_bytes!("../../../tests/fixtures/driver-shaders/fire_force.comp.bin").as_slice(), include_bytes!("../../../tests/fixtures/driver-shaders/fire_curl.comp.bin"), include_bytes!("../../../tests/fixtures/driver-shaders/fire_confine.comp.bin"), include_bytes!("../../../tests/fixtures/driver-shaders/fire_div.comp.bin"), include_bytes!("../../../tests/fixtures/driver-shaders/fire_jacobi.comp.bin"), include_bytes!("../../../tests/fixtures/driver-shaders/fire_project.comp.bin"), include_bytes!("../../../tests/fixtures/driver-shaders/fire_advect.comp.bin")];
+    let addresses: [u64; 7] = core::array::from_fn(|i| program + i as u64 * 0x8000);
+    let programs = [0, 1, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 6];
+    let passes: [Pass; 14] = core::array::from_fn(|i| pass(i as u64, addresses[programs[i]]));
+    let mut guest = gpu(state);
+    for (address, code) in addresses.into_iter().zip(shaders) { guest.write(address, &shader(code)).unwrap(); }
+    for (address, data) in [(atlas_at, vec![0; cells * 13 * 4]), (volumes_at, volumes.clone()), (sources_at, sources.clone()), (lights_at, sources), (emission_at, vec![0; 4])] { guest.write(address, &data).unwrap(); }
+    for slot in 0..14 { guest.write(uniforms_at + slot as u64 * 0x100, &step(if (4..12).contains(&slot) { slot as u32 - 4 } else { 0 })).unwrap(); }
+    let uniform = |slot| Buffer { address: uniforms_at + slot as u64 * 0x100, size: 32 };
+    let atlas = Buffer { address: atlas_at, size: (cells * 13 * 4) as u32 }; let volume = Buffer { address: volumes_at, size: 16 };
+    install(&mut guest, passes[0], &compute::linear(passes[0], [atlas, volume, Buffer { address: sources_at, size: 32 }, Buffer { address: lights_at, size: 32 }, Buffer { address: emission_at, size: 4 }], uniform(0), cells as u32, 33, 1));
+    for (slot, registers) in [(1, 20), (2, 24), (3, 19)] { install(&mut guest, passes[slot], &compute::linear(passes[slot], [atlas, volume], uniform(slot), cells as u32, registers, slot as u32 + 1)); }
+    for slot in 4..12 { install(&mut guest, passes[slot], &compute::linear(passes[slot], [atlas, volume], uniform(slot), cells as u32, 20, slot as u32 + 1)); }
+    install(&mut guest, passes[12], &compute::linear(passes[12], [atlas, volume], uniform(12), cells as u32, 20, 13));
+    install(&mut guest, passes[13], &compute::linear(passes[13], [atlas, volume, Buffer { address: emission_at, size: 4 }], uniform(13), cells as u32, 46, 14));
+    submit(&mut guest, &passes);
+    let mut actual = vec![0; expected_atlas.len()]; guest.read(atlas_at, &mut actual).unwrap();
+    for (i, (a, b)) in actual.chunks_exact(2).map(|v| u16::from_le_bytes(v.try_into().unwrap())).zip(expected_atlas.chunks_exact(2).map(|v| u16::from_le_bytes(v.try_into().unwrap()))).enumerate() { assert!(a.abs_diff(b) <= 2, "half {i}: {a} != {b}"); }
+    for (address, expected) in [(lights_at, expected_lights), (emission_at, expected_emission)] { let mut actual = vec![0; expected.len()]; guest.read(address, &mut actual).unwrap(); assert_eq!(actual, expected); }
+}
+
+#[test]
+fn smoke_volume_matches_native_temporal_resolve() {
+    let Some(state) = shared_device() else { return };
+    let cells = 11usize; let volumes = bytes(&(0..11).flat_map(|i| [i, 1, 1, 1]).collect::<Vec<u32>>());
+    let mut source_values = Vec::new();
+    for i in 0..11 { let p = if i == 10 { [0.0, 0.25, -4.0] } else { [100.0 + i as f32, 100.0, 100.0] }; source_values.extend([p[0], p[1], p[2], 0.58, 6.0, 2.5, 0.7, 0.0]); }
+    let sources = floats(&source_values);
+    let mut atlas_words = vec![0u32; cells * 13]; atlas_words[4 * cells + 10 * 2] = 0x4400; atlas_words[4 * cells + 10 * 2 + 1] = 0x3400;
+    let atlas = bytes(&atlas_words); let step = bytes(&[cells as u32, 11, 0, 0, (1.0f32 / 60.0).to_bits(), 0.25f32.to_bits(), 0, 0]);
+    let mut frame_values = [0.0f32; 80]; for base in [0, 16, 64] { for i in 0..4 { frame_values[base + i * 5] = 1.0; } } frame_values[32..36].copy_from_slice(&[0.0, 0.5, -2.0, 0.25]); frame_values[36] = 1.0; frame_values[41] = 1.0; frame_values[52..56].copy_from_slice(&[8.0, 8.0, 0.0, 0.0]); let frame = floats(&frame_values);
+    let hdr = bytes(&[0u32, 0x4900_0000]).repeat(64); let blackbody = floats(&(0..256).flat_map(|_| [1.0, 0.3, 0.02, 1.0]).collect::<Vec<_>>()); let current = vec![0; 4 * 4 * 16]; let history = current.clone(); let output = vec![0; 8 * 8 * 8];
+    let lit = native(state, include_bytes!("../../../../demos/shaders/smoke_light.comp.spv"), &[atlas, volumes.clone(), sources.clone(), step.clone()], 3, [1, 1, 1]);
+    let marched = native(state, include_bytes!("../../../../demos/shaders/volume_march.comp.spv"), &[lit[0].clone(), volumes.clone(), sources.clone(), blackbody.clone(), hdr.clone(), current, frame.clone()], 6, [1, 1, 1]);
+    let resolved = native(state, include_bytes!("../../../../demos/shaders/volume_resolve.comp.spv"), &[marched[5].clone(), history.clone(), history, hdr.clone(), output, frame.clone()], 5, [1, 1, 1]);
+    let program = BASE + 0x8_0000; let data = BASE + 0x10_0000; let addresses = [program, program + 0x8000, program + 0x10000]; let passes = [pass(0, addresses[0]), pass(1, addresses[1]), pass(2, addresses[2])];
+    let buffers = [data, data + 0x1000, data + 0x2000, data + 0x3000, data + 0x4000, data + 0x8000, data + 0x9000, data + 0xa000, data + 0xb000, data + 0xc000];
+    let mut guest = gpu(state); for (address, code) in addresses.into_iter().zip([include_bytes!("../../../tests/fixtures/driver-shaders/smoke_light.comp.bin").as_slice(), include_bytes!("../../../tests/fixtures/driver-shaders/volume_march.comp.bin"), include_bytes!("../../../tests/fixtures/driver-shaders/volume_resolve.comp.bin")]) { guest.write(address, &shader(code)).unwrap(); }
+    for (address, bytes) in buffers.into_iter().zip([lit[0].clone(), volumes, sources, blackbody, hdr, vec![0; 4 * 4 * 16], vec![0; 4 * 4 * 16], vec![0; 4 * 4 * 16], vec![0; 8 * 8 * 8], frame]) { guest.write(address, &bytes).unwrap(); } guest.write(data + 0xd000, &step).unwrap();
+    let b = |i| Buffer { address: buffers[i], size: [lit[0].len(), lit[1].len(), lit[2].len(), 256 * 16, 64 * 8, 4 * 4 * 16, 4 * 4 * 16, 4 * 4 * 16, 8 * 8 * 8, 320][i] as u32 };
+    install(&mut guest, passes[0], &compute::linear(passes[0], [b(0), b(1), b(2)], Buffer { address: data + 0xd000, size: 32 }, cells as u32, 35, 1));
+    install(&mut guest, passes[1], &compute::linear(passes[1], [b(0), b(1), b(2), b(3), b(4), b(5)], b(9), 16, 62, 2));
+    install(&mut guest, passes[2], &compute::linear(passes[2], [b(5), b(6), b(7), b(4), b(8)], b(9), 64, 38, 3)); submit(&mut guest, &passes);
+    for (output, (address, expected)) in [(buffers[5], &marched[5]), (buffers[7], &resolved[2]), (buffers[8], &resolved[4])].into_iter().enumerate() { let mut actual = vec![0; expected.len()]; guest.read(address, &mut actual).unwrap(); for (i, (a, b)) in actual.chunks_exact(2).map(|v| u16::from_le_bytes(v.try_into().unwrap())).zip(expected.chunks_exact(2).map(|v| u16::from_le_bytes(v.try_into().unwrap()))).enumerate() { assert!(a.abs_diff(b) <= 2, "output {output} half {i}: {a} != {b}"); } }
+}
+
+#[test]
 fn particles_match_native_emitter_order_and_48_byte_stride() {
     let Some(state) = shared_device() else { return };
     let lights = lights();
     let uniforms = floats(&[0.75, 16.0, 0.0, 0.0]);
     let output = vec![0; 2 * 16 * 48];
+    let volumes = bytes(&[0u32, 4, 4, 4, 64, 8, 8, 8]);
+    let atlas = vec![0; 576 * 13 * 4];
     let expected = native(
         state,
-        include_bytes!("../../../../demos/shaders/dungeon_particles.comp.spv"),
-        &[lights.clone(), output.clone(), uniforms.clone()],
-        2,
+        include_bytes!("../../../../demos/shaders/dungeon_particles_f9.comp.spv"),
+        &[lights.clone(), output.clone(), atlas.clone(), volumes.clone(), uniforms.clone()],
+        4,
         [1, 1, 1],
     );
-    let (lights_at, output_at, uniforms_at) = (DATA, DATA + 0x1000, DATA + 0x3000);
+    let (lights_at, output_at, atlas_at, volumes_at, uniforms_at) = (DATA, DATA + 0x1000, DATA + 0x3000, DATA + 0xc000, DATA + 0xd000);
     let pass = pass(0, PROGRAM);
     let mut guest = gpu(state);
     for (address, data) in [
@@ -840,15 +907,17 @@ fn particles_match_native_emitter_order_and_48_byte_stride() {
         ),
         (lights_at, lights),
         (output_at, output),
+        (atlas_at, atlas),
+        (volumes_at, volumes),
         (uniforms_at, uniforms),
     ] {
         guest.write(address, &data).unwrap();
     }
-    let encoded = compute::particles(
+    let encoded = compute::linear(
         pass,
-        buffer(lights_at, &expected[0]),
-        buffer(output_at, &expected[1]),
-        buffer(uniforms_at, &expected[2]),
+        [buffer(lights_at, &expected[0]), buffer(output_at, &expected[1]), buffer(atlas_at, &expected[2]), buffer(volumes_at, &expected[3])],
+        buffer(uniforms_at, &expected[4]),
+        32,
         32,
         1,
     );
@@ -942,9 +1011,10 @@ fn post_matches_native_rgba8_after_visible_fog_pass() {
         [1, 1, 1],
     );
     let output = vec![0; (SIZE[0] * SIZE[1] * 4) as usize];
+    let volume = bytes(&[0u32, 0x3c00_0000]).repeat((SIZE[0] * SIZE[1]) as usize);
     let expected = native(
         state,
-        include_bytes!("../../../../demos/shaders/dungeon_post.comp.spv"),
+        include_bytes!("../../../../demos/shaders/dungeon_post_f9.comp.spv"),
         &[
             hdr.clone(),
             output.clone(),
@@ -952,17 +1022,19 @@ fn post_matches_native_rgba8_after_visible_fog_pass() {
             lights.clone(),
             fogged[1].clone(),
             fogged[4].clone(),
+            volume.clone(),
         ],
         2,
         [1, 1, 1],
     );
-    let (hdr_at, output_at, frame_at, lights_at, fog_at, bloom_at) = (
+    let (hdr_at, output_at, frame_at, lights_at, fog_at, bloom_at, volume_at) = (
         DATA,
         DATA + 0x1000,
         DATA + 0x2000,
         DATA + 0x3000,
         DATA + 0x4000,
         DATA + 0x5000,
+        DATA + 0x6000,
     );
     let passes = [pass(0, PROGRAM), pass(1, PROGRAM + 0x4000)];
     let mut guest = gpu(state);
@@ -985,6 +1057,7 @@ fn post_matches_native_rgba8_after_visible_fog_pass() {
         (lights_at, lights),
         (fog_at, quarter.clone()),
         (bloom_at, quarter),
+        (volume_at, volume),
     ] {
         guest.write(address, &data).unwrap();
     }
@@ -1000,7 +1073,7 @@ fn post_matches_native_rgba8_after_visible_fog_pass() {
         SIZE,
         1,
     );
-    let post = compute::post(
+    let post = compute::post_volume(
         passes[1],
         [
             buffer(hdr_at, &expected[0]),
@@ -1009,8 +1082,10 @@ fn post_matches_native_rgba8_after_visible_fog_pass() {
             buffer(lights_at, &expected[3]),
             buffer(fog_at, &fogged[1]),
             buffer(bloom_at, &fogged[4]),
+            buffer(volume_at, &expected[6]),
         ],
         SIZE,
+        70,
         2,
     );
     install(&mut guest, passes[0], &fog);
