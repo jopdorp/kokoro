@@ -64,7 +64,7 @@ fn tensor_upscale_matches_the_catmull_rom_reference_in_both_modes() {
     let (banks, regions) = kernel.launch([120, 68, 1], [32, 1, 1], &args, GLOBAL_BASE);
     for fast in [false, true] {
         crate::gpu::SPEED_HACKS.lock().unwrap().fast_tensor = fast;
-        let mut grid = Grid::new(state, &kernel.words, [32, 1, 1], &banks, &regions);
+        let mut grid = Grid::new(state, &kernel.words, [32, 1, 1], kernel.shared_bytes, &banks, &regions);
         let actual = grid.run([120, 68, 1]).pop().unwrap();
         let maximum = actual.iter().zip(&expected).map(|(&a, &b)| a.abs_diff(b)).max().unwrap();
         assert!(maximum <= 1, "fast={fast}: maximum channel error {maximum}");

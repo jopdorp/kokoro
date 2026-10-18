@@ -69,11 +69,11 @@ Each Nintendo Relocatable Object (NRO) is loaded by the loader and runs on the e
 
 <video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced.mp4" type="video/mp4"></video>
 
-*The guest places the geometry, instances and commands in its memory, then issues the draw with the ray-query shader through `nvdrv`. The emulator builds the acceleration structure from that memory, and the frame digest is equal to the host's. This heavy showcase shader adds soft shadows, chrome, glass and bounce light. The clip was rendered offline on an RTX 3090 through the host capture path; the guest renders the same shader, and its 3090 capture follows.*
+*The guest places the geometry, instances and commands in its memory, then issues the draw with the ray-query shader through `nvdrv`. The emulator builds the acceleration structure from that memory, and the frame digest is equal to the host's. The lamp is now the main light. Its pool sweeps the red and green walls as it orbits, the shadows swing with it, and the walls' colour bounces onto the BoomBox. Soft shadows, chrome, glass and the glossy floor remain. The clip was rendered offline on an RTX A5000, in the same chip family as the 3090, because the laptop runs this shader slowly.*
 
-![Ray-traced scene without and with bounce light](https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-gi-proof.png)
+![Ray-traced scene with the old and new lighting](https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-gi-proof.png)
 
-*The top row is without bounce light and the bottom row is with it. Look at the BoomBox picking up the wall colour near the lamp.*
+*The top row is v4 and the bottom row is v5. Look at the lamp's pool, the moving shadows and the wall colour on the BoomBox.*
 
 ### Music
 
@@ -87,15 +87,19 @@ Dungeon is a native Vulkan tech demo. It does not use the emulated CPU or GPU, b
 
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon.mp4" type="video/mp4"></video>
 
-*Showcase: ray queries add soft shadows, reflections and darker crevices. This clip was rendered offline on the Intel laptop.*
+*Showcase: ray queries make every flame shadow dance, reflect torches on wet calcite and add warm limestone bounce. This clip was rendered offline on the Intel laptop.*
 
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime-poster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime.mp4" type="video/mp4"></video>
 
 *Realtime: baked shadows and planar reflections make the same tour lighter to render. This clip was rendered offline on the Intel laptop.*
 
-![Raster and ray-query dungeon frame](https://raw.githubusercontent.com/jopdorp/oboromi/assets/dungeon-v6-rt-compare.png)
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/dungeon-v8-rt-compare.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-compare.mp4" type="video/mp4"></video>
 
-*Raster is left and ray queries are right. The difference is small in this frame and clearest in the water.*
+*Raster is left and ray queries are right over the same fifteen reveal seconds. The right ceiling and firepit stay warmer while every flame moves its soft shadow; wet calcite catches the torches. Mean absolute RGB difference is 5.76% over all 900 frames.*
+
+![Raster and ray-query dungeon frame](https://raw.githubusercontent.com/jopdorp/oboromi/assets/dungeon-v8-rt-compare.png)
+
+*The same reveal frame. The difference is clear in the warm ceiling bounce, softer formation shadows and wet calcite reflections.*
 
 ## Measured
 
@@ -107,8 +111,8 @@ Median frame times on the Intel Arc laptop used for the captures:
 | Julia set | 4.7 ms |
 | Triangle, 1080p | 6.6 ms |
 | CUDA Mandelbrot, 800x600 | 10.2 ms |
-| Dungeon realtime | 23.8 ms |
-| Dungeon showcase | 144.5 ms |
+| Dungeon realtime | 41.7 ms |
+| Dungeon showcase | 232.5 ms |
 
 These are laptop measurements, not native Switch 2 measurements.
 

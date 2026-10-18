@@ -23,9 +23,12 @@ const BASE: u64 = 0x3_0000_0000;
 const PUSH: u64 = BASE;
 const DUNGEON_VERTEX: u64 = BASE + 0x1_0000;
 const DUNGEON_FRAGMENT: u64 = BASE + 0x2_0000;
+const DUNGEON_RT_VERTEX: u64 = BASE + 0x3_0000;
+const DUNGEON_RT_FRAGMENT: u64 = BASE + 0x4_0000;
 const CONES_VERTEX: u64 = BASE + 0x5_0000;
 const SPRITE_VERTEX: u64 = BASE + 0x6_0000;
 const SPRITE_FRAGMENT: u64 = BASE + 0x7_0000;
+const CONES_RT_VERTEX: u64 = BASE + 0x8_0000;
 const WATER_PROGRAM: u64 = BASE + 0x9_0000;
 const PARTICLES_PROGRAM: u64 = BASE + 0xa_0000;
 const FOG_PROGRAM: u64 = BASE + 0xc_0000;
@@ -114,7 +117,8 @@ struct Layout {
     lights: u64,
     rooms: u64,
     cones: u64,
-    geometry: u64,
+    ray_geometry: u64,
+    ray_indices: u64,
     textures: [u64; 9],
     target: u64,
     target_depth: u64,
@@ -145,8 +149,9 @@ impl Layout {
         let lights = align(indices + index_bytes as u64);
         let rooms = align(lights + (LIGHT_COUNT * 32) as u64);
         let cones = align(rooms + include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-zones.bin")).len() as u64);
-        let geometry = align(cones + include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-cones.bin")).len() as u64);
-        let mut at = align(geometry + include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-geometry.bin")).len() as u64);
+        let ray_geometry = align(cones + include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-cones.bin")).len() as u64);
+        let ray_indices = align(ray_geometry + include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-ray-geometry.bin")).len() as u64);
+        let mut at = align(ray_indices + include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-ray-indices.bin")).len() as u64);
         let textures = core::array::from_fn(|i| { let address = at; at = align(at + TEXTURE_BYTES[i] as u64); address });
         let target = at;
         let target_depth = target + u64::from(WIDTH * HEIGHT * 8);
@@ -164,7 +169,7 @@ impl Layout {
         let bloom = align(fog + u64::from(WIDTH / 4 * HEIGHT / 4 * 16));
         let output = align(bloom + u64::from(WIDTH / 4 * HEIGHT / 4 * 16));
         let end = align(output + u64::from(WIDTH * HEIGHT * 4));
-        Self { vertices, vertex_bytes, indices, opaque_indices, water_indices, lights, rooms, cones, geometry, textures, target, target_depth, reflection, reflection_depth, shadows, water, water_surface, water_uniforms, frame, particle_time, particles, fog, bloom, output, end, grid, reflection_size }
+        Self { vertices, vertex_bytes, indices, opaque_indices, water_indices, lights, rooms, cones, ray_geometry, ray_indices, textures, target, target_depth, reflection, reflection_depth, shadows, water, water_surface, water_uniforms, frame, particle_time, particles, fog, bloom, output, end, grid, reflection_size }
     }
 }
 
@@ -218,17 +223,12 @@ fn frame_data(frame: usize, showcase: bool, rays: bool, camera: Option<([f32; 3]
 }
 
 fn setup_graphics(fs: u32, layout: &Layout, showcase: bool, rays: bool) -> svc::Result<()> {
-    let (vertex, fragment, cones) = if rays {
-        (include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_rt.vert.bin").as_slice(), include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_rt.frag.bin").as_slice(), include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_cones_rt.vert.bin").as_slice())
-    } else {
-        (include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon.vert.bin").as_slice(), include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon.frag.bin").as_slice(), include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_cones.vert.bin").as_slice())
-    };
-    for (address, bytes) in [(DUNGEON_VERTEX, vertex), (DUNGEON_FRAGMENT, fragment), (CONES_VERTEX, cones), (SPRITE_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_sprite.vert.bin")), (SPRITE_FRAGMENT, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_sprite.frag.bin")), (WATER_PROGRAM, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_water.comp.bin")), (PARTICLES_PROGRAM, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_particles.comp.bin")), (FOG_PROGRAM, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_fog.comp.bin")), (POST_PROGRAM, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_post.comp.bin"))] { shader(address, bytes); }
+    for (address, bytes) in [(DUNGEON_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon.vert.bin").as_slice()), (DUNGEON_FRAGMENT, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon.frag.bin").as_slice()), (DUNGEON_RT_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_rt.vert.bin").as_slice()), (DUNGEON_RT_FRAGMENT, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_rt.frag.bin").as_slice()), (CONES_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_cones.vert.bin").as_slice()), (CONES_RT_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_cones_rt.vert.bin").as_slice()), (SPRITE_VERTEX, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_sprite.vert.bin")), (SPRITE_FRAGMENT, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_sprite.frag.bin")), (WATER_PROGRAM, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_water.comp.bin")), (PARTICLES_PROGRAM, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_particles.comp.bin")), (FOG_PROGRAM, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_fog.comp.bin")), (POST_PROGRAM, include_bytes!("../../../core/tests/fixtures/driver-shaders/dungeon_post.comp.bin"))] { shader(address, bytes); }
     let vertices = if showcase { include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-showcase-vertices.bin")).as_slice() } else { include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-realtime-vertices.bin")).as_slice() };
     let indices = if showcase { include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-showcase-indices.bin")).as_slice() } else { include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-realtime-indices.bin")).as_slice() };
     nv::guest_slice(cpu(layout.vertices), vertices.len()).copy_from_slice(vertices);
     nv::guest_slice(cpu(layout.indices), indices.len()).copy_from_slice(indices);
-    for (address, bytes) in [(layout.rooms, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-zones.bin")).as_slice()), (layout.cones, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-cones.bin")).as_slice()), (layout.geometry, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-geometry.bin")).as_slice())] { nv::guest_slice(cpu(address), bytes.len()).copy_from_slice(bytes); }
+    for (address, bytes) in [(layout.rooms, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-zones.bin")).as_slice()), (layout.cones, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-cones.bin")).as_slice()), (layout.ray_geometry, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-ray-geometry.bin")).as_slice()), (layout.ray_indices, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-ray-indices.bin")).as_slice())] { nv::guest_slice(cpu(address), bytes.len()).copy_from_slice(bytes); }
     let mut tic = [0u32; 72];
     for (i, (&address, &bytes)) in layout.textures.iter().zip(&TEXTURE_BYTES).enumerate() {
         load_file(fs, "dungeon", TEXTURE_NAMES[i], ".rgba8", cpu(address), bytes)?;
@@ -240,27 +240,21 @@ fn setup_graphics(fs: u32, layout: &Layout, showcase: bool, rays: bool) -> svc::
     copy(DRAW_PARAMETERS, &render::draw_parameters());
     copy(FRAGMENT_CONSTANTS, &render::fragment_constants());
     if rays {
-        let [vertex_hi, vertex_lo] = scene::split(layout.vertices);
-        let [index_hi, index_lo] = scene::split(layout.indices);
-        let mut registry = [0u32; 22];
-        registry[..10].copy_from_slice(&[
-            scene::pbr::ACCELERATION_STRUCTURE_MAGIC, 1, vertex_hi, vertex_lo, 48,
-            (layout.vertex_bytes / 48) as u32, index_hi, index_lo, layout.opaque_indices, 1,
-        ]);
-        registry[10..].copy_from_slice(&[1.0f32.to_bits(), 0, 0, 0, 0, 1.0f32.to_bits(), 0, 0, 0, 0, 1.0f32.to_bits(), 0]);
-        copy(TLAS, &registry);
+        let mut registry = Words { storage: nv::guest_slice(cpu(TLAS), 22), len: 0 };
+        render::acceleration_structure(render::RayGeometry { vertices: buffer(layout.ray_geometry, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-ray-geometry.bin")).len()), indices: buffer(layout.ray_indices, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-ray-indices.bin")).len()), tlas: TLAS }, &mut registry);
     }
     Ok(())
 }
 
 fn render_frame(channel: &nv::Channel, layout: &Layout, showcase: bool, rays: bool, camera: Option<([f32; 3], f32, f32, f32)>, tick: u32) -> svc::Result<()> {
     frame_data(tick as usize, showcase, rays, camera, layout);
-    let programs = render::Programs { dungeon_vertex: DUNGEON_VERTEX, dungeon_fragment: DUNGEON_FRAGMENT, dungeon_fragment_registers: if rays { 70 } else { 46 }, cones_vertex: CONES_VERTEX, sprite_vertex: SPRITE_VERTEX, sprite_fragment: SPRITE_FRAGMENT };
+    let programs = render::Programs { dungeon_vertex: DUNGEON_VERTEX, dungeon_fragment: DUNGEON_FRAGMENT, cones_vertex: CONES_VERTEX, sprite_vertex: SPRITE_VERTEX, sprite_fragment: SPRITE_FRAGMENT };
+    let ray_programs = render::RayPrograms { dungeon_vertex: DUNGEON_RT_VERTEX, dungeon_fragment: DUNGEON_RT_FRAGMENT, cones_vertex: CONES_RT_VERTEX };
     let mesh = render::Mesh { vertices: buffer(layout.vertices, layout.vertex_bytes), indices: layout.indices };
     let target = render::Target { colour: layout.target, depth: layout.target_depth, size: [WIDTH, HEIGHT] };
     let reflection = render::Target { colour: layout.reflection, depth: layout.reflection_depth, size: layout.reflection_size };
     let tables = |descriptors, constants| render::Tables { descriptors, vertex_constants: constants, fragment_constants: FRAGMENT_CONSTANTS, draw_parameters: DRAW_PARAMETERS, textures: TIC, samplers: TSC };
-    let resources = |frame| render::DungeonResources { frame: buffer(frame, 256), lights: buffer(layout.lights, LIGHT_COUNT * 32), reflection: if rays { buffer(TLAS, 88) } else { buffer(layout.reflection, (layout.reflection_size[0] * layout.reflection_size[1] * 8) as usize) }, refraction: buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), geometry: buffer(layout.geometry, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-geometry.bin")).len()), shadows: buffer(layout.shadows, 10 * 6 * 256 * 256 * 8), rooms: buffer(layout.rooms, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-zones.bin")).len()), vertex_data: buffer(layout.water_surface, (layout.grid[0] * layout.grid[1] * 16) as usize), textures: [0, 1, 2, 3, 4, 5, 6, 7, 8] };
+    let resources = |frame| render::DungeonResources { frame: buffer(frame, 256), lights: buffer(layout.lights, LIGHT_COUNT * 32), reflection: buffer(layout.reflection, (layout.reflection_size[0] * layout.reflection_size[1] * 8) as usize), refraction: buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), geometry: buffer(layout.ray_geometry, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-ray-geometry.bin")).len()), shadows: buffer(layout.shadows, 10 * 6 * 256 * 256 * 8), rooms: buffer(layout.rooms, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-zones.bin")).len()), vertex_data: buffer(layout.water_surface, (layout.grid[0] * layout.grid[1] * 16) as usize), textures: [0, 1, 2, 3, 4, 5, 6, 7, 8] };
     let submit = |words: &mut Words<'_>| channel.submit(PUSH, words.len);
     let mut words = Words { storage: nv::guest_slice(cpu(PUSH), 0x10000), len: 0 };
     if !rays {
@@ -274,12 +268,12 @@ fn render_frame(channel: &nv::Channel, layout: &Layout, showcase: bool, rays: bo
         submit(&mut words).map_err(|_| 21u32)?;
     }
     words.len = 0;
-    copy(DESCRIPTORS, &render::dungeon_descriptors(resources(layout.frame + 256)));
+    if rays { copy(DESCRIPTORS, &render::dungeon_ray_descriptors(resources(layout.frame + 256), TLAS)); } else { copy(DESCRIPTORS, &render::dungeon_descriptors(resources(layout.frame + 256))); }
     copy(VERTEX_CONSTANTS, &render::cone_constants());
-    render::opaque(target, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, [24 * 12 * 6, CONE_COUNT], &mut words);
+    if rays { render::ray_opaque(target, programs, ray_programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, [24 * 12 * 6, CONE_COUNT], &mut words); } else { render::opaque(target, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, [24 * 12 * 6, CONE_COUNT], &mut words); }
     submit(&mut words).map_err(|_| 22u32)?;
     words.len = 0;
-    render::water(target, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, layout.water_indices, &mut words);
+    if rays { render::ray_water(target, programs, ray_programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, layout.water_indices, &mut words); } else { render::water(target, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, layout.water_indices, &mut words); }
     submit(&mut words).map_err(|_| 24u32)?;
     words.len = 0;
     copy(DESCRIPTORS, &render::sprite_descriptors(render::SpriteResources { frame: buffer(layout.frame + 256, 256), lights: buffer(layout.lights, LIGHT_COUNT * 32), depth: buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), particles: buffer(layout.particles, LIGHT_COUNT * 96 * 48), texture: 0 }));

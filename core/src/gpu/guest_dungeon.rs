@@ -20,6 +20,9 @@ pub(crate) const TEXELS: u64 = BASE + 0x8_6000;
 pub(crate) const DATA: u64 = BASE + 0x9_0000;
 pub(crate) const TARGET: u64 = BASE + 0x10_0000;
 pub(crate) const REFLECTION: u64 = BASE + 0x11_0000;
+pub(crate) const DUNGEON_RT_VERTEX: u64 = BASE + 0x12_0000;
+pub(crate) const DUNGEON_RT_FRAGMENT: u64 = BASE + 0x13_0000;
+pub(crate) const CONES_RT_VERTEX: u64 = BASE + 0x16_0000;
 pub(crate) const DEPTH: u64 = BASE + ARENA;
 
 pub(crate) struct GuestDungeon {
@@ -58,6 +61,18 @@ impl GuestDungeon {
                 include_bytes!("../../tests/fixtures/driver-shaders/dungeon_sprite.frag.bin")
                     .as_slice(),
             ),
+            (
+                DUNGEON_RT_VERTEX,
+                include_bytes!("../../tests/fixtures/driver-shaders/dungeon_rt.vert.bin").as_slice(),
+            ),
+            (
+                DUNGEON_RT_FRAGMENT,
+                include_bytes!("../../tests/fixtures/driver-shaders/dungeon_rt.frag.bin").as_slice(),
+            ),
+            (
+                CONES_RT_VERTEX,
+                include_bytes!("../../tests/fixtures/driver-shaders/dungeon_cones_rt.vert.bin").as_slice(),
+            ),
         ] {
             gpu.write(address, &shader(program)).unwrap();
         }
@@ -77,10 +92,17 @@ impl GuestDungeon {
         render::Programs {
             dungeon_vertex: DUNGEON_VERTEX,
             dungeon_fragment: DUNGEON_FRAGMENT,
-            dungeon_fragment_registers: 46,
             cones_vertex: CONES_VERTEX,
             sprite_vertex: SPRITE_VERTEX,
             sprite_fragment: SPRITE_FRAGMENT,
+        }
+    }
+
+    pub fn ray_programs() -> render::RayPrograms {
+        render::RayPrograms {
+            dungeon_vertex: DUNGEON_RT_VERTEX,
+            dungeon_fragment: DUNGEON_RT_FRAGMENT,
+            cones_vertex: CONES_RT_VERTEX,
         }
     }
 

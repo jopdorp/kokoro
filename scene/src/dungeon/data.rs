@@ -2150,6 +2150,8 @@ fn acoustic_rooms(world: &World) -> Vec<u8> {
 pub struct Assets {
     pub vertices: Vec<u8>,
     pub indices: Vec<u8>,
+    pub ray_geometry: Vec<u8>,
+    pub ray_indices: Vec<u8>,
     pub lights: Vec<u8>,
     pub zones: Vec<u8>,
     pub props: Vec<u8>,
@@ -2161,6 +2163,77 @@ pub fn assets() -> Assets {
     let world = World::new(WORLD_SEED);
     let mut mesh = Builder::default();
     world.build(&mut mesh);
+    let mut ray_vertices = mesh.vertices.clone();
+    let mut ray_indices = mesh.indices.clone();
+    for prop in &world.props {
+        let (origin, height, radius) = match *prop {
+            Prop::Stalactite(p, h, r) => (p, -h, r),
+            Prop::Stalagmite(p, h, r) => (p, h, r),
+            _ => continue,
+        };
+        let tilt = [
+            (origin[0] * 3.0).sin() * 0.17,
+            (origin[2] * 2.0).cos() * 0.17,
+        ];
+        let first = ray_vertices.len() as u32;
+        let point = |u: f32, t: f32| {
+            let t = t * (2.0 - t);
+            let a = u * TAU;
+            let r = ((1.0 - t * t).max(0.000_004).sqrt() * (0.55 + 0.45 * (-t * 4.0).exp()))
+                * (1.0 + 0.12 * (a * 5.0 + t * 8.0 + origin[0]).sin())
+                * radius;
+            add(
+                origin,
+                [
+                    r * a.cos() + t * tilt[0],
+                    t * height,
+                    r * a.sin() + t * tilt[1],
+                ],
+            )
+        };
+        for y in 0..=12 {
+            for x in 0..=24 {
+                let (u, t) = (x as f32 / 24.0, y as f32 / 12.0);
+                let (normal, _) = frame(&point, u, t);
+                ray_vertices.push(Vertex {
+                    pos: point(u, t),
+                    normal: scale(normal, -height.signum()),
+                    uv: [u, t],
+                    tint: [0.65, 0.69, 0.62],
+                    material: 1.0,
+                });
+            }
+        }
+        for y in 0..12 {
+            for x in 0..24 {
+                let a = first + y * 25 + x;
+                ray_indices.extend([a, a + 1, a + 25, a + 1, a + 26, a + 25]);
+            }
+        }
+    }
+    let ray_geometry: Vec<u8> = ray_indices
+        .iter()
+        .flat_map(|&index| {
+            let v = ray_vertices[index as usize];
+            floats(&[
+                v.pos[0],
+                v.pos[1],
+                v.pos[2],
+                v.material,
+                v.normal[0],
+                v.normal[1],
+                v.normal[2],
+                0.0,
+                v.tint[0],
+                v.tint[1],
+                v.tint[2],
+                0.0,
+            ])
+        })
+        .collect();
+    let ray_indices: Vec<u8> = (0..ray_indices.len() as u32)
+        .flat_map(u32::to_le_bytes)
+        .collect();
     let vertices: Vec<u8> = mesh
         .vertices
         .iter()
@@ -2222,6 +2295,8 @@ pub fn assets() -> Assets {
     Assets {
         vertices,
         indices,
+        ray_geometry,
+        ray_indices,
         lights,
         zones,
         props,

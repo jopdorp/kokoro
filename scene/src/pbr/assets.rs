@@ -235,7 +235,7 @@ pub fn load(read: &dyn Fn(&str) -> Result<Vec<u8>, String>, width: u32, height: 
                 let mut table = [t, t + 1, t + 2, t + 3, t + 4, 0, 0, 0, 0, 0, 0, 0];
                 if traced { [table[6], table[7]] = [TLAS as u32, (TLAS >> 32) as u32]; }
                 [table[uniform_pointer], table[uniform_pointer + 1]] = uniform_handle(va + MATERIAL_UNIFORMS, if traced { 128 } else { 112 });
-                let emissive = if i + 1 == ROOM_MATERIALS.len() { [2.0, 4.0, 8.0, 0.0] } else { [0.0; 4] };
+                let emissive = if i + 1 == ROOM_MATERIALS.len() { [12.0, 8.0, 3.0, 0.0] } else { [0.0; 4] };
                 let mut uniforms = [&light[..], &[0.0, 3.0, 2.9, 2.7, 0.0, 0.18, 0.18, 0.2, 0.0], &eye, &[1.0], &[1.0; 4], &emissive, &[*metallic, *roughness, 1.0, 1.0]].concat();
                 if traced { uniforms.extend([0.65, 0.75, 0.9, 0.002]); }
                 writes.push((va, bytes(&table)));
