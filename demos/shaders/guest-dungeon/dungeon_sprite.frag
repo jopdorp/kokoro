@@ -32,8 +32,8 @@ void main(){
         float tip=(1.-smoothstep(width*.3,width*.62,x))*smoothstep(top+.018,top+.055,y)*(1.-smoothstep(top+.1,top+.18,y))*smoothstep(.52,.72,turbulence);
         a=(body*edge+tip*.72)*smoothstep(0.,.055,y)*colour.a;
         float core=pow(max(0.,1.-x/max(width,.01)),3.)*(1.-smoothstep(.46,.82,y));
-        c=mix(vec3(.9,.012,.001),vec3(4.8,.55,.015),smoothstep(0.,.72,body));
-        c=mix(c,vec3(7.,5.4,2.8),core);c*=.84+.2*flicker;
+        c=mix(vec3(.55,.008,.001),vec3(2.2,.25,.008),smoothstep(0.,.72,body));
+        c=mix(c,vec3(4.,2.3,.65),core);c*=.84+.2*flicker;
     }else if(kind<1.5){a=exp(-dot(uv,uv)*6.)*(1.-smoothstep(.62,1.,length(uv)))*colour.a;c*=8.;}
     else if(kind<2.5){vec2 q=uv+vec2(noise(uv*2.7+seed+eye_time.w*.13),noise(uv*3.1-seed-eye_time.w*.09))*.22-.11;a=texture(web_alpha,q*.5+.5).g*colour.a*(.45+.55*noise(uv*3.+seed));}
     else if(kind<3.5) { a=pow(max(0.,1.-dot(uv,uv)),3.)*colour.a; }
