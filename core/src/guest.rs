@@ -279,7 +279,7 @@ mod tests {
         println!("dungeon frame MAE {mae}");
         assert!(mae <= 255.0 * 0.08, "frame MAE {mae}");
         let digest = pcm.iter().flat_map(|sample| sample.to_le_bytes()).fold(0xcbf29ce484222325u64, |hash, byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
-        assert_eq!((pcm.len(), digest), (2880, 0x2854_1d0f_201c_3524));
+        assert_eq!((pcm.len(), digest), (7680, 0x6f5a_c691_45bd_5e11));
     }
 
     #[test]
