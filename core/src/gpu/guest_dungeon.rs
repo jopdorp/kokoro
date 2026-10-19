@@ -109,6 +109,7 @@ impl GuestDungeon {
     pub fn tables() -> render::Tables {
         render::Tables {
             descriptors: DESCRIPTORS,
+            cone_descriptors: DESCRIPTORS,
             vertex_constants: VERTEX_CONSTANTS,
             fragment_constants: FRAGMENT_CONSTANTS,
             draw_parameters: DRAW_PARAMETERS,

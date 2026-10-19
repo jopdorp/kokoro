@@ -22,7 +22,7 @@ core::arch::global_asm!(
 const BASE: u64 = 0x3_0000_0000;
 const PUSH: u64 = BASE;
 const DUNGEON_VERTEX: u64 = BASE + 0x1_0000;
-const DUNGEON_FRAGMENT: u64 = BASE + 0x2_0000;
+const DUNGEON_FRAGMENT: u64 = BASE + 0xb_0000;
 const DUNGEON_RT_VERTEX: u64 = BASE + 0x3_0000;
 const DUNGEON_RT_FRAGMENT: u64 = BASE + 0x4_0000;
 const CONES_VERTEX: u64 = BASE + 0x5_0000;
@@ -31,7 +31,7 @@ const SPRITE_FRAGMENT: u64 = BASE + 0x7_0000;
 const CONES_RT_VERTEX: u64 = BASE + 0x8_0000;
 const WATER_PROGRAM: u64 = BASE + 0x9_0000;
 const PARTICLES_PROGRAM: u64 = BASE + 0xa_0000;
-const FOG_PROGRAM: u64 = BASE + 0xc_0000;
+const FOG_PROGRAM: u64 = BASE + 0xf_0000;
 const POST_PROGRAM: u64 = BASE + 0xd_0000;
 const QMD: u64 = BASE + 0xe_0000;
 const CBUF: u64 = BASE + 0xe_1000;
@@ -246,29 +246,41 @@ fn setup_graphics(fs: u32, layout: &Layout, showcase: bool, rays: bool) -> svc::
     Ok(())
 }
 
-fn render_frame(channel: &nv::Channel, layout: &Layout, showcase: bool, rays: bool, camera: Option<([f32; 3], f32, f32, f32)>, tick: u32) -> svc::Result<()> {
+fn render_frame(channel: &nv::Channel, layout: &Layout, showcase: bool, rays: bool, camera: Option<([f32; 3], f32, f32, f32)>, tick: u32, shadows_ready: &mut bool) -> svc::Result<()> {
     frame_data(tick as usize, showcase, rays, camera, layout);
     let programs = render::Programs { dungeon_vertex: DUNGEON_VERTEX, dungeon_fragment: DUNGEON_FRAGMENT, cones_vertex: CONES_VERTEX, sprite_vertex: SPRITE_VERTEX, sprite_fragment: SPRITE_FRAGMENT };
     let ray_programs = render::RayPrograms { dungeon_vertex: DUNGEON_RT_VERTEX, dungeon_fragment: DUNGEON_RT_FRAGMENT, cones_vertex: CONES_RT_VERTEX };
     let mesh = render::Mesh { vertices: buffer(layout.vertices, layout.vertex_bytes), indices: layout.indices };
     let target = render::Target { colour: layout.target, depth: layout.target_depth, size: [WIDTH, HEIGHT] };
     let reflection = render::Target { colour: layout.reflection, depth: layout.reflection_depth, size: layout.reflection_size };
-    let tables = |descriptors, constants| render::Tables { descriptors, vertex_constants: constants, fragment_constants: FRAGMENT_CONSTANTS, draw_parameters: DRAW_PARAMETERS, textures: TIC, samplers: TSC };
+    let tables = |descriptors, constants| render::Tables { descriptors, cone_descriptors: DESCRIPTORS + 0x100, vertex_constants: constants, fragment_constants: FRAGMENT_CONSTANTS, draw_parameters: DRAW_PARAMETERS, textures: TIC, samplers: TSC };
     let resources = |frame| render::DungeonResources { frame: buffer(frame, 256), lights: buffer(layout.lights, LIGHT_COUNT * 32), reflection: buffer(layout.reflection, (layout.reflection_size[0] * layout.reflection_size[1] * 8) as usize), refraction: buffer(layout.target, (WIDTH * HEIGHT * 8) as usize), geometry: buffer(layout.ray_geometry, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-ray-geometry.bin")).len()), shadows: buffer(layout.shadows, 10 * 6 * 256 * 256 * 8), rooms: buffer(layout.rooms, include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-zones.bin")).len()), vertex_data: buffer(layout.water_surface, (layout.grid[0] * layout.grid[1] * 16) as usize), textures: [0, 1, 2, 3, 4, 5, 6, 7, 8] };
+    let descriptors = |frame| {
+        for (address, resources) in [(DESCRIPTORS, resources(frame)), (DESCRIPTORS + 0x100, render::DungeonResources { vertex_data: buffer(layout.cones, CONE_COUNT as usize * 32), ..resources(frame) })] {
+            if rays { copy(address, &render::dungeon_ray_descriptors(resources, TLAS)); } else { copy(address, &render::dungeon_descriptors(resources)); }
+        }
+    };
     let submit = |words: &mut Words<'_>| channel.submit(PUSH, words.len);
     let mut words = Words { storage: nv::guest_slice(cpu(PUSH), 0x10000), len: 0 };
     if !rays {
-        copy(DESCRIPTORS, &render::dungeon_descriptors(resources(layout.frame)));
-        copy(VERTEX_CONSTANTS, &render::cone_constants());
-        render::shadow(render::Target { colour: layout.shadows, depth: layout.target_depth, size: [if showcase { 256 } else { 128 }; 2] }, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, [24 * 12 * 6, CONE_COUNT], &mut words);
-        submit(&mut words).map_err(|_| 20u32)?;
-        words.len = 0;
-        copy(DESCRIPTORS, &render::dungeon_descriptors(resources(layout.frame)));
+        if !*shadows_ready {
+            let size = if showcase { 256 } else { 128 };
+            for (face, uniforms) in include_bytes!(concat!(env!("OUT_DIR"), "/dungeon-shadow-frames.bin")).chunks_exact(256).enumerate() {
+                nv::guest_slice(cpu(layout.frame + 0x300), 256).copy_from_slice(uniforms);
+                descriptors(layout.frame + 0x300);
+                copy(VERTEX_CONSTANTS, &render::cone_constants());
+                render::shadow(render::Target { colour: layout.shadows + (face * size * size * 8) as u64, depth: layout.target_depth, size: [size as u32; 2] }, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, [24 * 12 * 6, CONE_COUNT], &mut words);
+                submit(&mut words).map_err(|_| 20u32)?;
+                words.len = 0;
+            }
+            *shadows_ready = true;
+        }
+        descriptors(layout.frame);
         render::reflection(reflection, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, [24 * 12 * 6, CONE_COUNT], &mut words);
         submit(&mut words).map_err(|_| 21u32)?;
     }
     words.len = 0;
-    if rays { copy(DESCRIPTORS, &render::dungeon_ray_descriptors(resources(layout.frame + 256), TLAS)); } else { copy(DESCRIPTORS, &render::dungeon_descriptors(resources(layout.frame + 256))); }
+    descriptors(layout.frame + 256);
     copy(VERTEX_CONSTANTS, &render::cone_constants());
     if rays { render::ray_opaque(target, programs, ray_programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, [24 * 12 * 6, CONE_COUNT], &mut words); } else { render::opaque(target, programs, tables(DESCRIPTORS, VERTEX_CONSTANTS), mesh, layout.opaque_indices, [24 * 12 * 6, CONE_COUNT], &mut words); }
     submit(&mut words).map_err(|_| 22u32)?;
@@ -349,10 +361,16 @@ fn run(config: *const [u64; 3]) -> svc::Result<()> {
     let (mut sound, mut pcm) = audio(fs, memory + layout.end - BASE + 0x10_0000).map_err(|_| 2u32)?;
     hid::initialize().map_err(|_| 3u32)?;
     let window = display::Window::target(&channel.nv, channel.nvmap, handle, [WIDTH, HEIGHT], (layout.output - BASE) as u32).map_err(|_| 11u32)?;
-    let (mut tick, mut tour, mut idle, mut blocks) = (0u32, 0usize, 180u32, 0usize);
-    let (mut eye, mut yaw, mut pitch, _) = pose(0);
+    let (mut tick, mut tour, mut idle) = (0u32, 0usize, 180u32);
+    let (mut eye, mut yaw, mut pitch) = (INITIAL_EYE, core::f32::consts::FRAC_PI_2, 0.0);
+    sound.listen(eye, yaw, 0.0, sound::Mode::Headphones);
+    let (mut time, mut audio_time, mut foot_distance) = (0.0f32, 0.0f32, 0.0f32);
+    let mut shadows_ready = false;
     let mut fade;
     loop {
+        let seconds = (tick + 1) as f32 / 60.0;
+        let dt = (seconds - time).clamp(0.0, 0.1);
+        let old_eye = eye;
         let input = hid::read();
         let moving = input.left.into_iter().chain(input.right).any(|axis| axis.unsigned_abs() > 3276);
         idle = if moving { 0 } else { idle.saturating_add(1) };
@@ -368,15 +386,32 @@ fn run(config: *const [u64; 3]) -> svc::Result<()> {
             eye[2] += side * sin - forward * cos;
             fade = 0.999;
         }
-        let target = (tick as usize + 1) * 10 / 3;
-        while blocks < target {
-            sound.listen(eye, yaw, 0.005, sound::Mode::Headphones);
+        unsafe extern "C" { fn sqrtf(value: f32) -> f32; }
+        foot_distance += unsafe { sqrtf((eye[0] - old_eye[0]) * (eye[0] - old_eye[0]) + (eye[2] - old_eye[2]) * (eye[2] - old_eye[2])) };
+        let stride = if idle >= 180 { 0.54 } else { 1.15 + 0.22 * scene::pbr::sin_cos(seconds * 2.3).0 + 0.1 * scene::pbr::sin_cos(seconds * 5.1).0 };
+        if foot_distance > stride {
+            foot_distance %= stride;
+            let gravel = CORRIDORS.iter().any(|&[min, max]| (0..3).all(|axis| eye[axis] >= min[axis] && eye[axis] <= max[axis]));
+            let wet = gravel || sound::wet_floor(eye);
+            sound.play(if wet { sound::Sample::WetStep } else if gravel { sound::Sample::GravelStep } else { sound::Sample::Step }, eye, 0.04, 1.0);
+        }
+        for (i, &(position, fall)) in DRIPS.iter().enumerate() {
+            let period = 2.4 + (i % 5) as f32 * 0.3;
+            if (time + i as f32 * 0.71) % period < fall && (seconds + i as f32 * 0.71) % period >= fall {
+                sound.play(sound::Sample::Drip, position, 0.5, 0.8 + i as f32 * 0.03);
+            }
+        }
+        sound.listen(eye, yaw, dt, sound::Mode::Headphones);
+        audio_time += dt;
+        let periods = (audio_time / 0.005) as usize;
+        audio_time -= periods as f32 * 0.005;
+        time = seconds;
+        for _ in 0..periods {
             pcm.period(&sound.render()).map_err(|_| 5u32)?;
-            blocks += 1;
         }
         tick += 1;
         if tick.is_multiple_of(present_every) {
-            render_frame(&channel, &layout, showcase, rays, (idle < 180).then_some((eye, yaw, pitch, fade)), tick)?;
+            render_frame(&channel, &layout, showcase, rays, (idle < 180).then_some((eye, yaw, pitch, fade)), tick, &mut shadows_ready)?;
             window.present([WIDTH, HEIGHT]).map_err(|_| 6u32)?;
         }
     }

@@ -100,8 +100,8 @@ impl Machine {
         let cpus = crate::cpu::cpu_manager::CpuManager::new_with_backend(backend);
         let mut kernel = crate::kernel::Kernel::default();
         kernel.scheduler.virtual_time = true;
-        // One virtual tick per block keeps demo updates inside the audio period; this is an execution budget, not hardware timing.
-        cpus.get_core(0).unwrap().set_block_ticks(1);
+        // Offline time advances at device waits, never with the cost of guest computation.
+        cpus.get_core(0).unwrap().set_block_ticks(0);
         let gpu = crate::gpu::engine::Gpu::with_ram(crate::gpu::device().map_err(|e| format!("{e:?}"))?, cpus.ram.clone(), None, hacks).map_err(|e| format!("{e:?}"))?;
         let nvdrv = Rc::new(RefCell::new(Nvdrv::new(gpu)));
         kernel.sm.borrow_mut().0.insert("nvdrv".into(), nvdrv.clone() as Rc<RefCell<dyn Service>>);
@@ -296,37 +296,41 @@ mod tests {
 
     #[test]
     fn guest_dungeon_matches_frame_and_spatial_pcm_oracles() {
+        let _exact = exact();
         if !crate::gpu::demo::asset_dir("dungeon").exists() { return eprintln!("skipped: run demos/assets/fetch.sh for dungeon"); }
         let _display = DISPLAY_TEST.lock().unwrap();
         crate::gpu::demo_dungeon::render::SHOWCASE.store(false, std::sync::atomic::Ordering::Relaxed);
         crate::gpu::demo_dungeon::render::RAYS.store(false, std::sync::atomic::Ordering::Relaxed);
         crate::gpu::demo_dungeon::set_dungeon_capture();
-        crate::gpu::demo_dungeon::render_dungeon_frame(2.0 / 60.0).unwrap();
-        let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
-        let mut discard = vec![0; crate::audio::queued() * 2];
-        crate::audio::pull(&mut discard);
-        let mut guest = Machine::demo(Demo::Dungeon).unwrap();
-        guest.cpus.get_core(0).unwrap().set_block_ticks(0);
-        let mut pcm = Vec::new();
         let drain = |pcm: &mut Vec<i16>| {
             let frames = crate::audio::queued();
             let mut samples = vec![0; frames * 2];
             crate::audio::pull(&mut samples);
             pcm.extend(samples);
         };
+        drain(&mut Vec::new());
+        let mut expected_pcm = Vec::new();
+        for frame in 1..=2 {
+            crate::gpu::demo_dungeon::render_dungeon_frame(frame as f32 / 60.0).unwrap();
+            drain(&mut expected_pcm);
+        }
+        let expected = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
+        let mut guest = Machine::demo(Demo::Dungeon).unwrap();
+        let mut pcm = Vec::new();
         for _ in 0..2 {
             guest.frame_with(|| drain(&mut pcm)).unwrap();
             drain(&mut pcm);
         }
-        let periods: Vec<_> = [(0, 7), (2, 3), (3, 3), (4, 3)].into_iter().flat_map(|(period, count)| std::iter::repeat_n(&pcm[period * 480..][..480], count)).flatten().copied().collect();
-        pcm = periods;
         let actual = crate::display::DISPLAY.lock().unwrap().pixels().to_vec();
         let error: u64 = actual.chunks_exact(4).zip(expected.chunks_exact(4)).flat_map(|(a, b)| a[..3].iter().zip(&b[..3])).map(|(&a, &b)| u64::from(a.abs_diff(b))).sum();
         let mae = error as f64 / (actual.len() / 4 * 3) as f64;
         println!("dungeon frame MAE {mae}");
         assert!(mae <= 255.0 * 0.08, "frame MAE {mae}");
         let digest = pcm.iter().flat_map(|sample| sample.to_le_bytes()).fold(0xcbf29ce484222325u64, |hash, byte| (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3));
-        assert_eq!((pcm.len(), digest), (7680, 0x6f5a_c691_45bd_5e11));
+        println!("captured dungeon PCM: {} samples, FNV {digest:016x}; host {} samples", pcm.len(), expected_pcm.len());
+        assert_eq!(pcm.len(), expected_pcm.len());
+        let max_error = pcm.iter().zip(&expected_pcm).map(|(&a, &b)| a.abs_diff(b)).max().unwrap();
+        assert!(max_error <= 1, "captured PCM error {max_error}");
     }
 
     #[test]

@@ -608,6 +608,22 @@ impl<'a> Engine<'a> {
     fn far_drip_delay(&mut self) -> u64 { ((10.0 + self.random() * 10.0) * RATE as f32) as u64 }
 }
 
+pub fn wet_floor(position: V3) -> bool {
+    let [x, _, y] = position.map(|v| v * 0.43);
+    let floor = |v: f32| v as i32 as f32 - f32::from(v < v as i32 as f32);
+    let (fx, fy) = (floor(x), floor(y));
+    let (tx, ty) = (x - fx, y - fy);
+    let (sx, sy) = (tx * tx * (3.0 - 2.0 * tx), ty * ty * (3.0 - 2.0 * ty));
+    let corner = |dx: i32, dy: i32| {
+        let mut h = ((fx as i32 + dx).rem_euclid(64).wrapping_mul(374_761_393) ^ (fy as i32 + dy).rem_euclid(64).wrapping_mul(668_265_263) ^ 11i32.wrapping_mul(1_274_126_177)) as u32;
+        h = (h ^ (h >> 13)).wrapping_mul(1_274_126_177);
+        (h ^ (h >> 16)) as f32 / 4_294_967_296.0
+    };
+    let top = corner(0, 0) + (corner(1, 0) - corner(0, 0)) * sx;
+    let bottom = corner(0, 1) + (corner(1, 1) - corner(0, 1)) * sx;
+    top + (bottom - top) * sy > 0.43
+}
+
 pub fn step_cadence(walk_speed: f32) -> f32 { walk_speed.max(0.0) / 0.54 }
 fn limit(sample: f32) -> f32 { let magnitude = sample.abs(); sample.signum() * if magnitude <= 0.72 { magnitude } else { 0.72 + 0.12 * (1.0 - exp(-(magnitude - 0.72) / 0.12)) } }
 
