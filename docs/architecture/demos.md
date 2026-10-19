@@ -112,17 +112,7 @@ Each Nintendo Relocatable Object (NRO) is loaded by the emulated CPU, uses Amper
 
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-raster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-raster.mp4" type="video/mp4"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime.mp4" type="video/mp4"></video>
 
-*The raster tour moves from the torch-lit hallway into the limestone cave, then follows the river past the fire.*
-
-<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-raytraced.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-raytraced.mp4" type="video/mp4"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon.mp4" type="video/mp4"></video>
-
-<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/dungeon-v8-rt-compare.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-compare.mp4" type="video/mp4"></video>
-
-*These are the native renders; the ray-traced tour through the emulator follows once its shader lowering is fixed.*
-
-![Raster and ray-query dungeon frame](https://raw.githubusercontent.com/jopdorp/oboromi/assets/dungeon-v8-rt-compare.png)
-
-*The same frame at the reveal: raster left, ray queries right. Cool opening light keeps calcite pale while fire bounce falls off into dark manganese and soot.*
+*The raster tour moves from the torch-lit hallway into the limestone cave, then follows the river past the fire. The ray-traced tour through the emulator follows.*
 
 ## Measured
 
@@ -137,9 +127,8 @@ Median frame times for demos with published measurements:
 | Tensor upscale | default, A40 | 78.1 ms |
 | Tensor upscale | exact, A40 | 155.9 ms |
 | Dungeon raster | default, emulator on A40 | 647 ms uncontended; the clip measured 1,336 ms on a shared pod |
-| Dungeon ray traced | native, Intel Arc | 232.5 ms |
 
-These are emulator and native-render measurements, not native Switch 2 measurements.
+These are emulator measurements, not native Switch 2 measurements.
 
 ## Share
 
