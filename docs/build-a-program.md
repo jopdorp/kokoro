@@ -1,6 +1,6 @@
 # Build a program
 
-The triangle is the smallest of the project's own test programs that runs on the emulator. Its source is [`guest/src/bin/triangle.rs`](https://github.com/jopdorp/oboromi/blob/guest-path/guest/src/bin/triangle.rs).
+The triangle is the smallest of the project's own test programs that runs on the emulator. Its source is [`guest/src/bin/triangle.rs`](https://github.com/jopdorp/kokoromi/blob/guest-path/guest/src/bin/triangle.rs).
 
 ## Set up
 
@@ -19,22 +19,22 @@ These versions are known to work:
 
 ### From the release
 
-Download the [demos-2026-10-18 release](https://github.com/jopdorp/oboromi/releases/tag/demos-2026-10-18), check it, then unpack it:
+Download the [kokoromi-2026-10-19 release](https://github.com/jopdorp/kokoromi/releases/tag/kokoromi-2026-10-19), check it, then unpack it:
 
 ```sh
-url=https://github.com/jopdorp/oboromi/releases/download/demos-2026-10-18
+url=https://github.com/jopdorp/kokoromi/releases/download/kokoromi-2026-10-19
 curl -LO "$url/SHA256SUMS"
-curl -LO "$url/oboromi-sdk-demos-2026-10-18.tar.gz"
-curl -LO "$url/oboromi-linux-x86_64-demos-2026-10-18.tar.gz"
-curl -LO "$url/oboromi-demos-demos-2026-10-18.tar.gz"
+curl -LO "$url/kokoromi-sdk-kokoromi-2026-10-19.tar.gz"
+curl -LO "$url/kokoromi-linux-x86_64-kokoromi-2026-10-19.tar.gz"
+curl -LO "$url/kokoromi-demos-kokoromi-2026-10-19.tar.gz"
 sha256sum -c SHA256SUMS
-tar xzf oboromi-sdk-demos-2026-10-18.tar.gz
-tar xzf oboromi-linux-x86_64-demos-2026-10-18.tar.gz
-tar xzf oboromi-demos-demos-2026-10-18.tar.gz
+tar xzf kokoromi-sdk-kokoromi-2026-10-19.tar.gz
+tar xzf kokoromi-linux-x86_64-kokoromi-2026-10-19.tar.gz
+tar xzf kokoromi-demos-kokoromi-2026-10-19.tar.gz
 ```
 
 - The SDK contains the Rust runtime, triangle template, linker script, shared scene code and NAK tools.
-- The emulator contains `bin/oboromi`, `bin/oboromi-gui` and its README.
+- The emulator contains `bin/kokoromi`, `bin/kokoromi-gui` and its README.
 - The demos archive contains fourteen NROs, their checksums and asset-fetch scripts.
 
 Install Rust, then build the SDK template:
@@ -42,7 +42,7 @@ Install Rust, then build the SDK template:
 ```sh
 rustup target add aarch64-unknown-none
 rustup component add llvm-tools
-cd oboromi-sdk-demos-2026-10-18
+cd kokoromi-sdk-kokoromi-2026-10-19
 make
 ```
 
@@ -51,15 +51,15 @@ The result is `build/triangle.nro`. Use `make BIN=name` for another file under `
 ### From source
 
 ```sh
-git clone --branch guest-path https://github.com/jopdorp/oboromi.git
-cd oboromi
+git clone --branch guest-path https://github.com/jopdorp/kokoromi.git
+cd kokoromi
 rustup target add aarch64-unknown-none
 rustup component add llvm-tools
 ./demos/assets/fetch.sh
-cargo build --release -p oboromi-core --bin oboromi -j 4
+cargo build --release -p kokoromi-core --bin kokoromi -j 4
 ```
 
-The asset fetch supplies the models and audio used by the larger programs. The emulator is `target/release/oboromi`.
+The asset fetch supplies the models and audio used by the larger programs. The emulator is `target/release/kokoromi`.
 
 ### Choose how it runs
 
@@ -68,9 +68,9 @@ Speed hacks and the Dynarmic CPU backend are the defaults.
 | Choice | Switch |
 | --- | --- |
 | Speed hacks | no switch |
-| Exact | `OBOROMI_EXACT=1` |
+| Exact | `KOKOROMI_EXACT=1` |
 | Dynarmic CPU | no switch |
-| Unicorn CPU | `OBOROMI_CPU=unicorn` |
+| Unicorn CPU | `KOKOROMI_CPU=unicorn` |
 | lavapipe CPU Vulkan | `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json` |
 
 ## Build the CPU program
@@ -158,22 +158,22 @@ BINDINGS=u1,s2 tools/nak-compile.sh demos/shaders/post.vert sass-out
 Run the shipped triangle:
 
 ```sh
-cd oboromi-demos-demos-2026-10-18
-../oboromi-linux-x86_64-demos-2026-10-18/bin/oboromi run demos/triangle.nro
+cd kokoromi-demos-kokoromi-2026-10-19
+../kokoromi-linux-x86_64-kokoromi-2026-10-19/bin/kokoromi run demos/triangle.nro
 ```
 
 It draws a red, green and blue triangle on white at 1920×1080, then prints the first-frame digest. The packaged Qt application provides a window:
 
 ```sh
-../oboromi-linux-x86_64-demos-2026-10-18/bin/oboromi-gui
+../kokoromi-linux-x86_64-kokoromi-2026-10-19/bin/kokoromi-gui
 ```
 
 From a source checkout, capture one frame or encode a clip:
 
 ```sh
-cargo run --release -p oboromi-core --example capture -- \
+cargo run --release -p kokoromi-core --example capture -- \
   /path/to/demos/triangle.nro --seconds 1 --fps 1 --out "$HOME/.cache/triangle"
-cargo run --release -p oboromi-core --example capture -- \
+cargo run --release -p kokoromi-core --example capture -- \
   /path/to/demos/triangle.nro --seconds 8 --fps 60 --out "$HOME/.cache/triangle-clip"
 ffmpeg -framerate 60 -i "$HOME/.cache/triangle-clip/frame_%04d.ppm" \
   -c:v libx264 -crf 20 -pix_fmt yuv420p triangle.mp4
