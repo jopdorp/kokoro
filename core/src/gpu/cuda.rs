@@ -595,7 +595,7 @@ mod tests {
                 .windows(16)
                 .any(|bytes| bytes == 0x000fea0003800000000000000000794du128.to_le_bytes())
         );
-        let path = std::env::temp_dir().join(format!("oboromi-cuda-{}.cubin", std::process::id()));
+        let path = std::env::temp_dir().join(format!("kokoromi-cuda-{}.cubin", std::process::id()));
         std::fs::write(&path, image).unwrap();
         for (tool, args) in [
             (

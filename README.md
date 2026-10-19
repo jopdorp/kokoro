@@ -1,28 +1,30 @@
 <p align="center">
-  <img width="32%" height="32%" src="https://github.com/user-attachments/assets/2cf6431e-e9a5-4f03-98ce-d8c975ddde77" alt="oboromi logo"/>
+  <img width="32%" height="32%" src="docs/assets/brand/kokoromi-logo.svg" alt="Kokoromi logo"/>
 </p>
 <p align="center">
-  <a href="https://github.com/0xNikilite/oboromi/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-GPL%20v3-blue.svg?style=flat"></a>
+  <a href="license.txt"><img alt="License" src="https://img.shields.io/badge/license-GPL%20v3-blue.svg?style=flat"></a>
   <a href="https://discord.gg/g9sehj8bPz"><img alt="Discord" src="https://img.shields.io/discord/1387476383663390732?style=flat&label=Discord&color=5865F2&logo=discord&logoColor=white"></a>
 </p>
 
 <h4 align="center">(◕‿◕)&nbsp;&nbsp;Join our Discord here 🢰</h4>
 
-<h1 align="center">oboromi</h1>
+<h1 align="center">Kokoromi</h1>
 <h4 align="center">a WIP ounce emulator foundation written in Rust</h4>
 <h5 align="center">written lowercase.</h5>
 
-oboromi is an early emulator for the Nintendo Switch 2. It builds on the CPU,
+Kokoromi is an early emulator for the Nintendo Switch 2. It builds on the CPU,
 service, GPU and front-end foundations laid by its maintainer and contributors.
+
+Kokoromi started as a fork of oboromi by 0xNikilite and keeps its GPL-3.0 licence.
 
 ## what this does and does not show
 
-oboromi emulates the hardware: an AArch64 CPU, an Ampere GPU, display and an
+Kokoromi emulates the hardware: an AArch64 CPU, an Ampere GPU, display and an
 audio DSP path. The GPU translator is validated against desktop sm_86 NVIDIA
 silicon. Command and shader-header layouts come from NVIDIA's published headers
 via Mesa.
 
-Nintendo supplies the OS; oboromi does not emulate it. The small service layer
+Nintendo supplies the OS; Kokoromi does not emulate it. The small service layer
 in this repository is a stand-in that lets our own test programs drive the
 emulated GPU, display and audio. It follows Switch 1 interfaces because those
 are known.
@@ -32,8 +34,8 @@ firmware or exploit was used, and no retail or third-party binary has run. The
 demos show the hardware emulation running end to end with code written for it,
 not Switch 2 software compatibility.
 
-See the [architecture guide](https://jopdorp.github.io/oboromi/architecture/)
-and [current demos](https://jopdorp.github.io/oboromi/architecture/demos/).
+See the [architecture guide](https://jopdorp.github.io/kokoromi/architecture/)
+and [current demos](https://jopdorp.github.io/kokoromi/architecture/demos/).
 
 - **core**: core lib.
   - **audio**: renderer, effects, spatial audio and output
@@ -59,6 +61,4 @@ and [current demos](https://jopdorp.github.io/oboromi/architecture/demos/).
 
 ## what does the name mean?
 
-**oboromi (朧実)** is a constructed japanese neologism combining **朧 (oboro**, "hazy/vague") + **実 (-mi**, "essence/fruit").
-
-it means **"the tangible essence of imperfection."** even if oboromi was ever finished, it could never be perfect, and that's not a failure, just what it means to be an emulator.
+**Kokoromi** combines **kokoro** ("heart") and **mi** ("fruit"). **試み (kokoromi)** means "an attempt".

@@ -1,6 +1,6 @@
 # Dungeon guest shaders, SM86 SASS
 
-Pod tj7n3k5ucaloxo, RunPod Secure RTX 3090 EU-CZ-1, driver 580.126.20 (host CUDA 13.0), runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404, rig vk_cache_dump rebuilt with bindings[32]. Sources: /home/jopdorp/development/oboromi-dungeon-shaders/demos/shaders/guest-dungeon (read-only), BINDINGS exactly as in dungeon-sass.needpod.
+Pod tj7n3k5ucaloxo, RunPod Secure RTX 3090 EU-CZ-1, driver 580.126.20 (host CUDA 13.0), runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404, rig vk_cache_dump rebuilt with bindings[32]. Sources: /home/jopdorp/development/kokoromi-dungeon-shaders/demos/shaders/guest-dungeon (read-only), BINDINGS exactly as in dungeon-sass.needpod.
 Raster stages below were rebuilt from the current demos/shaders GLSL (set/binding remap in demos/shaders/guest-dungeon) with Mesa 25.2.7 NAK via tools/nak-compile.sh. The ray-query stages retain the driver build above. NAK temporary-array dereferences are lowered before compilation; regenerated stages have no STL/LDL.
 Files under core/tests/fixtures/driver-shaders/: graphics .bin = 0x80-byte SPH + code, compute .bin = code only; .sass = nvdisasm --print-raw.
 

@@ -189,7 +189,7 @@ struct InputState {
   bool connected;
 };
 
-struct OboromiInput {
+struct KokoromiInput {
   InputState state;
   /// nul terminated, empty without a gamepad.
   char gamepad[64];
@@ -199,68 +199,68 @@ extern "C" {
 
 /// runs the arm64 cpu test suite. blocks the calling thread, so call it from
 /// a worker thread on the gui side, never from the ui thread.
-void oboromi_run_cpu_tests(LineCallback cb);
+void kokoromi_run_cpu_tests(LineCallback cb);
 
 /// runs the sm86 gpu decoder/translation test suite. same threading rules
-/// as "oboromi_run_cpu_tests"
-void oboromi_run_gpu_tests(LineCallback cb);
+/// as "kokoromi_run_cpu_tests"
+void kokoromi_run_gpu_tests(LineCallback cb);
 
 /// renders a gradient on the gpu and presents it, false if vulkan is missing
 /// or the dispatch fails. blocks, so call it from a worker thread.
-bool oboromi_render_test_frame();
+bool kokoromi_render_test_frame();
 
 /// renders the julia set demo at `seconds` and presents it, false if vulkan
 /// is missing or the dispatch fails. blocks, so call it from a worker thread.
-bool oboromi_render_demo_frame(float seconds);
+bool kokoromi_render_demo_frame(float seconds);
 
-bool oboromi_render_mandelbrot_frame(float seconds);
+bool kokoromi_render_mandelbrot_frame(float seconds);
 
 /// draws the pushbuffer triangle demo at `seconds` and presents it, false if
 /// vulkan is missing or the draw fails. blocks, so call it from a worker thread.
-bool oboromi_render_triangle_demo(float seconds);
+bool kokoromi_render_triangle_demo(float seconds);
 
 /// saves the pipeline cache of the demos that ran, call it when a demo stops.
-bool oboromi_flush_demo_caches();
+bool kokoromi_flush_demo_caches();
 
 /// draws the ray-traced BoomBox guest with the selected ray tracing mode.
-bool oboromi_render_raytraced_demo(float seconds);
+bool kokoromi_render_raytraced_demo(float seconds);
 
 /// selects ray-query or rasterised shading for the ray-traced demo.
-void oboromi_set_raytracing_enabled(bool enabled);
+void kokoromi_set_raytracing_enabled(bool enabled);
 
 /// draws the pbr FlightHelmet demo like the BoomBox one, false too when
 /// demos/assets/fetch.sh has not fetched the asset.
-bool oboromi_render_helmet_demo(float seconds);
+bool kokoromi_render_helmet_demo(float seconds);
 
 /// draws the post-effect demo at `seconds` and presents it, false if vulkan
 /// is missing or a draw fails. blocks, so call it from a worker thread.
-bool oboromi_render_post_frame(float seconds);
+bool kokoromi_render_post_frame(float seconds);
 
 /// draws the sprites demo at `seconds` and presents it, false if vulkan is
 /// missing or the draw fails. blocks, so call it from a worker thread.
-bool oboromi_render_sprites_frame(float seconds);
-bool oboromi_render_tensor_upscale_frame(float seconds);
-bool oboromi_render_dungeon_frame(float seconds);
-bool oboromi_dungeon_ray_queries(void);
-void oboromi_dungeon_settings(bool showcase, bool raytracing);
-void oboromi_set_dungeon_speakers(bool speakers);
+bool kokoromi_render_sprites_frame(float seconds);
+bool kokoromi_render_tensor_upscale_frame(float seconds);
+bool kokoromi_render_dungeon_frame(float seconds);
+bool kokoromi_dungeon_ray_queries(void);
+void kokoromi_dungeon_settings(bool showcase, bool raytracing);
+void kokoromi_set_dungeon_speakers(bool speakers);
 
 /// plays the music demo up to `seconds` through the audio renderer, false if it panicked.
-bool oboromi_render_music_demo(float seconds);
+bool kokoromi_render_music_demo(float seconds);
 
 /// steps the bounce demo to `seconds`, plays its knocks and presents the frame, false if vulkan
 /// is missing or a draw fails. blocks, so call it from a worker thread.
-bool oboromi_render_bounce_demo(float seconds);
+bool kokoromi_render_bounce_demo(float seconds);
 
 /// draws a frame of the particles demo at `seconds` and presents it, false if
 /// vulkan is missing or the frame fails. blocks, so call it from a worker thread.
-bool oboromi_render_particles_frame(float seconds);
+bool kokoromi_render_particles_frame(float seconds);
 
 /// runs the realtime or offline solar-system guest to its next frame.
-bool oboromi_render_solar_frame(bool showcase);
+bool kokoromi_render_solar_frame(bool showcase);
 
 /// generation of the last presented frame, 0 until the guest presents one.
-uint64_t oboromi_frame_generation();
+uint64_t kokoromi_frame_generation();
 
 /// writes the frame size and copies its pixels into `dst` if `cap` is large
 /// enough. returns the number of bytes the frame needs. pixels are linear
@@ -269,61 +269,61 @@ uint64_t oboromi_frame_generation();
 /// # Safety
 /// `dst` must be null or valid for `cap` bytes, `width` and `height` must be
 /// valid for writes.
-uintptr_t oboromi_frame_read(uint8_t *dst, uintptr_t cap, uint32_t *width, uint32_t *height);
+uintptr_t kokoromi_frame_read(uint8_t *dst, uintptr_t cap, uint32_t *width, uint32_t *height);
 
 /// `callback` runs on the presenting thread after every frame, null clears it.
-void oboromi_frame_set_callback(FrameCallback callback, void *user);
+void kokoromi_frame_set_callback(FrameCallback callback, void *user);
 
 /// creates the vulkan device with window surface support and returns its VkInstance for the gui to
 /// create surfaces with, null if vulkan or its surface extensions are missing.
-void *oboromi_vk_instance();
+void *kokoromi_vk_instance();
 
 /// presents every frame into `surface`, a VkSurfaceKHR of that instance, sized `width` x `height`
 /// pixels. call it again on resize and expose, and with a null surface before destroying it.
 /// false if the device cannot present to it.
-bool oboromi_display_surface(uint64_t surface, uint32_t width, uint32_t height);
+bool kokoromi_display_surface(uint64_t surface, uint32_t width, uint32_t height);
 
 /// `fast` trades exact HMMA accumulation for speed in every translation from now on.
-void oboromi_set_tensor_mode(bool fast);
+void kokoromi_set_tensor_mode(bool fast);
 
 /// keeps at most `sites` ray-query sites per shader in engines created from now on.
-void oboromi_set_ray_budget(uint32_t sites);
+void kokoromi_set_ray_budget(uint32_t sites);
 
 /// skips draws while their pipelines compile in engines created from now on.
-void oboromi_set_skip_draw_while_compiling(bool skip);
+void kokoromi_set_skip_draw_while_compiling(bool skip);
 
 /// a qt key code pressed or released in the gui.
-void oboromi_input_key(int32_t code, bool down);
+void kokoromi_input_key(int32_t code, bool down);
 
 /// the merged host input the guest sees.
 ///
 /// # Safety
 /// `out` must be valid for writes.
-void oboromi_input_state(OboromiInput *out);
+void kokoromi_input_state(KokoromiInput *out);
 
 /// copies up to `frames` queued stereo frames into `dst` and zero-fills the
 /// rest, returns the frames copied.
 ///
 /// # Safety
 /// `dst` must be null or valid for `frames * 2` writes.
-uintptr_t oboromi_audio_pull(int16_t *dst, uintptr_t frames);
+uintptr_t kokoromi_audio_pull(int16_t *dst, uintptr_t frames);
 
 /// writes the output format, interleaved i16 samples produced `period` frames at a time.
 ///
 /// # Safety
 /// `rate`, `channels` and `period` must be valid for writes.
-void oboromi_audio_format(uint32_t *rate, uint32_t *channels, uint32_t *period);
+void kokoromi_audio_format(uint32_t *rate, uint32_t *channels, uint32_t *period);
 
 /// writes the frames waiting in the ring and the pulls that ran dry.
 ///
 /// # Safety
 /// `queued` and `underruns` must be valid for writes.
-void oboromi_audio_stats(uintptr_t *queued, uint64_t *underruns);
+void kokoromi_audio_stats(uintptr_t *queued, uint64_t *underruns);
 
 /// frames ever queued, changes whenever something is produced.
-uint64_t oboromi_audio_generation();
+uint64_t kokoromi_audio_generation();
 
 /// queues `seconds` more of a 440 hz test tone, returns the frames that fit.
-uintptr_t oboromi_audio_test_tone(float seconds);
+uintptr_t kokoromi_audio_test_tone(float seconds);
 
 }  // extern "C"

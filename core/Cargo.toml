@@ -1,10 +1,10 @@
 [package]
-name = "oboromi-core"
+name = "kokoromi-core"
 version = "0.0.1"
 edition = "2024"
 authors = ["Nikilite", "Elizabeth"]
 license = "GPL-3.0"
-description = "Core emulator library for oboromi"
+description = "Core emulator library for kokoromi"
 
 [lib]
 path = "src/lib.rs"

@@ -19,7 +19,7 @@ flowchart LR
 | Term | What it is | Example |
 |---|---|---|
 | GPU | The graphics chip: many small cores running the same program on many pixels or numbers at once. | Shading every pixel of a frame in parallel. |
-| Emulated system, PC | The emulated system is the Switch 2 model and its RAM; the PC runs oboromi. | An emulated address points into console RAM. |
+| Emulated system, PC | The emulated system is the Switch 2 model and its RAM; the PC runs Kokoromi. | An emulated address points into console RAM. |
 | Shader | A small program the GPU runs once per vertex, pixel or work item. | A pixel shader that returns one pixel's colour. |
 | SASS | NVIDIA's native GPU machine code, the instructions the chip really executes. | `FADD R0, R1, R2` adds two floats; on SM86 each instruction is a 128-bit word. |
 | SM86 | The instruction set of NVIDIA's Ampere desktop chips, used as the translator's target. | An RTX 3090 runs SM86 code. |
@@ -30,7 +30,7 @@ flowchart LR
 | Silicon | Real hardware, as opposed to an emulator or a CPU-based driver. | "matches silicon" means an RTX 3090 gave the same bytes. |
 | SPIR-V | The binary shader format Vulkan accepts, like bytecode for GPUs. | The translator writes one SPIR-V module per shader. |
 | Module | One SPIR-V program, ready to hand to a Vulkan driver. | The translated Julia demo shader. |
-| Translator | oboromi's code that rewrites SASS into SPIR-V. | `core/src/gpu/sm86`. |
+| Translator | Kokoromi's code that rewrites SASS into SPIR-V. | `core/src/gpu/sm86`. |
 | Encoding class | One row of NVIDIA's instruction table: a bit pattern plus its fields. | An add with a register operand and one with a constant are two classes. |
 | Handler | The translator function that emits SPIR-V for one instruction family. | The FADD handler emits a float add. |
 | Opcode | The name of an instruction. | `IMAD` is integer multiply-add. |
@@ -183,7 +183,7 @@ flowchart LR
 | Term | What it is | Example |
 |---|---|---|
 | Dynarmic | The default AArch64 JIT backend. | It runs the included demos unless exact mode is selected. |
-| Unicorn | The comparison and exact AArch64 backend, built on QEMU's CPU core. | `OBOROMI_CPU=unicorn` selects it. |
+| Unicorn | The comparison and exact AArch64 backend, built on QEMU's CPU core. | `KOKOROMI_CPU=unicorn` selects it. |
 | QEMU | The open-source machine emulator whose CPU core Unicorn reuses. | It also runs whole ARM Linux systems. |
 | Cortex-A78C | The Arm CPU core in the Switch 2's chip. | Eight of them in the T239. |
 | switchbrew | The community wiki that documents the Switch's system calls, services and hardware. | Its NV services page. |

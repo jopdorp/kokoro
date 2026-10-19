@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "AudioBackend.h"
-#include "oboromi_core.h"
+#include "kokoromi_core.h"
 
 namespace {
 
@@ -19,7 +19,7 @@ public:
         m_thread = std::thread([this, channels = format.channels] {
             std::vector<int16_t> samples(m_period * channels);
             while (m_running) {
-                oboromi_audio_pull(samples.data(), m_period);
+                kokoromi_audio_pull(samples.data(), m_period);
                 if (auto written = snd_pcm_writei(m_pcm, samples.data(), m_period); written < 0) snd_pcm_recover(m_pcm, written, 1);
             }
         });

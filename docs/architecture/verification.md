@@ -15,7 +15,7 @@ flowchart TB
 
 A handler, the code that translates one instruction family, is not done until it passes every check that applies. It must pass on Intel and on lavapipe, Mesa's CPU-based Vulkan driver.
 
-Oracle and digest tests select exact mode explicitly. The normal emulator defaults to speed hacks; `OBOROMI_EXACT=1` or `SpeedHacks::none()` disables them.
+Oracle and digest tests select exact mode explicitly. The normal emulator defaults to speed hacks; `KOKOROMI_EXACT=1` or `SpeedHacks::none()` disables them.
 
 | Check | How | Where |
 |---|---|---|

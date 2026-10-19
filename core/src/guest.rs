@@ -211,7 +211,7 @@ mod tests {
             assert_eq!((frame.width, frame.height), (1920, 1080));
             (frame.generation, frame.pixels().to_vec())
         };
-        let dir = std::env::temp_dir().join(format!("oboromi-triangle-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("kokoromi-triangle-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("triangle.nro");
         std::fs::write(&path, include_bytes!("../tests/fixtures/guest/triangle.nro")).unwrap();

@@ -331,30 +331,30 @@ struct Cpu {
 }
 
 extern "C" {
-Monitor* oboromi_dynarmic_monitor_new() { return new Monitor; }
-void oboromi_dynarmic_monitor_free(Monitor* monitor) { delete monitor; }
-Cpu* oboromi_dynarmic_cpu_new(Monitor* monitor, std::size_t id, std::uint8_t* memory, std::uint64_t size, WriteCallback callback, ReadBus read_bus, WriteBus write_bus, Sysreg sysreg, void* data) {
+Monitor* kokoromi_dynarmic_monitor_new() { return new Monitor; }
+void kokoromi_dynarmic_monitor_free(Monitor* monitor) { delete monitor; }
+Cpu* kokoromi_dynarmic_cpu_new(Monitor* monitor, std::size_t id, std::uint8_t* memory, std::uint64_t size, WriteCallback callback, ReadBus read_bus, WriteBus write_bus, Sysreg sysreg, void* data) {
     try { return new Cpu(monitor, id, memory, size, callback, read_bus, write_bus, sysreg, data); } catch (...) { return nullptr; }
 }
-void oboromi_dynarmic_cpu_free(Cpu* cpu) { delete cpu; }
-void oboromi_dynarmic_set_watched(Cpu* cpu, bool watched) {
+void kokoromi_dynarmic_cpu_free(Cpu* cpu) { delete cpu; }
+void kokoromi_dynarmic_set_watched(Cpu* cpu, bool watched) {
     if (!cpu->callbacks.guest_kernel) { if (cpu->using_fastmem == watched) cpu->rebuild(!watched); return; }
     if (cpu->callbacks.watched != watched) { cpu->callbacks.watched = watched; cpu->callbacks.invalidate(); cpu->rebuild(false); }
 }
-void oboromi_dynarmic_set_guest_kernel(Cpu* cpu, bool enabled) {
+void kokoromi_dynarmic_set_guest_kernel(Cpu* cpu, bool enabled) {
     if (cpu->callbacks.guest_kernel == enabled) return;
     auto sp = cpu->jit->GetSP(); cpu->callbacks.guest_kernel = enabled; cpu->callbacks.current_el = 1;
     if (enabled) cpu->callbacks.page_table.assign(std::size_t{1} << (page_table_bits - 12), nullptr);
     cpu->callbacks.sp_el1 = enabled ? sp + memory_base : sp - memory_base; cpu->callbacks.invalidate(); cpu->rebuild(!enabled); cpu->jit->SetSP(cpu->callbacks.sp_el1);
     if (!enabled) { cpu->callbacks.page_table.clear(); cpu->callbacks.page_table.shrink_to_fit(); }
 }
-void oboromi_dynarmic_set_interrupt_lines(Cpu* cpu, bool irq, bool fiq) { cpu->callbacks.irq = irq; cpu->callbacks.fiq = fiq; }
-void oboromi_dynarmic_set_virtual_time(Cpu* cpu, bool enabled) { cpu->callbacks.virtual_time = enabled; }
-void oboromi_dynarmic_set_tick_scale(Cpu* cpu, std::uint64_t scale) { cpu->callbacks.tick_scale = scale; }
-std::uint64_t oboromi_dynarmic_ticks(const Cpu* cpu) { return cpu->callbacks.now(); }
-bool oboromi_dynarmic_timer_pending(const Cpu* cpu) { return (cpu->callbacks.cntv_ctl & 3) == 1 && cpu->callbacks.now() >= cpu->callbacks.cntv_cval; }
-bool oboromi_dynarmic_idle_until(Cpu* cpu, std::uint64_t deadline) { if (cpu->callbacks.virtual_time) cpu->callbacks.ticks = std::max(cpu->callbacks.ticks, deadline); return cpu->callbacks.virtual_time; }
-bool oboromi_dynarmic_run(Cpu* cpu, std::uint64_t deadline, std::uint32_t core, bool* sliced) {
+void kokoromi_dynarmic_set_interrupt_lines(Cpu* cpu, bool irq, bool fiq) { cpu->callbacks.irq = irq; cpu->callbacks.fiq = fiq; }
+void kokoromi_dynarmic_set_virtual_time(Cpu* cpu, bool enabled) { cpu->callbacks.virtual_time = enabled; }
+void kokoromi_dynarmic_set_tick_scale(Cpu* cpu, std::uint64_t scale) { cpu->callbacks.tick_scale = scale; }
+std::uint64_t kokoromi_dynarmic_ticks(const Cpu* cpu) { return cpu->callbacks.now(); }
+bool kokoromi_dynarmic_timer_pending(const Cpu* cpu) { return (cpu->callbacks.cntv_ctl & 3) == 1 && cpu->callbacks.now() >= cpu->callbacks.cntv_cval; }
+bool kokoromi_dynarmic_idle_until(Cpu* cpu, std::uint64_t deadline) { if (cpu->callbacks.virtual_time) cpu->callbacks.ticks = std::max(cpu->callbacks.ticks, deadline); return cpu->callbacks.virtual_time; }
+bool kokoromi_dynarmic_run(Cpu* cpu, std::uint64_t deadline, std::uint32_t core, bool* sliced) {
     cpu->callbacks.deadline = deadline; cpu->callbacks.svc = std::numeric_limits<std::uint32_t>::max(); cpu->callbacks.fault = false; cpu->callbacks.core = core;
     cpu->jit->ClearHalt(); cpu->callbacks.deliver_interrupts();
     if (cpu->callbacks.waiting && !cpu->callbacks.interrupt_pending() && !cpu->callbacks.fiq) {
@@ -380,18 +380,18 @@ bool oboromi_dynarmic_run(Cpu* cpu, std::uint64_t deadline, std::uint32_t core, 
     *sliced = !cpu->callbacks.fault && cpu->callbacks.svc == std::numeric_limits<std::uint32_t>::max() && (!reason || cpu->callbacks.waiting);
     cpu->callbacks.deadline = std::numeric_limits<std::uint64_t>::max(); return !cpu->callbacks.fault;
 }
-bool oboromi_dynarmic_step(Cpu* cpu) { cpu->callbacks.fault = false; cpu->jit->ClearHalt(); cpu->jit->Step(); return !cpu->callbacks.fault; }
-void oboromi_dynarmic_halt(Cpu* cpu) { cpu->jit->HaltExecution(); }
-std::uint64_t oboromi_dynarmic_get_x(const Cpu* cpu, std::size_t index) { return index < 31 ? cpu->jit->GetRegister(index) : 0; }
-void oboromi_dynarmic_set_x(Cpu* cpu, std::size_t index, std::uint64_t value) { if (index < 31) cpu->jit->SetRegister(index, value); }
-std::uint64_t oboromi_dynarmic_get_sp(const Cpu* cpu) { return cpu->jit->GetSP(); }
-void oboromi_dynarmic_set_sp(Cpu* cpu, std::uint64_t value) { cpu->jit->SetSP(value); }
-std::uint64_t oboromi_dynarmic_get_pc(const Cpu* cpu) { return cpu->jit->GetPC(); }
-void oboromi_dynarmic_set_pc(Cpu* cpu, std::uint64_t value) { cpu->jit->SetPC(value); }
-void oboromi_dynarmic_set_tls(Cpu* cpu, std::uint64_t value) { cpu->callbacks.tls = value; }
-std::uint32_t oboromi_dynarmic_take_svc(Cpu* cpu) { return std::exchange(cpu->callbacks.svc, std::numeric_limits<std::uint32_t>::max()); }
-void oboromi_dynarmic_clear_exclusive(Cpu* cpu) { cpu->jit->ClearExclusiveState(); cpu->monitor->value.ClearProcessor(cpu->id); }
-void oboromi_dynarmic_save(const Cpu* cpu, Context* context) { cpu->save(*context); }
-void oboromi_dynarmic_load(Cpu* cpu, const Context* context) { cpu->load(*context); }
-void oboromi_dynarmic_invalidate(Cpu* cpu, std::uint64_t address, std::size_t size) { cpu->jit->InvalidateCacheRange(address, size); }
+bool kokoromi_dynarmic_step(Cpu* cpu) { cpu->callbacks.fault = false; cpu->jit->ClearHalt(); cpu->jit->Step(); return !cpu->callbacks.fault; }
+void kokoromi_dynarmic_halt(Cpu* cpu) { cpu->jit->HaltExecution(); }
+std::uint64_t kokoromi_dynarmic_get_x(const Cpu* cpu, std::size_t index) { return index < 31 ? cpu->jit->GetRegister(index) : 0; }
+void kokoromi_dynarmic_set_x(Cpu* cpu, std::size_t index, std::uint64_t value) { if (index < 31) cpu->jit->SetRegister(index, value); }
+std::uint64_t kokoromi_dynarmic_get_sp(const Cpu* cpu) { return cpu->jit->GetSP(); }
+void kokoromi_dynarmic_set_sp(Cpu* cpu, std::uint64_t value) { cpu->jit->SetSP(value); }
+std::uint64_t kokoromi_dynarmic_get_pc(const Cpu* cpu) { return cpu->jit->GetPC(); }
+void kokoromi_dynarmic_set_pc(Cpu* cpu, std::uint64_t value) { cpu->jit->SetPC(value); }
+void kokoromi_dynarmic_set_tls(Cpu* cpu, std::uint64_t value) { cpu->callbacks.tls = value; }
+std::uint32_t kokoromi_dynarmic_take_svc(Cpu* cpu) { return std::exchange(cpu->callbacks.svc, std::numeric_limits<std::uint32_t>::max()); }
+void kokoromi_dynarmic_clear_exclusive(Cpu* cpu) { cpu->jit->ClearExclusiveState(); cpu->monitor->value.ClearProcessor(cpu->id); }
+void kokoromi_dynarmic_save(const Cpu* cpu, Context* context) { cpu->save(*context); }
+void kokoromi_dynarmic_load(Cpu* cpu, const Context* context) { cpu->load(*context); }
+void kokoromi_dynarmic_invalidate(Cpu* cpu, std::uint64_t address, std::size_t size) { cpu->jit->InvalidateCacheRange(address, size); }
 }

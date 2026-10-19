@@ -1,6 +1,6 @@
 # Emulator overview
 
-oboromi builds on a Rust core, a Qt front end, emulated ARM cores, a stand-in service registry, an NVIDIA instruction table and a SPIR-V writer. The current path connects those foundations into one machine: the loader starts one of the project's AArch64 images, the kernel handles its calls, the stand-in services drive graphics and audio, and the window presents the result. Nintendo's OS is not emulated.
+Kokoromi builds on a Rust core, a Qt front end, emulated ARM cores, a stand-in service registry, an NVIDIA instruction table and a SPIR-V writer. The current path connects those foundations into one machine: the loader starts one of the project's AArch64 images, the kernel handles its calls, the stand-in services drive graphics and audio, and the window presents the result. Nintendo's OS is not emulated.
 
 | Part | Where | What works today |
 |---|---|---|

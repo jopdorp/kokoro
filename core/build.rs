@@ -30,9 +30,9 @@ fn build_dynarmic() {
         .arg(format!("-DCMAKE_ARCHIVE_OUTPUT_DIRECTORY={}", lib.display()))
         .args(["-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_POLICY_VERSION_MINIMUM=3.5", "-DDYNARMIC_FRONTENDS=A64", "-DDYNARMIC_TESTS=OFF", "-DDYNARMIC_USE_LLVM=OFF", "-DBUILD_TESTING=OFF"])
         .current_dir(Path::new(env!("CARGO_MANIFEST_DIR"))));
-    run(Command::new("cmake").args(["--build"]).arg(&build).args(["--target", "oboromi_dynarmic", "--parallel"]));
+    run(Command::new("cmake").args(["--build"]).arg(&build).args(["--target", "kokoromi_dynarmic", "--parallel"]));
     println!("cargo:rustc-link-search=native={}", lib.display());
-    for name in ["oboromi_dynarmic", "dynarmic", "mcl", "fmt", "Zydis", "Zycore"] {
+    for name in ["kokoromi_dynarmic", "dynarmic", "mcl", "fmt", "Zydis", "Zycore"] {
         println!("cargo:rustc-link-lib=static={name}");
     }
     println!("cargo:rustc-link-lib=dylib=stdc++");

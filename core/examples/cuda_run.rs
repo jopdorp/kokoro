@@ -1,10 +1,10 @@
 //! Runs a kernel of an nvcc-built sm_8x cubin through the SASS -> SPIR-V -> Vulkan path and writes its `out` buffer as
-//! an RGBA8 image (alpha dropped): `cargo run --release -p oboromi-core --example cuda_run -- k.cubin name gx,gy,gz
+//! an RGBA8 image (alpha dropped): `cargo run --release -p kokoromi-core --example cuda_run -- k.cubin name gx,gy,gz
 //! bx,by,bz [out | number]... --image width height out.ppm`. A parameter is `out`, the image buffer passed as its
 //! address, or a number sized by the parameter: an integer (0x for hex), or with a '.' an f32 or f64.
-use oboromi_core::gpu::cubin::{Arg, Kernel};
-use oboromi_core::gpu::device;
-use oboromi_core::tests::gpu::harness::{GLOBAL_BASE, Grid};
+use kokoromi_core::gpu::cubin::{Arg, Kernel};
+use kokoromi_core::gpu::device;
+use kokoromi_core::tests::gpu::harness::{GLOBAL_BASE, Grid};
 use std::time::Instant;
 
 const RUNS: usize = 50;

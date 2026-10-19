@@ -6,7 +6,7 @@
 #include <thread>
 
 #include "AudioBackend.h"
-#include "oboromi_core.h"
+#include "kokoromi_core.h"
 
 namespace {
 
@@ -43,7 +43,7 @@ public:
                 BYTE *data;
                 if (FAILED(m_client->GetCurrentPadding(&padding))) continue;
                 if (FAILED(m_render->GetBuffer(bufferFrames - padding, &data))) continue;
-                oboromi_audio_pull(reinterpret_cast<int16_t *>(data), bufferFrames - padding);
+                kokoromi_audio_pull(reinterpret_cast<int16_t *>(data), bufferFrames - padding);
                 m_render->ReleaseBuffer(bufferFrames - padding, 0);
             }
         });

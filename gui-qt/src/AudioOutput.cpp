@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "oboromi_core.h"
+#include "kokoromi_core.h"
 
 namespace {
 
@@ -38,9 +38,9 @@ private:
     void tick() {
         size_t queued;
         uint64_t underruns;
-        oboromi_audio_stats(&queued, &underruns);
+        kokoromi_audio_stats(&queued, &underruns);
         std::vector<int16_t> samples(std::min<size_t>(m_sink->bytesFree() / m_sink->format().bytesPerFrame(), queued) * 2);
-        oboromi_audio_pull(samples.data(), samples.size() / 2);
+        kokoromi_audio_pull(samples.data(), samples.size() / 2);
         m_device->write(reinterpret_cast<const char *>(samples.data()), samples.size() * sizeof(int16_t));
     }
 
@@ -58,7 +58,7 @@ std::unique_ptr<AudioBackend> openQtSink(const AudioFormat &format) {
 }
 
 AudioOutput::AudioOutput(QObject *parent) : QObject(parent) {
-    oboromi_audio_format(&m_format.rate, &m_format.channels, &m_format.period);
+    kokoromi_audio_format(&m_format.rate, &m_format.channels, &m_format.period);
     connect(&m_timer, &QTimer::timeout, this, &AudioOutput::tick);
     m_timer.start(10);
 }
@@ -68,22 +68,22 @@ AudioOutput::~AudioOutput() = default;
 QString AudioOutput::status() const {
     size_t queued;
     uint64_t underruns;
-    oboromi_audio_stats(&queued, &underruns);
+    kokoromi_audio_stats(&queued, &underruns);
     return QString("audio %1, requested %2/%3, %4 frames queued, %5 underruns")
         .arg(m_backend ? QString::fromStdString(m_backend->describe()) : "stopped")
         .arg(m_format.period).arg(m_format.rate).arg(queued).arg(underruns);
 }
 
 void AudioOutput::tick() {
-    if (auto generation = oboromi_audio_generation(); generation != m_generation) {
+    if (auto generation = kokoromi_audio_generation(); generation != m_generation) {
         m_generation = generation;
         m_lastProduced.start();
-        auto choice = qgetenv("OBOROMI_AUDIO");
+        auto choice = qgetenv("KOKOROMI_AUDIO");
         std::pair<const char *, std::unique_ptr<AudioBackend> (*)(const AudioFormat &)> backends[] = {
-#ifdef OBOROMI_PIPEWIRE
+#ifdef KOKOROMI_PIPEWIRE
             {"pipewire", openPipeWire},
 #endif
-#ifdef OBOROMI_ALSA
+#ifdef KOKOROMI_ALSA
             {"alsa", openAlsa},
 #endif
 #ifdef _WIN32

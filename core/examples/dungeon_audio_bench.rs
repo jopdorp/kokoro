@@ -1,4 +1,4 @@
-use oboromi_core::{cpu::cpu_manager::CpuManager, guest::{BASE, load_flat_image}};
+use kokoromi_core::{cpu::cpu_manager::CpuManager, guest::{BASE, load_flat_image}};
 
 fn main() {
     let image = std::fs::read(std::env::args().nth(1).unwrap()).unwrap();

@@ -6,7 +6,7 @@ use std::process::Command;
 use std::sync::{Arc, Mutex};
 
 fn payload() -> Vec<u8> {
-    let directory = std::path::PathBuf::from(std::env::var("TMPDIR").unwrap_or_else(|_| "/home/jopdorp/.cache/tmp".into())).join(format!("oboromi-soc-{}", std::process::id()));
+    let directory = std::path::PathBuf::from(std::env::var("TMPDIR").unwrap_or_else(|_| "/home/jopdorp/.cache/tmp".into())).join(format!("kokoromi-soc-{}", std::process::id()));
     std::fs::create_dir_all(&directory).unwrap();
     let source = directory.join("gate.s");
     let object = directory.join("gate.o");

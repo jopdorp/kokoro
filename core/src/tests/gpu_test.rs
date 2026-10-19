@@ -695,7 +695,7 @@ fn fixtures_match_nvdisasm() {
     const W1D_IADD3_OBSERVER: u128 = 0x008fc600007e24ff000000ffff097210;
     const W1D_IADD3_NEG_C: u128 = 0x004fe2000791e8050000000004077210;
     const W1D_IADD3_X: u128 = 0x004fc80003fee4090000000700077210;
-    let bin = std::env::temp_dir().join(format!("oboromi-fixture-{}.bin", std::process::id()));
+    let bin = std::env::temp_dir().join(format!("kokoromi-fixture-{}.bin", std::process::id()));
     let fixtures: &[(u128, &str)] = &[
         (inst::iadd_imm(1, 2, 42), "IADD3 R1, R2, 0x2a, RZ;"),
         (inst::iadd_reg(1, 2, 3), "IADD3 R1, R2, R3, RZ;"),

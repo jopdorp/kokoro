@@ -2,7 +2,7 @@
 status: "accepted"
 date: 2026-10-16
 decision-makers: jopdorp
-component: [oboromi-gpu]
+component: [kokoromi-gpu]
 ---
 # Every shader finds its data in a fixed table of numbered slots
 

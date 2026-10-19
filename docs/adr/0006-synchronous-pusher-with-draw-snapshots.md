@@ -2,7 +2,7 @@
 status: "accepted"
 date: 2026-10-17
 decision-makers: jopdorp
-component: [oboromi-gpu]
+component: [kokoromi-gpu]
 ---
 # GPU commands run one after another, each draw with frozen settings
 
@@ -12,7 +12,7 @@ A program's command list mixes settings changes, draws, constant updates, clears
 
 ## Context and Problem Statement
 
-A pushbuffer, the program's command list, interleaves state writes, draws, constant buffer updates, clears and semaphore releases, the GPU's "got this far" signals. The order they take effect in matters, and a host GPU queue runs on its own clock. Nintendo's OS would wait on fences, the host's done-flags, or syncpoints, the Switch's hardware counters; oboromi does not emulate that OS.
+A pushbuffer, the program's command list, interleaves state writes, draws, constant buffer updates, clears and semaphore releases, the GPU's "got this far" signals. The order they take effect in matters, and a host GPU queue runs on its own clock. Nintendo's OS would wait on fences, the host's done-flags, or syncpoints, the Switch's hardware counters; Kokoromi does not emulate that OS.
 
 ## Decision Outcome
 

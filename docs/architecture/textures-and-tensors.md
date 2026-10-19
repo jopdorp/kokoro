@@ -91,7 +91,7 @@ Standard float maths adds one number at a time and rounds after each step. The r
 
 ### Why is the sum written as loops?
 
-Written straight out, the exact method makes a huge shader that drivers take long to compile. Putting it in one SPIR-V function did not help, because both drivers pasted it back into every caller. So the inputs are loaded once into a per-thread array. The sum runs in loops marked `DontUnroll`, a hint that tells the driver to keep each loop as a loop. `OBOROMI_EXACT=1` selects this path. See [ADR-0005](../adr/0005-hmma-exact-accumulation-as-dontunroll-loops.md).
+Written straight out, the exact method makes a huge shader that drivers take long to compile. Putting it in one SPIR-V function did not help, because both drivers pasted it back into every caller. So the inputs are loaded once into a per-thread array. The sum runs in loops marked `DontUnroll`, a hint that tells the driver to keep each loop as a loop. `KOKOROMI_EXACT=1` selects this path. See [ADR-0005](../adr/0005-hmma-exact-accumulation-as-dontunroll-loops.md).
 
 Per HMMA.16816.F32, cold pipeline compile:
 

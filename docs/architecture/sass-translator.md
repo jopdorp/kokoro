@@ -92,7 +92,7 @@ A Vulkan shader cannot follow pointers to its data. It reads from numbered slots
 
 | Binding | Kind | Holds |
 |---|---|---|
-| 0 | Uniform buffer, small and read-only | oboromi's own helper values, never game data |
+| 0 | Uniform buffer, small and read-only | Kokoromi's own helper values, never game data |
 | 1 to 32 | Uniform buffers | The game's constant buffers 0 to 31, stored as `uvec4` arrays |
 | 33 | Storage buffer, large and read-write | The window onto emulated RAM |
 | 34, 35 | Storage buffers | Register values in and out, tests only |

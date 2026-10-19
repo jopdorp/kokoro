@@ -20,7 +20,7 @@
 #include "AudioOutput.h"
 #include "DisplayWidget.h"
 #include "RustBridge.h"
-#include "oboromi_core.h"
+#include "kokoromi_core.h"
 
 namespace {
 
@@ -33,7 +33,7 @@ QColor colorForLine(const QString &line) {
 }
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
-    setWindowTitle("oboromi");
+    setWindowTitle("kokoromi");
     resize(1200, 800);
 
     buildMenuBar();
@@ -52,7 +52,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)
-        oboromi_input_key(static_cast<QKeyEvent *>(event)->key(), event->type() == QEvent::KeyPress);
+        kokoromi_input_key(static_cast<QKeyEvent *>(event)->key(), event->type() == QEvent::KeyPress);
     return QMainWindow::eventFilter(watched, event);
 }
 
@@ -65,7 +65,7 @@ void MainWindow::buildMenuBar() {
     auto *aboutMenu = menuBar()->addMenu("&About");
     auto *codeAction = aboutMenu->addAction("See the code");
     connect(codeAction, &QAction::triggered, this, [] {
-        QDesktopServices::openUrl(QUrl("https://git.eden-emu.dev/Nikilite/oboromi/"));
+        QDesktopServices::openUrl(QUrl("https://git.eden-emu.dev/Nikilite/kokoromi/"));
     });
 }
 
@@ -73,7 +73,7 @@ void MainWindow::buildUi() {
     auto *central = new QWidget(this);
     auto *layout = new QVBoxLayout(central);
 
-    auto *heading = new QLabel("oboromi", central);
+    auto *heading = new QLabel("kokoromi", central);
     auto font = heading->font();
     font.setPointSize(font.pointSize() + 8);
     font.setBold(true);
@@ -119,26 +119,26 @@ void MainWindow::buildUi() {
     connect(rayTracing, &QCheckBox::toggled, this, RustBridge::setRaytracingEnabled);
     buttons->addWidget(rayTracing);
     auto *fastTensors = new QCheckBox("Fast tensors", central);
-    connect(fastTensors, &QCheckBox::toggled, this, oboromi_set_tensor_mode);
+    connect(fastTensors, &QCheckBox::toggled, this, kokoromi_set_tensor_mode);
     buttons->addWidget(fastTensors);
     auto *rayBudget = new QCheckBox("Ray budget", central);
-    connect(rayBudget, &QCheckBox::toggled, this, [](bool enabled) { oboromi_set_ray_budget(enabled ? 1 : UINT32_MAX); });
+    connect(rayBudget, &QCheckBox::toggled, this, [](bool enabled) { kokoromi_set_ray_budget(enabled ? 1 : UINT32_MAX); });
     buttons->addWidget(rayBudget);
     auto *quality = new QComboBox(central);
     quality->addItems({"Dungeon: showcase", "Dungeon: realtime"});
     auto *rays = new QCheckBox("Ray tracing", central);
-    rays->setEnabled(oboromi_dungeon_ray_queries());
+    rays->setEnabled(kokoromi_dungeon_ray_queries());
     rays->setChecked(rays->isEnabled());
     connect(quality, &QComboBox::currentIndexChanged, this, [quality, rays](int index) {
         rays->setChecked(index == 0 && rays->isEnabled());
-        oboromi_dungeon_settings(index == 0, rays->isChecked());
+        kokoromi_dungeon_settings(index == 0, rays->isChecked());
     });
-    connect(rays, &QCheckBox::toggled, this, [quality](bool enabled) { oboromi_dungeon_settings(quality->currentIndex() == 0, enabled); });
+    connect(rays, &QCheckBox::toggled, this, [quality](bool enabled) { kokoromi_dungeon_settings(quality->currentIndex() == 0, enabled); });
     buttons->addWidget(quality);
     buttons->addWidget(rays);
     auto *spatialMode = new QComboBox(central);
     spatialMode->addItems({"Headphones", "Speakers"});
-    connect(spatialMode, &QComboBox::currentIndexChanged, this, [](int mode) { oboromi_set_dungeon_speakers(mode == 1); });
+    connect(spatialMode, &QComboBox::currentIndexChanged, this, [](int mode) { kokoromi_set_dungeon_speakers(mode == 1); });
     buttons->addWidget(spatialMode);
     connect(&m_demoTimer, &QTimer::timeout, this, [this] {
         if (m_demoFrame.isFinished()) {
@@ -146,8 +146,8 @@ void MainWindow::buildUi() {
             else m_demoFrameClock.start();
             m_demoFrame = QtConcurrent::run(m_demoRender, m_demoClock.elapsed() / 1000.0f);
         }
-        OboromiInput input;
-        oboromi_input_state(&input);
+        KokoromiInput input;
+        kokoromi_input_state(&input);
         m_gamepadLabel->setText(input.gamepad[0] ? QString("gamepad: ") + input.gamepad : QString());
     });
     auto *toneButton = new QPushButton("Tone", central);
@@ -157,7 +157,7 @@ void MainWindow::buildUi() {
         m_toneTimer.stop();
         m_logList->addItem(m_audio->status());
     });
-    connect(&m_toneTimer, &QTimer::timeout, this, [] { oboromi_audio_test_tone(0.1f); });
+    connect(&m_toneTimer, &QTimer::timeout, this, [] { kokoromi_audio_test_tone(0.1f); });
     buttons->addWidget(toneButton);
     buttons->addStretch();
     m_frameLabel = new QLabel(central);

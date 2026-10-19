@@ -2,7 +2,7 @@
 status: "accepted"
 date: 2026-10-17
 decision-makers: jopdorp
-component: [oboromi-gpu]
+component: [kokoromi-gpu]
 ---
 # Emulated RAM is the one true copy of all data
 

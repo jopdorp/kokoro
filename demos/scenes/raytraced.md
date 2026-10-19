@@ -7,7 +7,7 @@ glossy reflections, glass reflection and refraction, ambient occlusion and one-b
 Run `demos/assets/fetch.sh`, then:
 
 ```sh
-cargo run -p oboromi-core --example capture -- raytraced --seconds 8 --fps 60 --out frames
+cargo run -p kokoromi-core --example capture -- raytraced --seconds 8 --fps 60 --out frames
 ```
 
 The demo requires ray queries, acceleration structures and fragment subgroup arithmetic, ballot and shuffle.

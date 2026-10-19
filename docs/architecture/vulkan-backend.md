@@ -45,7 +45,7 @@ All work goes through one queue, the place work is handed to the card. Each subm
 
 ## Which settings can change per draw?
 
-A Vulkan pipeline is a compiled bundle of shaders and settings. Building one is slow, so oboromi keeps as much as possible as dynamic state, settings changed per draw for free.
+A Vulkan pipeline is a compiled bundle of shaders and settings. Building one is slow, so Kokoromi keeps as much as possible as dynamic state, settings changed per draw for free.
 
 | Kind | Settings |
 |---|---|
@@ -61,7 +61,7 @@ A Vulkan pipeline is a compiled bundle of shaders and settings. Building one is 
 - Pipelines can be built on worker threads. Default mode skips a draw whose pipeline is not ready; exact mode waits.
 - Translated SPIR-V and the driver's pipeline cache are saved to disk per game, so the next run starts warm.
 
-Measured on an Intel Arc (MTL), p50, `cargo run --release -p oboromi-core --example perf`:
+Measured on an Intel Arc (MTL), p50, `cargo run --release -p kokoromi-core --example perf`:
 
 | Path | Latency |
 |---|---|
