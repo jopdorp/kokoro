@@ -5,6 +5,7 @@ use std::cell::Cell;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
+use crate::soc::Bus;
 use unicorn_engine::{Arch, Arm64Insn, Context, HookType, MemType, Mode, Prot, Query, RegisterARM64, RegisterARM64CP, TlbType, Unicorn, uc_error};
 
 const EXCP_SWI: u32 = 2;
@@ -270,26 +271,47 @@ impl UnicornCPU {
 
     /// Create a new Unicorn instance mapping `ram` at guest address 0
     pub fn new_with_shared_mem(core_id: u32, ram: Arc<GuestRam>) -> Option<Self> {
+        Self::with_memory(core_id, ram, 0, |_| Ok(()))
+    }
+
+    /// One core with `ram` at `ram_base` and every bus region trapping into `bus`, entered at EL1h with DAIF masked
+    /// as the arm64 boot protocol requires. Unicorn resets into EL3, so SCR_EL3.{NS,RW} and HCR_EL2.RW make EL1
+    /// non-secure AArch64 and CNTHCTL_EL2 stops EL2 trapping the EL1 timer.
+    pub fn soc(ram: Arc<GuestRam>, ram_base: u64, bus: Arc<Mutex<Bus>>) -> Option<Self> {
+        Self::with_memory(0, ram, ram_base, |emu| {
+            for region in bus.lock().unwrap().regions() {
+                let (base, reads, writes) = (region.start, bus.clone(), bus.clone());
+                emu.mmio_map(base, region.end - base,
+                    Some(move |_: &mut Unicorn<'_, RunState>, offset, size| reads.lock().unwrap().read(base + offset, size).unwrap_or(0)),
+                    Some(move |_: &mut Unicorn<'_, RunState>, offset, size, value| { writes.lock().unwrap().write(base + offset, size, value); }))?;
+            }
+            for (op1, crn, crm, val) in [(6, 1, 1, 0x401), (4, 1, 1, 1 << 31), (4, 14, 1, 3)] {
+                emu.reg_write_arm64_coproc(&RegisterARM64CP { crn, crm, op0: 3, op1, op2: 0, val })?;
+            }
+            emu.reg_write(RegisterARM64::PSTATE, 0x3c5)
+        })
+    }
+
+    fn with_memory(core_id: u32, ram: Arc<GuestRam>, ram_base: u64, map: impl FnOnce(&mut Emu) -> Result<(), uc_error>) -> Option<Self> {
         let mut emu = new_emu()
-            .map_err(|e| {
+            .inspect_err(|e| {
                 eprintln!("Failed to create Unicorn instance for core {}: {:?}", core_id, e);
-                e
             })
             .ok()?;
 
         // Safety: the core holds `ram`, so the mapping outlives the Unicorn instance.
         unsafe {
-            emu.mem_map_ptr(0x0, ram.size() as u64, Prot::ALL, ram.base().cast())
-                .map_err(|e| {
+            emu.mem_map_ptr(ram_base, ram.size() as u64, Prot::ALL, ram.base().cast())
+                .inspect_err(|e| {
                     eprintln!("Failed to map shared memory for core {}: {:?}", core_id, e);
-                    e
                 })
                 .ok()?;
         }
+        map(&mut emu).ok()?;
 
         // Initialize stack pointer to end of memory, offset by core ID to avoid collision
         // Give each core 1MB of stack space at the top of memory
-        let stack_top = ram.size() as u64 - (core_id as u64 * 0x100000);
+        let stack_top = ram_base + ram.size() as u64 - (core_id as u64 * 0x100000);
         let _ = emu.reg_write(RegisterARM64::SP, stack_top);
 
         let initial = emu.context_init().ok()?;

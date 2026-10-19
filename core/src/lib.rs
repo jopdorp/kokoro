@@ -12,4 +12,5 @@ pub mod loader {
 }
 pub mod tests;
 pub mod nn;
+pub mod soc;
 pub mod sys;
