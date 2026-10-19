@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 362 356" width="362" height="356">
+  <defs>
+    <linearGradient id="leaf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5FB59F"/><stop offset="0.55" stop-color="#2B4A47"/><stop offset="1" stop-color="#34203F"/>
+    </linearGradient>
+    <linearGradient id="flesh" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F28B5E"/><stop offset="0.55" stop-color="#6B3040"/><stop offset="1" stop-color="#2E1536"/>
+    </linearGradient>
+    <linearGradient id="leafBar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9BE3CF"/><stop offset="1" stop-color="#3E9C8A"/>
+    </linearGradient>
+    <linearGradient id="fleshBar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFB38A"/><stop offset="1" stop-color="#E4704F"/>
+    </linearGradient>
+  </defs>
+  <path d="M150,60 C150,34 130,22 106,18 C100,40 112,50 128,52 A134,156 0 0 0 150,356 Z" fill="url(#leaf)"/>
+  <rect x="154" y="64" width="14" height="276" rx="6" fill="url(#leafBar)"/>
+  <path d="M212,0 A140,156 0 0 1 212,312 Z" fill="url(#flesh)"/>
+  <rect x="194" y="14" width="14" height="276" rx="6" fill="url(#fleshBar)"/>
+</svg>

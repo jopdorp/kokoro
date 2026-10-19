@@ -13,7 +13,7 @@ namespace {
 // same splash timing as the old egui frontend: 400ms in, 800ms hold, 400ms out.
 void showSplashThenMainWindow(QApplication &app) {
     (void)app;
-    QPixmap logo(":/oboromi_logo.png");
+    QPixmap logo(":/kokoromi_logo.png");
 
     auto *splash = new QSplashScreen(logo);
     splash->setWindowFlag(Qt::WindowStaysOnTopHint);
@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
         }
     )");
 
-    app.setApplicationName("oboromi");
+    app.setApplicationName("kokoromi");
     app.setOrganizationName("Nikilite");
 
     showSplashThenMainWindow(app);
