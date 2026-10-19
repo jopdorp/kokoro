@@ -87,6 +87,15 @@ Each Nintendo Relocatable Object (NRO) is loaded by the emulated CPU, uses Amper
 
 *A double-precision dive into the seahorse valley, rendered with NVIDIA's CUDA sample kernel.*
 
+### Tensor upscale
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem">
+<div><strong>Default</strong><video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-tensor.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-tensor.mp4" type="video/mp4"></video></div>
+<div><strong>Exact</strong><video controls muted loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-tensor-exact.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/fullcircle-tensor-exact.mp4" type="video/mp4"></video></div>
+</div>
+
+*This upscales a half-resolution frame with tensor-core matrix instructions. The default path takes 78.1 ms and exact takes 155.9 ms on an A40; the clips are visually identical, with only the default path's rounding changing their digests.*
+
 ### Ray-traced scene
 
 ![Ray-traced scene with the old and new lighting](https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-raytraced-gi-proof.png)
@@ -99,21 +108,17 @@ Each Nintendo Relocatable Object (NRO) is loaded by the emulated CPU, uses Amper
 
 *Synthesized instruments build the mix heard in the clip.*
 
-## Dungeon
-
-The dungeon now runs on the emulator; the clips below are still the native render and are being replaced by the emulator render.
-
-<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-raytraced.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-raytraced.mp4" type="video/mp4"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon.mp4" type="video/mp4"></video>
-
-*Dungeon ray traced, default: speed hacks are on; this native clip was rendered offline on the Intel laptop. Ray queries make every flame shadow dance, reflect torches on wet calcite and add traced limestone bounce.*
+### Dungeon
 
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-raster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-raster.mp4" type="video/mp4"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-realtime.mp4" type="video/mp4"></video>
 
-*Dungeon raster, default: speed hacks are on; this native clip was rendered offline on the Intel laptop. Baked shadows and planar reflections make the same tour lighter to render.*
+*The raster tour moves from the torch-lit hallway into the limestone cave, then follows the river past the fire.*
+
+<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-raytraced.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-raytraced.mp4" type="video/mp4"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon.mp4" type="video/mp4"></video>
 
 <video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/oboromi/assets/dungeon-v8-rt-compare.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/oboromi/assets/demo-dungeon-compare.mp4" type="video/mp4"></video>
 
-*Dungeon raster is left and Dungeon ray traced is right over the same fifteen reveal seconds. Every flame moves its traced shadow and wet calcite catches the torches; mean absolute RGB difference is 8.09% over all 900 frames.*
+*These are the native renders; the ray-traced tour through the emulator follows once its shader lowering is fixed.*
 
 ![Raster and ray-query dungeon frame](https://raw.githubusercontent.com/jopdorp/oboromi/assets/dungeon-v8-rt-compare.png)
 
@@ -121,7 +126,7 @@ The dungeon now runs on the emulator; the clips below are still the native rende
 
 ## Measured
 
-Median frame times on the Intel Arc laptop used for the captures:
+Median frame times for demos with published measurements:
 
 | Demo | Variant | Time |
 |---|---|---|
@@ -129,10 +134,14 @@ Median frame times on the Intel Arc laptop used for the captures:
 | Julia set | exact | 4.7 ms |
 | Triangle, 1080p | exact | 6.6 ms |
 | CUDA Mandelbrot, 800x600 | exact | 10.2 ms |
+| Tensor upscale | default, A40 | 78.1 ms |
+| Tensor upscale | exact, A40 | 155.9 ms |
+| Dungeon raster | default, emulator on A40 | 647 ms uncontended; the clip measured 1,336 ms on a shared pod |
+| Dungeon ray traced | native, Intel Arc | 232.5 ms |
 
-These are laptop measurements, not native Switch 2 measurements.
+These are emulator and native-render measurements, not native Switch 2 measurements.
 
 ## Share
 
-Paste the dungeon [clip](https://jopdorp.github.io/oboromi/media/demo-dungeon.mp4), [poster](https://jopdorp.github.io/oboromi/media/demo-dungeon-raytraced.png), or [GIF teaser](https://jopdorp.github.io/oboromi/media/teaser-dungeon.gif) straight into Discord.
+Paste the dungeon [clip](https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.mp4), [poster](https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.png), or [GIF teaser](https://jopdorp.github.io/oboromi/media/teaser-dungeon.gif) straight into Discord.
 The BoomBox [clip](https://jopdorp.github.io/oboromi/media/fullcircle-boombox.mp4) and the sprites [clip](https://jopdorp.github.io/oboromi/media/fullcircle-sprites.mp4) and [GIF teaser](https://jopdorp.github.io/oboromi/media/teaser-sprites.gif) work there too.
