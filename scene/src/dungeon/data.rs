@@ -692,6 +692,7 @@ impl World {
         world.lights.clear();
         world.sources.clear();
         world.drips.retain(|&(tip, _)| cs.contains(tip));
+        world.lights.push(Light { pos: [cs.centre()[0], cs.hi[1] * 0.45, world.river.centre()[2]], colour: [2.0, 3.0, 4.5], flicker: 0.0, flame: 0.0 });
         let hallway = corridors[1].0;
         for (p, normal) in [
             (
@@ -752,9 +753,9 @@ impl World {
         }
         world.lights.push(Light {
             pos: add(pit, [0.0, 0.8, 0.0]),
-            colour: [7.5, 3.1, 0.9],
+            colour: [8.6, 3.7, 1.0],
             flicker: 1.0,
-            flame: 1.4,
+            flame: 1.8,
         });
         world
             .sources
