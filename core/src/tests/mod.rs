@@ -6,6 +6,8 @@ mod audio;
 pub mod gpu_test;
 #[cfg(test)]
 mod kernel;
+#[cfg(test)]
+mod soc_cpu;
 
 pub use run::run_tests;
 pub use gpu_test::run_gpu_tests;

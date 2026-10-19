@@ -47,6 +47,8 @@ pub trait Cpu: Send + Sync {
     fn thread_context(&self, entry: u64, arg: u64, stack: u64, tls: u64, handle: u32) -> Result<CpuContext, CpuError>;
     fn set_virtual_time(&self, enabled: bool);
     fn set_block_ticks(&self, ticks: u64);
+    fn set_guest_kernel(&self, enabled: bool);
+    fn raise_irq(&self, line: u32, level: bool);
 
     fn write_u32(&self, address: u64, value: u32) { let _ = self.write_mem(address, &value.to_le_bytes()); }
     fn read_u32(&self, address: u64) -> u32 {
