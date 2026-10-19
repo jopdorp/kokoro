@@ -692,7 +692,6 @@ impl World {
         world.lights.clear();
         world.sources.clear();
         world.drips.retain(|&(tip, _)| cs.contains(tip));
-        world.lights.push(Light { pos: [cs.centre()[0], cs.hi[1] * 0.45, world.river.centre()[2]], colour: [2.0, 3.0, 4.5], flicker: 0.0, flame: 0.0 });
         let hallway = corridors[1].0;
         for (p, normal) in [
             (
@@ -724,11 +723,17 @@ impl World {
             ([cs.hi[0] - 4.0, 2.4, cs.lo[2] + 0.28], [0.0, 0.0, 1.0]),
             ([cs.lo[0] + 4.0, 2.4, cs.hi[2] - 0.28], [0.0, 0.0, -1.0]),
             ([cs.hi[0] - 4.0, 2.4, cs.hi[2] - 0.28], [0.0, 0.0, -1.0]),
+            ([cs.lo[0] + 6.0, 2.4, world.river_bank(cs.lo[0] + 6.0, 0) - 0.8], [0.0, 0.0, 1.0]),
+            ([cs.lo[0] + 6.0, 2.4, world.river_bank(cs.lo[0] + 6.0, 1) + 0.8], [0.0, 0.0, -1.0]),
+            ([bridge.lo[0] - 0.3, 2.4, bridge.lo[2] - 0.3], [1.0, 0.0, 0.0]),
+            ([bridge.hi[0] + 0.3, 2.4, bridge.lo[2] - 0.3], [-1.0, 0.0, 0.0]),
+            ([bridge.lo[0] - 0.3, 2.4, bridge.hi[2] + 0.3], [1.0, 0.0, 0.0]),
+            ([bridge.hi[0] + 0.3, 2.4, bridge.hi[2] + 0.3], [-1.0, 0.0, 0.0]),
         ];
         for (p, normal) in cave_torches {
             world.lights.push(Light {
                 pos: add(p, [0.0, 0.12, 0.0]),
-                colour: [6.8, 2.9, 0.85],
+                colour: [0.9, 0.38, 0.11],
                 flicker: 1.0,
                 flame: 0.58,
             });
@@ -753,9 +758,9 @@ impl World {
         }
         world.lights.push(Light {
             pos: add(pit, [0.0, 0.8, 0.0]),
-            colour: [8.6, 3.7, 1.0],
+            colour: [1.6, 0.68, 0.2],
             flicker: 1.0,
-            flame: 1.8,
+            flame: 1.4,
         });
         world
             .sources
@@ -1161,8 +1166,6 @@ const WOOD: V3 = [0.42, 0.27, 0.15];
 const WAX: V3 = [1.5, 1.35, 1.0];
 const PUMPKIN: V3 = [2.2, 0.9, 0.12];
 const LIMESTONE: V3 = [1.25, 1.15, 0.95];
-const CALCITE: V3 = [1.45, 1.32, 1.08];
-const PEBBLE: V3 = [1.05, 0.98, 0.84];
 
 #[derive(Default)]
 pub struct Builder {
@@ -1184,16 +1187,10 @@ impl Builder {
             for i in 0..=cells[0] {
                 let [s, t] = [i as f32 / cells[0] as f32, j as f32 / cells[1] as f32];
                 let (normal, _) = frame(f, s, t);
-                let material = if tint == LIMESTONE {
-                    6.
-                } else if tint == CALCITE {
-                    7.
-                } else if tint == PEBBLE {
-                    8.
-                } else if prop {
+                let material = if prop {
                     if tint == IRON {
                         2.
-                    } else if tint == STONE {
+                    } else if tint == LIMESTONE || tint == STONE {
                         1.
                     } else {
                         3.
@@ -1520,9 +1517,9 @@ impl World {
                         LIMESTONE,
                     );
                     for v in &mut b.vertices[first..] {
+                        v.material = 1.;
                         if strip == 1 {
-                            v.material = 8.;
-                            v.tint = PEBBLE;
+                            v.tint = scale(LIMESTONE, 0.45);
                         }
                     }
                 }
@@ -1544,7 +1541,7 @@ impl World {
                         pebbles.sample() * TAU,
                         &|a, t| 1. + 0.13 * (a * 3. + t * 7.).sin(),
                         [7, 4],
-                        PEBBLE,
+                        LIMESTONE,
                     );
                 }
                 for end in 0..2 {
@@ -1887,7 +1884,7 @@ impl World {
             b.tube(
                 [p[0], 0., p[2]],
                 add(p, [0., -0.17, 0.]),
-                &|t| 0.06 - 0.02 * t,
+                &|t| 0.09 - 0.025 * t,
                 8,
                 WOOD,
             );
@@ -1927,7 +1924,7 @@ impl World {
                         a,
                         &|a, t| 1. + 0.15 * (a * 5. + t * 4.).sin(),
                         [7, 4],
-                        CALCITE,
+                        LIMESTONE,
                     );
                 }
             }

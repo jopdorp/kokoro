@@ -146,7 +146,7 @@ fn dungeon(out: &std::path::Path) {
         let seconds = frame as f32 / 60.0;
         let phase = i as f32 * 2.3;
         let flicker = 1.0 + light.flicker * (0.21 * (seconds * 11.7 + phase).sin() + 0.11 * (seconds * 23.1 + phase * 1.7).sin() + 0.08 * (seconds * 4.3 + phase).sin());
-        let reveal = if world.zones[world.cave].space.contains(light.pos) { 0.04 + 0.96 * scene::dungeon::data::smoother((seconds - 36.0) / 6.0) } else { 1.0 };
+        let reveal = if world.zones[world.cave].space.contains(light.pos) { 0.12 + 0.88 * scene::dungeon::data::smoother((seconds - 36.0) / 6.0) } else { 1.0 };
         lights.extend([light.pos[0], light.pos[1], light.pos[2], light.flame * reveal, light.colour[0] * flicker * reveal, light.colour[1] * flicker * reveal, light.colour[2] * flicker * reveal, shadow_lights.iter().position(|&slot| slot == i).map_or(0.0, |slot| slot as f32 + 1.0)]);
     }}
     std::fs::write(out.join("dungeon-frame-lights.bin"), floats(lights)).unwrap();

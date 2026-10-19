@@ -170,7 +170,7 @@ vec3 brdf(vec3 base,vec3 n,vec3 v,vec3 l,float rough,float metal) {
     return ((1.-f)*(1.-metal)*base/PI+spec)*nl;
 }
 vec3 illuminate(vec3 p,vec3 n,vec3 v,vec3 base,float rough,float metal,bool shadow) {
-    vec3 c=up_rt.w>.5 && right_quality.w>.5 && settings.z<.5?vec3(0):base*vec3(.045,.055,.065);
+    vec3 c=vec3(0);
     for(int j=0;j<(right_quality.w>.5?lights.length():6);j++) {
         int i=right_quality.w>.5?j:int(j<4?fog_lights[j]:grid[j-2]);
         vec3 to=lights[i].position.xyz-p; float d2=dot(to,to);
@@ -267,13 +267,13 @@ void main() {
         ivec2 pixel=clamp(ivec2(gl_FragCoord.xy),ivec2(0),ivec2(settings.xy)-1);
         float bed_distance=unpackHalf2x16(refraction[pixel.y*int(settings.x)+pixel.x].y).y;
         float thickness=clamp(bed_distance-distance(world,eye_time.xyz),.05,3.);
-        vec3 transmitted=screenSample(screen+n.xz*.018,false)*exp(-vec3(.18,.085,.055)*thickness)+vec3(.008,.022,.026)*(1.-exp(-thickness));
+        vec3 transmitted=screenSample(screen+n.xz*.018,false)*exp(-vec3(.18,.085,.055)*thickness)*.08+vec3(.001,.003,.004)*(1.-exp(-thickness));
         float edge=min(tex.y,1.-tex.y)*(river.w-river.y);
         float bank=(1.-smoothstep(.015,.16,edge));
         float crest=smoothstep(.05,.14,world.y+.7)*smoothstep(.28,.55,length(norm.xz))*smoothstep(.45,.75,noise(flow*2.));
         float foam=max(bank*.45, max(colour.x,crest)*.65);
         foam*=smoothstep(.45,.75,noise(vec2(world.x*3.-eye_time.w*.7,world.z*14.)));
-        vec3 c=mix(transmitted,reflected_colour,fresnel)+illuminate(world,n,v,vec3(0),.095,0.,true)+foam*vec3(.28,.34,.32);
+        vec3 c=mix(transmitted,reflected_colour,fresnel)+illuminate(world,n,v,vec3(0),.095,0.,true)+foam*vec3(.08,.09,.08);
         if((uint(moon.w)&16u)!=0u)c=n*.5+.5;
         if((uint(moon.w)&32u)!=0u)c=reflected_colour;
         if((uint(moon.w)&64u)!=0u)c=transmitted;
@@ -299,7 +299,7 @@ void main() {
             rough=max(.48,s.g);ao=s.r;
         }
         float moss=float(m==1)*(1.-s.r)*smoothstep(.35,.65,noise(world.xz*.65+world.y));
-        base=mix(base,vec3(.025,.06,.012),moss*.35);
+        base=mix(base,vec3(.025,.06,.012),moss*.6);
         wet=m==1?.14:0.;
         if(m==0){
             float macro=noise(world.xz*.19)*.65+noise(world.xz*.77+13.)*.35;
@@ -313,9 +313,10 @@ void main() {
             base=mix(base,vec3(.018,.035,.009),grime*(1.-s.r*.6)*.75);
             rough=clamp(rough+.18+(macro-.5)*.22,.62,.96);
             wet=smoothstep(.53,.64,noise(world.xz*.43)+noise(world.xz*1.7)*.13-grime*.22);
-        }else if(m==1 || m>=6){vec4 stone=stoneMaterial(base,world,n,m,uv);base=stone.rgb;rough=stone.a;}
+        }else if(m==1){base*=mix(.55,1.,smoothstep(0.,.55,world.y));}
+        else if(m>=6){vec4 stone=stoneMaterial(base,world,n,m,uv);base=stone.rgb;rough=stone.a;}
         base*=1.-wet*.38; rough=mix(rough,.055,wet);
-        vec3 nt=normalTex(uv,m);nt.xy*=m==1?.35:1.-wet*.93;
+        vec3 nt=normalTex(uv,m);nt.xy*=1.-wet*.93;
         if(projected && right_quality.w<.5){
             n=normalize(abs(n.x)>max(abs(n.y),abs(n.z))?vec3(nt.z*sign(n.x),nt.y,nt.x):abs(n.y)>abs(n.z)?vec3(nt.x,nt.z*sign(n.y),nt.y):vec3(nt.x,nt.y,nt.z*sign(n.z)));
         }else if(projected){
@@ -326,6 +327,7 @@ void main() {
     } else { base=colour*mix(vec3(.24),albedo(uv,1),.2); rough=clamp(surface(uv,1).g,.4,.85); }
     if(m==5){base=colour;rough=.2;metal=1.;}
     vec3 c=illuminate(world,n,v,base,max(.065,rough),metal,true)*ao;
+    if(m==3)for(int i=0;i<lights.length();i++){vec3 to=lights[i].position.xyz-world;c+=base*lights[i].colour.rgb*.03/max(.2,dot(to,to));}
     if(m==7)c+=base*calciteTransmission(world,n,v,smoothstep(.62,.98,tex.y));
 #ifdef RAY_QUERY
     if(up_rt.w>.5 && m==7 && rough<.45 && settings.z<.5) {

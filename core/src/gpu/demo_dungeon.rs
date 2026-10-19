@@ -476,7 +476,6 @@ impl World {
         world.lights.clear();
         world.sources.clear();
         world.drips.retain(|&(tip, _)| cs.contains(tip));
-        world.lights.push(Light { pos: [cs.centre()[0], cs.hi[1] * 0.45, world.river.centre()[2]], colour: [2.0, 3.0, 4.5], flicker: 0.0, flame: 0.0 });
         let hallway = corridors[1].0;
         for (p, normal) in [([hallway.lo[0] + 3.5, 2.3, hallway.lo[2] + 0.28], [0.0, 0.0, 1.0]), ([hallway.hi[0] - 4.25, 2.3, hallway.hi[2] - 0.28], [0.0, 0.0, -1.0])] {
             world.lights.push(Light { pos: add(p, [0.0, 0.12, 0.0]), colour: scale([1.0, 0.42, 0.13], 3.2), flicker: 1.0, flame: 0.42 });
@@ -488,9 +487,15 @@ impl World {
             ([cs.hi[0] - 0.28, 2.4, cs.lo[2] + 2.4], [-1.0, 0.0, 0.0]), ([cs.hi[0] - 0.28, 2.4, cs.hi[2] - 2.4], [-1.0, 0.0, 0.0]),
             ([cs.lo[0] + 4.0, 2.4, cs.lo[2] + 0.28], [0.0, 0.0, 1.0]), ([cs.hi[0] - 4.0, 2.4, cs.lo[2] + 0.28], [0.0, 0.0, 1.0]),
             ([cs.lo[0] + 4.0, 2.4, cs.hi[2] - 0.28], [0.0, 0.0, -1.0]), ([cs.hi[0] - 4.0, 2.4, cs.hi[2] - 0.28], [0.0, 0.0, -1.0]),
+            ([cs.lo[0] + 6.0, 2.4, world.river_bank(cs.lo[0] + 6.0, 0) - 0.8], [0.0, 0.0, 1.0]),
+            ([cs.lo[0] + 6.0, 2.4, world.river_bank(cs.lo[0] + 6.0, 1) + 0.8], [0.0, 0.0, -1.0]),
+            ([bridge.lo[0] - 0.3, 2.4, bridge.lo[2] - 0.3], [1.0, 0.0, 0.0]),
+            ([bridge.hi[0] + 0.3, 2.4, bridge.lo[2] - 0.3], [-1.0, 0.0, 0.0]),
+            ([bridge.lo[0] - 0.3, 2.4, bridge.hi[2] + 0.3], [1.0, 0.0, 0.0]),
+            ([bridge.hi[0] + 0.3, 2.4, bridge.hi[2] + 0.3], [-1.0, 0.0, 0.0]),
         ];
         for (p, normal) in cave_torches {
-            world.lights.push(Light { pos: add(p, [0.0, 0.12, 0.0]), colour: [6.8, 2.9, 0.85], flicker: 1.0, flame: 0.58 });
+            world.lights.push(Light { pos: add(p, [0.0, 0.12, 0.0]), colour: [0.9, 0.38, 0.11], flicker: 1.0, flame: 0.58 });
             world.props.push(Prop::Bracket(add(p, [0.0, -0.05, 0.0]), normal));
             world.sources.push((Sfx::Torch, p, 0.55));
         }
@@ -500,7 +505,7 @@ impl World {
             world.props.push(Prop::Rock(add(pit, [0.75 * a.cos(), 0.0, 0.75 * a.sin()]), r.range(0.16, 0.24)));
         }
         for i in 0..4 { world.props.push(Prop::Log(add(pit, [0.0, 0.1 + 0.05 * i as f32, 0.0]), i as f32 * 0.8 + 0.3)); }
-        world.lights.push(Light { pos: add(pit, [0.0, 0.8, 0.0]), colour: [8.6, 3.7, 1.0], flicker: 1.0, flame: 1.8 });
+        world.lights.push(Light { pos: add(pit, [0.0, 0.8, 0.0]), colour: [1.6, 0.68, 0.2], flicker: 1.0, flame: 1.4 });
         world.sources.push((Sfx::Fire, add(pit, [0.0, 0.6, 0.0]), 2.2));
         for i in 0..4 {
             let x = cs.lo[0] + (cs.hi[0] - cs.lo[0]) * (0.12 + 0.25 * i as f32);
@@ -1054,7 +1059,7 @@ impl World {
         }
         for light in self.lights.iter().filter(|light|light.flame==0.58) {
             let p=light.pos;
-            b.tube([p[0],0.,p[2]], add(p,[0.,-0.17,0.]), &|t| 0.06 - 0.02 * t, 8, WOOD);
+            b.tube([p[0],0.,p[2]], add(p,[0.,-0.17,0.]), &|t| 0.09 - 0.025 * t, 8, WOOD);
         }
         if self.grate.hi[1] > 0.0 {
             let r = self.grate;
@@ -1374,7 +1379,7 @@ mod tests {
         let world=World::new(8);
         let cave=world.zones[world.cave].space;
         assert_eq!(world.lights.iter().filter(|light| light.flame==0.42).count(),2);
-        assert_eq!(world.lights.iter().filter(|light| cave.contains(light.pos) && light.flame==0.58).count(),8);
+        assert_eq!(world.lights.iter().filter(|light| cave.contains(light.pos) && light.flame==0.58).count(),14);
         assert_eq!(world.lights.iter().filter(|light| light.flame>1.0).count(),1);
         let mut previous=tour_pose(&world,0.0);
         for frame in 1..=4320 {

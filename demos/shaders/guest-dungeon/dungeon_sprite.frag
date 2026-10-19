@@ -34,7 +34,7 @@ void main(){
     }else if(kind<1.5){a=exp(-dot(uv,uv)*5.)*(1.-smoothstep(.6,1.,length(uv)))*colour.a;c*=12.;}
     else if(kind<2.5){vec2 q=uv+vec2(noise(uv*2.7+seed+eye_time.w*.13),noise(uv*3.1-seed-eye_time.w*.09))*.22-.11;a=texture(web_alpha,q*.5+.5).g*colour.a*(.45+.55*noise(uv*3.+seed));}
     else if(kind<3.5) { a=pow(max(0.,1.-dot(uv,uv)),3.)*colour.a; }
-    else if(kind<4.5) { a=pow(max(0.,1.-dot(uv,uv)),2.)*colour.a; c=vec3(.15,.3,.35)+pow(max(0.,1.-length(uv-vec2(-.2,.25))*3.),8.)*3.; }
+    else if(kind<4.5) { a=pow(max(0.,1.-dot(uv,uv)),2.)*colour.a*smoothstep(1.,1.5,distance(world,eye_time.xyz)); c=vec3(.15,.3,.35)+pow(max(0.,1.-length(uv-vec2(-.2,.25))*3.),8.)*3.; }
     else if(kind<5.5) { a=exp(-pow((length(uv)-.8)*30.,2.))*colour.a; }
     else if(kind<6.5) { a=exp(-pow((length(uv)-.75)*18.,2.))*colour.a;c=vec3(.2,.35,.4); }
     else if(kind<7.5) { a=(1.-smoothstep(.65,.85,abs(uv.x)+abs(uv.y)*.5))*colour.a;c*=.5+.5*cos(uv.y*10.); }
