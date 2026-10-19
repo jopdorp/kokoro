@@ -1,111 +1,111 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://jopdorp.github.io/oboromi/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/build-a-program/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/build-a-program/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/glossary/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/glossary/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/adr/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/adr/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/adr/0001-set-0-binding-abi/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/adr/0001-set-0-binding-abi/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/adr/0002-one-ssbo-window-for-global-memory/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/adr/0002-one-ssbo-window-for-global-memory/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/adr/0003-uniform-workgroup-scheduling-for-divergence/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/adr/0003-uniform-workgroup-scheduling-for-divergence/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/adr/0004-backing-memory-authority-for-coherence/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/adr/0004-backing-memory-authority-for-coherence/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/adr/0005-hmma-exact-accumulation-as-dontunroll-loops/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/adr/0005-hmma-exact-accumulation-as-dontunroll-loops/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/adr/0006-synchronous-pusher-with-draw-snapshots/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/adr/0006-synchronous-pusher-with-draw-snapshots/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/adr/0007-t239-decodes-with-the-sm86-table/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/adr/0007-t239-decodes-with-the-sm86-table/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/adr/0008-silicon-first-verification/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/adr/0008-silicon-first-verification/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/audio/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/audio/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/command-processor-and-memory/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/command-processor-and-memory/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/cpu/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/cpu/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/cuda/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/cuda/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/demos/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/demos/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/gpu-pipeline/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/gpu-pipeline/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/guest-path/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/guest-path/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/oboromi-overview/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/kokoromi-overview/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/roadmap/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/roadmap/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/sass-translator/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/sass-translator/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/services/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/services/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/textures-and-tensors/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/textures-and-tensors/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/verification/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/verification/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
-         <loc>https://jopdorp.github.io/oboromi/architecture/vulkan-backend/</loc>
+         <loc>https://jopdorp.github.io/kokoromi/architecture/vulkan-backend/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
 </urlset>

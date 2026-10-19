@@ -6,11 +6,11 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How oboromi emulates AArch64 and Ampere hardware">
+        <meta name="description" content="How Kokoromi emulates AArch64 and Ampere hardware">
       
       
       
-        <link rel="canonical" href="https://jopdorp.github.io/oboromi/architecture/demos/">
+        <link rel="canonical" href="https://jopdorp.github.io/kokoromi/architecture/demos/">
       
       
         <link rel="prev" href="../cuda/">
@@ -22,12 +22,12 @@
         
       
       
-      <link rel="icon" href="../../assets/brand/oboromi-logo.png">
+      <link rel="icon" href="../../assets/brand/kokoromi-logo-64.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>Demos - oboromi</title>
+        <title>Demos - Kokoromi</title>
       
     
     
@@ -47,7 +47,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/oboromi.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/kokoromi.css">
     
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -57,15 +57,15 @@
     
   
   
-    <meta property="og:title" content="oboromi demos">
-    <meta property="og:description" content="Watch graphics and sound demos running on oboromi.">
-    <meta property="og:image" content="https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.png?v=da0e9c52">
-    <meta property="og:video" content="https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.mp4?v=209f8ade">
+    <meta property="og:title" content="Kokoromi demos">
+    <meta property="og:description" content="Watch graphics and sound demos running on Kokoromi.">
+    <meta property="og:image" content="https://jopdorp.github.io/kokoromi/media/demo-dungeon-raster.png?v=da0e9c52">
+    <meta property="og:video" content="https://jopdorp.github.io/kokoromi/media/demo-dungeon-raster.mp4?v=209f8ade">
     <meta property="og:video:type" content="video/mp4">
     <meta property="og:video:width" content="1920">
     <meta property="og:video:height" content="1080">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.png?v=da0e9c52">
+    <meta name="twitter:image" content="https://jopdorp.github.io/kokoromi/media/demo-dungeon-raster.png?v=da0e9c52">
   
 
   </head>
@@ -78,7 +78,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -103,9 +103,9 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="oboromi" class="md-header__button md-logo" aria-label="oboromi" data-md-component="logo">
+    <a href="../.." title="Kokoromi" class="md-header__button md-logo" aria-label="Kokoromi" data-md-component="logo">
       
-  <img src="../../assets/brand/oboromi-logo.png" alt="logo">
+  <img src="../../assets/brand/kokoromi-logo.svg" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -116,7 +116,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            oboromi
+            Kokoromi
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -135,20 +135,20 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
     
-      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
       </label>
     
   
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
     
-      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
       </label>
     
   
@@ -228,12 +228,12 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="oboromi" class="md-nav__button md-logo" aria-label="oboromi" data-md-component="logo">
+    <a href="../.." title="Kokoromi" class="md-nav__button md-logo" aria-label="Kokoromi" data-md-component="logo">
       
-  <img src="../../assets/brand/oboromi-logo.png" alt="logo">
+  <img src="../../assets/brand/kokoromi-logo.svg" alt="logo">
 
     </a>
-    oboromi
+    Kokoromi
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -396,7 +396,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../oboromi-overview/" class="md-nav__link">
+      <a href="../kokoromi-overview/" class="md-nav__link">
         
   
   
@@ -1719,73 +1719,73 @@
 
 
 <h1 id="demos">Demos<a class="headerlink" href="#demos" title="Permanent link">&para;</a></h1>
-<p>Download the <a href="https://github.com/jopdorp/oboromi/releases/tag/demos-2026-10-18">Linux emulator, compiler SDK, and every demo NRO</a>.</p>
+<p>Download the <a href="https://github.com/jopdorp/kokoromi/releases/tag/kokoromi-2026-10-19">Linux emulator, compiler SDK, and every demo NRO</a>.</p>
 <p>To make your own, see <a href="../../build-a-program/">Build a program</a>.</p>
-<p>This page shows oboromi's graphics and sound demos. Every clip is captured from the emulator on an Intel laptop unless its caption says otherwise.</p>
+<p>This page shows Kokoromi's graphics and sound demos. Every clip is captured from the emulator.</p>
 <h2 id="what-this-does-and-does-not-show">What this does and does not show<a class="headerlink" href="#what-this-does-and-does-not-show" title="Permanent link">&para;</a></h2>
-<p>oboromi emulates the hardware: an AArch64 CPU, an Ampere GPU, display and an audio DSP path. The GPU translator is validated against desktop sm_86 NVIDIA silicon. Command and shader-header layouts come from NVIDIA's published headers via Mesa.</p>
-<p>Nintendo supplies the OS; oboromi does not emulate it. The small service layer in this repository is a stand-in that lets our own test programs drive the emulated GPU, display and audio. It follows Switch 1 interfaces because those are known.</p>
+<p>Kokoromi emulates the hardware: an AArch64 CPU, an Ampere GPU, display and an audio DSP path. The GPU translator is validated against desktop sm_86 NVIDIA silicon. Command and shader-header layouts come from NVIDIA's published headers via Mesa.</p>
+<p>Nintendo supplies the OS; Kokoromi does not emulate it. The small service layer in this repository is a stand-in that lets our own test programs drive the emulated GPU, display and audio. It follows Switch 1 interfaces because those are known.</p>
 <p>Every demo is our own program built with our SDK. No Switch 2 binary, shader, firmware or exploit was used, and no retail or third-party binary has run. The demos show the hardware emulation running end to end with code written for it, not Switch 2 software compatibility.</p>
 <h2 id="guest-programs">Running on the emulator<a class="headerlink" href="#guest-programs" title="Permanent link">&para;</a></h2>
 <p>Each Nintendo Relocatable Object (NRO) is loaded by the emulated CPU, uses Ampere machine code through the GPU driver path, and sends sound through the audio renderer.</p>
 <h3 id="triangle">Triangle<a class="headerlink" href="#triangle" title="Permanent link">&para;</a></h3>
-<video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-triangle.png?v=97f0617f" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-triangle.mp4?v=f6a5962b" type="video/mp4"></video>
+<video controls muted loop playsinline poster="https://jopdorp.github.io/kokoromi/media/fullcircle-triangle.png?v=97f0617f" style="width:100%"><source src="https://jopdorp.github.io/kokoromi/media/fullcircle-triangle.mp4?v=f6a5962b" type="video/mp4"></video>
 
 <p><em>A single triangle is drawn from a compact command list and presented to the display.</em></p>
 <h3 id="sprites">Sprites<a class="headerlink" href="#sprites" title="Permanent link">&para;</a></h3>
-<video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-sprites.png?v=6eab530e" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-sprites.mp4?v=a0a2a5d6" type="video/mp4"></video>
+<video controls muted loop playsinline poster="https://jopdorp.github.io/kokoromi/media/fullcircle-sprites.png?v=6eab530e" style="width:100%"><source src="https://jopdorp.github.io/kokoromi/media/fullcircle-sprites.mp4?v=a0a2a5d6" type="video/mp4"></video>
 
 <p><em>The stick moves the layers through the <code>hid</code> service. Halfway through, a button press flashes the scene.</em></p>
 <h3 id="bounce">Bounce<a class="headerlink" href="#bounce" title="Permanent link">&para;</a></h3>
-<video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-bounce.png?v=32a2ac76" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-bounce.mp4?v=135e4db8" type="video/mp4"></video>
+<video controls loop playsinline poster="https://jopdorp.github.io/kokoromi/media/fullcircle-bounce.png?v=32a2ac76" style="width:100%"><source src="https://jopdorp.github.io/kokoromi/media/fullcircle-bounce.mp4?v=135e4db8" type="video/mp4"></video>
 
 <p><em>Particles bounce under a simple physics simulation. Each collision makes a sound.</em></p>
 <h3 id="boombox">BoomBox<a class="headerlink" href="#boombox" title="Permanent link">&para;</a></h3>
-<video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-boombox.png?v=2556f60c" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-boombox.mp4?v=0c0860ef" type="video/mp4"><source src="https://jopdorp.github.io/oboromi/media/demo-raytraced.mp4?v=f1fe5292" type="video/mp4"></video>
+<video controls loop playsinline poster="https://jopdorp.github.io/kokoromi/media/fullcircle-boombox.png?v=2556f60c" style="width:100%"><source src="https://jopdorp.github.io/kokoromi/media/fullcircle-boombox.mp4?v=0c0860ef" type="video/mp4"><source src="https://jopdorp.github.io/kokoromi/media/demo-raytraced.mp4?v=f1fe5292" type="video/mp4"></video>
 
 <p><em>The ray-traced scene turns the BoomBox and moving lamp inside the 3.0 × 3.9 × 4.8 metre room, with soft shadows, reflections and colour bounce. The CC0 track “Lofi Hip Hop Loop” by omfgdude demonstrates Doppler, cardioid directivity, panning, grille filtering, reflections and reverb.</em></p>
-<p><img alt="Ray-traced scene with the old and new lighting" src="https://jopdorp.github.io/oboromi/media/demo-raytraced-gi-proof.png?v=eb67c861" /></p>
+<p><img alt="Ray-traced scene with the old and new lighting" src="https://jopdorp.github.io/kokoromi/media/demo-raytraced-gi-proof.png?v=eb67c861" /></p>
 <p><em>The top row is v4 and the bottom row is v5. Look at the lamp's pool, the moving shadows and the wall colour on the BoomBox.</em></p>
 <h3 id="flighthelmet">FlightHelmet<a class="headerlink" href="#flighthelmet" title="Permanent link">&para;</a></h3>
-<video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-helmet.png?v=154e124f" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-helmet.mp4?v=ec0819a5" type="video/mp4"></video>
+<video controls muted loop playsinline poster="https://jopdorp.github.io/kokoromi/media/fullcircle-helmet.png?v=154e124f" style="width:100%"><source src="https://jopdorp.github.io/kokoromi/media/fullcircle-helmet.mp4?v=ec0819a5" type="video/mp4"></video>
 
 <p><em>The helmet is rendered with six materials, one draw for each material.</em></p>
 <h3 id="post">Post<a class="headerlink" href="#post" title="Permanent link">&para;</a></h3>
-<video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-post.png?v=2135cc5e" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-post.mp4?v=95576a30" type="video/mp4"></video>
+<video controls muted loop playsinline poster="https://jopdorp.github.io/kokoromi/media/fullcircle-post.png?v=2135cc5e" style="width:100%"><source src="https://jopdorp.github.io/kokoromi/media/fullcircle-post.mp4?v=95576a30" type="video/mp4"></video>
 
 <p><em>The pinwheel is drawn into one image, then sampled in a second pass for the screen effects.</em></p>
 <h3 id="particles">Particles<a class="headerlink" href="#particles" title="Permanent link">&para;</a></h3>
-<video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-particles.png?v=7a38706a" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-particles.mp4?v=e18967d6" type="video/mp4"></video>
+<video controls muted loop playsinline poster="https://jopdorp.github.io/kokoromi/media/fullcircle-particles.png?v=7a38706a" style="width:100%"><source src="https://jopdorp.github.io/kokoromi/media/fullcircle-particles.mp4?v=e18967d6" type="video/mp4"></video>
 
 <p><em>A compute update moves the particles before one instanced draw.</em></p>
 <h3 id="solar-system-birth">Solar system birth<a class="headerlink" href="#solar-system-birth" title="Permanent link">&para;</a></h3>
-<video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/demo-solar-showcase.png?v=31d23ba7" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-solar-showcase.mp4?v=f1f9fbd9" type="video/mp4"></video>
+<video controls muted loop playsinline poster="https://jopdorp.github.io/kokoromi/media/demo-solar-showcase.png?v=31d23ba7" style="width:100%"><source src="https://jopdorp.github.io/kokoromi/media/demo-solar-showcase.mp4?v=f1f9fbd9" type="video/mp4"></video>
 
-<p><em>The simulation starts 2,048 bodies in a young disk; Kepler drift and mutual kicks move them around the star while overlapping bodies accrete. It took 1,088.569 ms per frame at the median and 1,450.911 ms at p95 on the Intel Arc laptop.</em></p>
+<p><em>The simulation starts 2,048 bodies in a young disk; Kepler drift and mutual kicks move them around the star while overlapping bodies accrete.</em></p>
 <h3 id="julia">Julia<a class="headerlink" href="#julia" title="Permanent link">&para;</a></h3>
-<video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-julia.png?v=540977b6" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-julia.mp4?v=2769a78a" type="video/mp4"></video>
+<video controls muted loop playsinline poster="https://jopdorp.github.io/kokoromi/media/fullcircle-julia.png?v=540977b6" style="width:100%"><source src="https://jopdorp.github.io/kokoromi/media/fullcircle-julia.mp4?v=2769a78a" type="video/mp4"></video>
 
 <p><em>A small block of shader input data changes the Julia set over time.</em></p>
 <h3 id="mandelbrot-cuda">Mandelbrot CUDA<a class="headerlink" href="#mandelbrot-cuda" title="Permanent link">&para;</a></h3>
-<video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-mandelbrot.png?v=19ba7859" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-mandelbrot.mp4?v=e257306f" type="video/mp4"></video>
+<video controls muted loop playsinline poster="https://jopdorp.github.io/kokoromi/media/fullcircle-mandelbrot.png?v=19ba7859" style="width:100%"><source src="https://jopdorp.github.io/kokoromi/media/fullcircle-mandelbrot.mp4?v=e257306f" type="video/mp4"></video>
 
 <p><em>A double-precision dive into the seahorse valley, rendered with NVIDIA's CUDA sample kernel.</em></p>
 <h3 id="tensor-upscale">Tensor upscale<a class="headerlink" href="#tensor-upscale" title="Permanent link">&para;</a></h3>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem">
-<div><strong>Default</strong><video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-tensor.png?v=f201efd9" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-tensor.mp4?v=4f16d0c2" type="video/mp4"></video></div>
-<div><strong>Exact</strong><video controls muted loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-tensor-exact.png?v=f201efd9" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-tensor-exact.mp4?v=35277057" type="video/mp4"></video></div>
+<div><strong>Default</strong><video controls muted loop playsinline poster="https://jopdorp.github.io/kokoromi/media/fullcircle-tensor.png?v=f201efd9" style="width:100%"><source src="https://jopdorp.github.io/kokoromi/media/fullcircle-tensor.mp4?v=4f16d0c2" type="video/mp4"></video></div>
+<div><strong>Exact</strong><video controls muted loop playsinline poster="https://jopdorp.github.io/kokoromi/media/fullcircle-tensor-exact.png?v=f201efd9" style="width:100%"><source src="https://jopdorp.github.io/kokoromi/media/fullcircle-tensor-exact.mp4?v=35277057" type="video/mp4"></video></div>
 </div>
 
 <p><em>This upscales a half-resolution frame with tensor-core matrix instructions. The default path takes 78.1 ms and exact takes 155.9 ms on an A40; the clips are visually identical, with only the default path's rounding changing their digests.</em></p>
 <h3 id="ray-traced-scene">Ray-traced scene<a class="headerlink" href="#ray-traced-scene" title="Permanent link">&para;</a></h3>
-<p><img alt="Ray-traced scene with the old and new lighting" src="https://jopdorp.github.io/oboromi/media/demo-raytraced-gi-proof.png?v=eb67c861" /></p>
+<p><img alt="Ray-traced scene with the old and new lighting" src="https://jopdorp.github.io/kokoromi/media/demo-raytraced-gi-proof.png?v=eb67c861" /></p>
 <p><em>The top row is v4 and the bottom row is v5. Look at the lamp's pool, the moving shadows and the wall colour on the BoomBox.</em></p>
 <h3 id="music">Music<a class="headerlink" href="#music" title="Permanent link">&para;</a></h3>
-<video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/fullcircle-music.png?v=77965032" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/fullcircle-music.mp4?v=f2d2a3c9" type="video/mp4"></video>
+<video controls loop playsinline poster="https://jopdorp.github.io/kokoromi/media/fullcircle-music.png?v=77965032" style="width:100%"><source src="https://jopdorp.github.io/kokoromi/media/fullcircle-music.mp4?v=f2d2a3c9" type="video/mp4"></video>
 
 <p><em>Synthesized instruments build the mix heard in the clip.</em></p>
 <h3 id="dungeon">Dungeon<a class="headerlink" href="#dungeon" title="Permanent link">&para;</a></h3>
-<video controls loop playsinline poster="https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.png?v=da0e9c52" style="width:100%"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.mp4?v=209f8ade" type="video/mp4"><source src="https://jopdorp.github.io/oboromi/media/demo-dungeon-realtime.mp4?v=1cd477b2" type="video/mp4"></video>
+<video controls loop playsinline poster="https://jopdorp.github.io/kokoromi/media/demo-dungeon-raster.png?v=da0e9c52" style="width:100%"><source src="https://jopdorp.github.io/kokoromi/media/demo-dungeon-raster.mp4?v=209f8ade" type="video/mp4"><source src="https://jopdorp.github.io/kokoromi/media/demo-dungeon-raytraced.mp4?v=4bb4ddb2" type="video/mp4"></video>
 
 <p><em>The raster tour moves from the torch-lit hallway into the limestone cave, then follows the river past the fire. The ray-traced tour through the emulator follows.</em></p>
 <h2 id="measured">Measured<a class="headerlink" href="#measured" title="Permanent link">&para;</a></h2>
@@ -1831,15 +1831,15 @@
 </tr>
 <tr>
 <td>Dungeon raster</td>
-<td>default, emulator on A40</td>
-<td>647 ms uncontended; the clip measured 1,336 ms on a shared pod</td>
+<td>default, A40</td>
+<td>647 ms uncontended</td>
 </tr>
 </tbody>
 </table>
 <p>These are emulator measurements, not native Switch 2 measurements.</p>
 <h2 id="share">Share<a class="headerlink" href="#share" title="Permanent link">&para;</a></h2>
-<p>Paste the dungeon <a href="https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.mp4?v=209f8ade">clip</a>, <a href="https://jopdorp.github.io/oboromi/media/demo-dungeon-raster.png?v=da0e9c52">poster</a>, or <a href="https://jopdorp.github.io/oboromi/media/teaser-dungeon.gif?v=44ba6544">GIF teaser</a> straight into Discord.
-The BoomBox <a href="https://jopdorp.github.io/oboromi/media/fullcircle-boombox.mp4?v=0c0860ef">clip</a> and the sprites <a href="https://jopdorp.github.io/oboromi/media/fullcircle-sprites.mp4?v=a0a2a5d6">clip</a> and <a href="https://jopdorp.github.io/oboromi/media/teaser-sprites.gif?v=7f562251">GIF teaser</a> work there too.</p>
+<p>Paste the dungeon <a href="https://jopdorp.github.io/kokoromi/media/demo-dungeon-raster.mp4?v=209f8ade">clip</a>, <a href="https://jopdorp.github.io/kokoromi/media/demo-dungeon-raster.png?v=da0e9c52">poster</a>, or <a href="https://jopdorp.github.io/kokoromi/media/teaser-dungeon.gif?v=44ba6544">GIF teaser</a> straight into Discord.
+The BoomBox <a href="https://jopdorp.github.io/kokoromi/media/fullcircle-boombox.mp4?v=0c0860ef">clip</a> and the sprites <a href="https://jopdorp.github.io/kokoromi/media/fullcircle-sprites.mp4?v=a0a2a5d6">clip</a> and <a href="https://jopdorp.github.io/kokoromi/media/teaser-sprites.gif?v=7f562251">GIF teaser</a> work there too.</p>
 
 
 
