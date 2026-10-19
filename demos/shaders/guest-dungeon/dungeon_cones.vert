@@ -1,7 +1,7 @@
 #version 450
 layout(set=0,binding=0,std140) uniform Frame {
     mat4 vp; mat4 reflected_vp; vec4 eye_time; vec4 right_quality; vec4 up_rt;
-    vec4 river; vec4 moon; vec4 settings; vec4 fog_lights; vec4 grid;
+    vec4 river; vec4 moon; vec4 settings;
 };
 struct Cone { vec4 origin_height; vec4 radius_tilt; };
 layout(set=0,binding=17,std430) readonly buffer Cones { Cone cones[]; };
@@ -25,7 +25,7 @@ void main() {
     vec3 a=vec3(drda*radial.x-radius*radial.y,0,drda*radial.y+radius*radial.x);
     vec3 b=vec3(drdh*radial.x+c.radius_tilt.y,c.origin_height.w,drdh*radial.y+c.radius_tilt.z);
     norm=normalize(cross(b,a))*sign(c.origin_height.w);
-    tex=vec2(u*1.3,t*abs(c.origin_height.w)*.45);
-    colour=vec3(.65,.69,.62)*mix(.35,1.,smoothstep(0.,.15,t));kind=1;
+    tex=vec2(u*1.3,t);
+    colour=vec3(1.45,1.32,1.08);kind=7;
     gl_Position=vp*vec4(world,1);
 }

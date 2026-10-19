@@ -692,6 +692,7 @@ impl World {
         world.lights.clear();
         world.sources.clear();
         world.drips.retain(|&(tip, _)| cs.contains(tip));
+        world.lights.push(Light { pos: [cs.centre()[0], cs.hi[1] * 0.45, world.river.centre()[2]], colour: [2.0, 3.0, 4.5], flicker: 0.0, flame: 0.0 });
         let hallway = corridors[1].0;
         for (p, normal) in [
             (
@@ -752,9 +753,9 @@ impl World {
         }
         world.lights.push(Light {
             pos: add(pit, [0.0, 0.8, 0.0]),
-            colour: [7.5, 3.1, 0.9],
+            colour: [8.6, 3.7, 1.0],
             flicker: 1.0,
-            flame: 1.4,
+            flame: 1.8,
         });
         world
             .sources
@@ -1160,6 +1161,8 @@ const WOOD: V3 = [0.42, 0.27, 0.15];
 const WAX: V3 = [1.5, 1.35, 1.0];
 const PUMPKIN: V3 = [2.2, 0.9, 0.12];
 const LIMESTONE: V3 = [1.25, 1.15, 0.95];
+const CALCITE: V3 = [1.45, 1.32, 1.08];
+const PEBBLE: V3 = [1.05, 0.98, 0.84];
 
 #[derive(Default)]
 pub struct Builder {
@@ -1181,10 +1184,16 @@ impl Builder {
             for i in 0..=cells[0] {
                 let [s, t] = [i as f32 / cells[0] as f32, j as f32 / cells[1] as f32];
                 let (normal, _) = frame(f, s, t);
-                let material = if prop {
+                let material = if tint == LIMESTONE {
+                    6.
+                } else if tint == CALCITE {
+                    7.
+                } else if tint == PEBBLE {
+                    8.
+                } else if prop {
                     if tint == IRON {
                         2.
-                    } else if tint == LIMESTONE || tint == STONE {
+                    } else if tint == STONE {
                         1.
                     } else {
                         3.
@@ -1511,9 +1520,9 @@ impl World {
                         LIMESTONE,
                     );
                     for v in &mut b.vertices[first..] {
-                        v.material = 1.;
                         if strip == 1 {
-                            v.tint = scale(LIMESTONE, 0.45);
+                            v.material = 8.;
+                            v.tint = PEBBLE;
                         }
                     }
                 }
@@ -1535,7 +1544,7 @@ impl World {
                         pebbles.sample() * TAU,
                         &|a, t| 1. + 0.13 * (a * 3. + t * 7.).sin(),
                         [7, 4],
-                        LIMESTONE,
+                        PEBBLE,
                     );
                 }
                 for end in 0..2 {
@@ -1918,7 +1927,7 @@ impl World {
                         a,
                         &|a, t| 1. + 0.15 * (a * 5. + t * 4.).sin(),
                         [7, 4],
-                        LIMESTONE,
+                        CALCITE,
                     );
                 }
             }

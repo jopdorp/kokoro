@@ -15,6 +15,9 @@ static void die(const char *message)
    exit(1);
 }
 
+static unsigned descriptor_bank = 0x1d;
+static unsigned descriptor_base = 0;
+
 struct binding {
    char kind;
    uint32_t offset;
@@ -31,7 +34,7 @@ static uint32_t align_u32(uint32_t value, uint32_t alignment)
 
 static void parse_bindings(char *text, struct bindings *bindings)
 {
-   uint32_t offset = 0;
+   uint32_t offset = descriptor_base;
    for (char *item = strtok(text, ","); item; item = strtok(NULL, ",")) {
       unsigned binding = strtoul(item + 1, NULL, 10);
       if (binding >= 32 || !strchr("usba", item[0]))
@@ -57,7 +60,7 @@ static void parse_bindings(char *text, struct bindings *bindings)
 static nir_def *load_binding(nir_builder *b, const struct binding *binding,
                              unsigned components)
 {
-   return nir_ldc_nv(b, components, 32, nir_imm_int(b, 0x1d),
+   return nir_ldc_nv(b, components, 32, nir_imm_int(b, descriptor_bank),
                      nir_imm_int(b, binding->offset),
                      .align_mul = components * 4, .align_offset = 0);
 }
@@ -146,15 +149,19 @@ static bool lower_load(nir_builder *b, nir_intrinsic_instr *load,
 int main(int argc, char **argv)
 {
    if (argc != 5)
-      die("usage: nak-offline <vert|frag> <input.spv> <output.bin> <bindings>");
+      die("usage: nak-offline <vert|frag|comp> <input.spv> <output.bin> <bindings>");
 
    gl_shader_stage stage;
    if (!strcmp(argv[1], "vert"))
       stage = MESA_SHADER_VERTEX;
    else if (!strcmp(argv[1], "frag"))
       stage = MESA_SHADER_FRAGMENT;
-   else
-      die("stage must be vert or frag");
+   else if (!strcmp(argv[1], "comp")) {
+      stage = MESA_SHADER_COMPUTE;
+      descriptor_bank = 0;
+      descriptor_base = 0x30;
+   } else
+      die("stage must be vert, frag or comp");
 
    FILE *input = fopen(argv[2], "rb");
    if (!input || fseek(input, 0, SEEK_END))
@@ -190,7 +197,11 @@ int main(int argc, char **argv)
    nir_opt_deref(nir);
    nir_remove_non_entrypoints(nir);
    nir_lower_variable_initializers(nir, ~0);
+   nir_lower_indirect_derefs(nir, nir_var_function_temp, UINT32_MAX);
+   nir_lower_compute_system_values_options csv_options = {0};
+   nir_lower_compute_system_values(nir, &csv_options);
    nak_preprocess_nir(nir, nak);
+   nir_lower_compute_system_values(nir, &csv_options);
    struct bindings bindings = {0};
    parse_bindings(argv[4], &bindings);
    nir_shader_instructions_pass(nir, lower_descriptor,
@@ -207,7 +218,7 @@ int main(int argc, char **argv)
       die("NAK compilation failed");
 
    FILE *output = fopen(argv[3], "wb");
-   if (!output || fwrite(bin->info.hdr, sizeof(bin->info.hdr), 1, output) != 1 ||
+   if (!output || (stage != MESA_SHADER_COMPUTE && fwrite(bin->info.hdr, sizeof(bin->info.hdr), 1, output) != 1) ||
        fwrite(bin->code, bin->code_size, 1, output) != 1 || fclose(output))
       die("failed to write output");
    fprintf(stderr, "SM%u: %u instructions, %u GPRs, %u code bytes\n",

@@ -50,7 +50,7 @@ fn main() {
 }
 
 fn dungeon(out: &std::path::Path) {
-    use scene::dungeon::data::{Builder, Sfx, UP, Vertex, WATER, World, cross, dot, scale, sub, tour_pose};
+    use scene::dungeon::data::{Builder, Sfx, UP, Vertex, WATER, World, cross, dot, scale, sub, tour_pose, unit};
     use scene::dungeon::sound::Sample;
     use scene::pbr::{Matrix, multiply};
 
@@ -97,7 +97,7 @@ fn dungeon(out: &std::path::Path) {
     let world = World::new(scene::dungeon::WORLD_SEED);
     let mut mesh = Builder::default();
     world.build(&mut mesh);
-    let mut constants = String::new();
+    let mut constants = format!("const INITIAL_EYE: [f32; 3] = {:?};\n", scene::dungeon::data::add(world.path[0], [0., scene::dungeon::data::EYE, 0.]));
     for (quality, grid) in [("realtime", [96, 24]), ("showcase", [256, 64])] {
         let first = mesh.vertices.len();
         let mut vertices = mesh.vertices.clone();
@@ -125,6 +125,22 @@ fn dungeon(out: &std::path::Path) {
     let mut shadow_lights: Vec<_> = (0..world.lights.len()).collect();
     shadow_lights.sort_by(|&a, &b| world.lights[b].colour[0].total_cmp(&world.lights[a].colour[0]));
     shadow_lights.truncate(10);
+    let mut shadows = Vec::new();
+    for &light in &shadow_lights {
+        let eye = world.lights[light].pos;
+        for dir in [[1., 0., 0.], [-1., 0., 0.], [0., 1., 0.], [0., -1., 0.], [0., 0., 1.], [0., 0., -1.]] {
+            let right = unit(cross(dir, if dir[1].abs() > 0.5 { [0., 0., 1.] } else { UP }));
+            let axes = [right, cross(right, dir), scale(dir, -1.)];
+            let view = std::array::from_fn(|c| std::array::from_fn(|r| if r == 3 { f32::from(c == 3) } else if c == 3 { -dot(axes[r], eye) } else { axes[r][c] }));
+            let projection = [[1., 0., 0., 0.], [0., -1., 0., 0.], [0., 0., -30. / 29.95, -1.], [0., 0., -1.5 / 29.95, 0.]];
+            let mut uniform = [0.; 64];
+            uniform[..16].copy_from_slice(multiply(projection, view).as_flattened());
+            uniform[32..35].copy_from_slice(&eye);
+            uniform[54] = 2.;
+            shadows.extend(uniform);
+        }
+    }
+    std::fs::write(out.join("dungeon-shadow-frames.bin"), floats(shadows)).unwrap();
     let mut lights = Vec::new();
     for frame in 0..poses.len() { for (i, light) in world.lights.iter().enumerate() {
         let seconds = frame as f32 / 60.0;
@@ -151,6 +167,9 @@ fn dungeon(out: &std::path::Path) {
     positions.sort_by(|a, b| dot(sub(*a, cave.centre()), sub(*a, cave.centre())).total_cmp(&dot(sub(*b, cave.centre()), sub(*b, cave.centre()))));
     voices.extend([Sample::Drip, Sample::Drip, Sample::Drip, Sample::Drip, Sample::Scream, Sample::Step, Sample::Step].into_iter().enumerate().map(|(i, sample)| (sample, positions.get(i).copied().unwrap_or(cave.centre()), 0.0, 1.0, false)));
     std::fs::write(out.join("dungeon-voices.bin"), voices.iter().flat_map(|(sample, position, gain, pitch, active)| [*sample as u32, position[0].to_bits(), position[1].to_bits(), position[2].to_bits(), gain.to_bits(), pitch.to_bits(), u32::from(*active)].into_iter().flat_map(u32::to_le_bytes)).collect::<Vec<_>>()).unwrap();
+    let corridors: Vec<_> = world.zones.iter().filter(|zone| zone.kind == scene::dungeon::data::Kind::Corridor).map(|zone| [zone.space.lo, zone.space.hi]).collect();
+    let drips: Vec<_> = world.drips.iter().map(|&(tip, floor)| ([tip[0], floor, tip[2]], ((tip[1] - floor) / 4.9).sqrt())).collect();
+    constants.push_str(&format!("const CORRIDORS: &[[[f32; 3]; 2]] = &{corridors:?};\nconst DRIPS: &[([f32; 3], f32)] = &{drips:?};\n"));
     let rooms = world.acoustic_rooms();
     constants.push_str(&format!("const VOICE_COUNT: usize = {};\nconst LIGHT_COUNT: usize = {};\nconst CONE_COUNT: u32 = {};\nconst BRIDGE: [[f32; 3]; 2] = {:?};\nconst REVEAL: [[f32; 3]; 2] = {:?};\n", voices.len(), world.lights.len(), cones.len(), [world.bridge.lo, world.bridge.hi], [cave.lo, cave.hi]));
     constants.push_str(&format!("const ROOM_COUNT: usize = {};\nconst DOORWAY_COUNT: usize = {};\n", rooms.len(), rooms.iter().map(|room| room.doorways.len()).sum::<usize>()));

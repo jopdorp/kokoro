@@ -45,6 +45,7 @@ pub struct RayPrograms {
 #[derive(Clone, Copy)]
 pub struct Tables {
     pub descriptors: u64,
+    pub cone_descriptors: u64,
     pub vertex_constants: u64,
     pub fragment_constants: u64,
     pub draw_parameters: u64,
@@ -363,7 +364,7 @@ fn cones_state(programs: Programs, ray: Option<RayPrograms>, tables: Tables, wor
     let (vertex, fragment, registers, descriptor_size) = ray.map_or((programs.cones_vertex, programs.dungeon_fragment, 46, 160), |ray| (ray.cones_vertex, ray.dungeon_fragment, 70, 176));
     program(1, 23, 0, vertex, words);
     program(5, registers, 4, fragment, words);
-    descriptor_banks(tables, 48, descriptor_size, words);
+    descriptor_banks(Tables { descriptors: tables.cone_descriptors, ..tables }, 48, descriptor_size, words);
     inc(SET_BLEND, &[0], words);
     inc(SET_DEPTH_WRITE, &[1], words);
 }

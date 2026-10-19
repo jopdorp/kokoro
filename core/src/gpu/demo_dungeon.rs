@@ -1238,7 +1238,7 @@ impl Dungeon {
                 impacts.push(([self.eye[0], WATER, self.eye[2].clamp(r.lo[2] + 0.2, r.hi[2] - 0.2)], 0.8));
             }
             let gravel = self.world.zones_at(self.eye).any(|z| self.world.zones[z].kind == Kind::Corridor);
-            let wet = gravel || noise(self.eye[0]*0.43, self.eye[2]*0.43,64,11) > 0.43;
+            let wet = gravel || scene::dungeon::sound::wet_floor(self.eye);
             self.sound.play(if wet { Sample::WetStep } else if gravel { Sample::GravelStep } else { Sample::Step }, self.eye, 0.04, 1.0);
         }
         let right = [self.yaw.cos(), 0.0, self.yaw.sin()];

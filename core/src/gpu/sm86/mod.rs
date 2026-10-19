@@ -615,7 +615,7 @@ impl<'a> Decoder<'a> {
     fn warp_exchange(&mut self, val: u32, lanes: &[u32]) -> Vec<[u32; 2]> {
         const MAX_INVOCATIONS: u32 = 1024;
         let ty = self.type_u32[1];
-        if matches!(self.stage, Stage::Fragment { .. }) {
+        if matches!(self.stage, Stage::Vertex { .. } | Stage::Fragment { .. }) {
             self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM);
             self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM_SHUFFLE);
             self.ir.emit_capability(spirv::capability::GROUP_NON_UNIFORM_BALLOT);
@@ -722,7 +722,7 @@ impl<'a> Decoder<'a> {
             let fragment = matches!(self.stage, Stage::Fragment { .. });
             let collectives = self.tensor == TensorMode::Fast && words.iter().any(|&inst| matches!(opcode(inst), 0x23c | 0x83b))
                 && self.invocations % 32 == 0 && self.device.is_some_and(|device| device.subgroup_size == 32 && device.subgroup_shuffle)
-                || fragment;
+                || matches!(self.stage, Stage::Vertex { .. }) || fragment;
             match plan_with_collectives(words, collectives, fragment) {
                 Ok(plan) => return self.translate_structured(words, &plan),
                 Err(reason) => assert!(self.translation == Translation::Auto, "no structured translation: {reason}"),
