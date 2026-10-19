@@ -58,7 +58,7 @@ mod tests {
         let (words, resources, stores_global) = translate(None, &program).unwrap();
         assert!(resources.contains(&ResourceKind::Global) && stores_global);
 
-        let root = std::env::temp_dir().join(format!("oboromi-bnsh-cache-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("kokoromi-bnsh-cache-{}", std::process::id()));
         let disk = Disk::open(&root, "test", &vk::PhysicalDeviceProperties::default()).unwrap();
         disk.store_spirv(7, &words, &resources, stores_global).unwrap();
         assert_eq!(disk.spirv(7), Some((words, resources, true)));

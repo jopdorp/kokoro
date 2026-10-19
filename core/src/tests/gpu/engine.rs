@@ -254,7 +254,7 @@ mod tests {
     #[test]
     fn second_run_draws_the_triangle_from_programs_translated_by_the_first() {
         let Some(state) = shared_device() else { return };
-        let root = std::env::temp_dir().join(format!("oboromi-engine-cache-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("kokoromi-engine-cache-{}", std::process::id()));
         for translated in [2, 0] {
             let mut gpu = triangle_guest(state, Some((&root, "test")), SIZE, SIZE, &[(CORNERS[0], RED), (CORNERS[1], GREEN), (CORNERS[2], BLUE)]).unwrap();
             draw_and_check(&mut gpu, 0x1234_5678, [RED, GREEN, BLUE]);

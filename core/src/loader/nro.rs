@@ -93,7 +93,7 @@ mod tests {
     // homebrew.nro is what scripts/build-guest.sh builds from guest/src/bin/homebrew.rs.
     #[test]
     fn a_homebrew_nro_reads_its_loader_config_and_writes_the_sd_card() {
-        let dir = std::env::temp_dir().join(format!("oboromi-nro-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("kokoromi-nro-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join("homebrew.nro"), include_bytes!("../../tests/fixtures/guest/homebrew.nro")).unwrap();
         let cpus = CpuManager::new();

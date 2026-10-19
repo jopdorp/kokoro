@@ -28,49 +28,49 @@ enum Monitor {}
 enum Engine {}
 
 unsafe extern "C" {
-    fn oboromi_dynarmic_monitor_new() -> *mut Monitor;
-    fn oboromi_dynarmic_monitor_free(monitor: *mut Monitor);
-    fn oboromi_dynarmic_cpu_new(monitor: *mut Monitor, id: usize, memory: *mut u8, size: u64,
+    fn kokoromi_dynarmic_monitor_new() -> *mut Monitor;
+    fn kokoromi_dynarmic_monitor_free(monitor: *mut Monitor);
+    fn kokoromi_dynarmic_cpu_new(monitor: *mut Monitor, id: usize, memory: *mut u8, size: u64,
         callback: unsafe extern "C" fn(*mut c_void, u64, usize),
         read_bus: unsafe extern "C" fn(*mut c_void, u64, usize, *mut u64) -> bool,
         write_bus: unsafe extern "C" fn(*mut c_void, u64, usize, u64) -> bool,
         sysreg: unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32, bool, *mut u64) -> bool,
         data: *mut c_void) -> *mut Engine;
-    fn oboromi_dynarmic_cpu_free(cpu: *mut Engine);
-    fn oboromi_dynarmic_set_watched(cpu: *mut Engine, watched: bool);
-    fn oboromi_dynarmic_set_guest_kernel(cpu: *mut Engine, enabled: bool);
-    fn oboromi_dynarmic_set_interrupt_lines(cpu: *mut Engine, irq: bool, fiq: bool);
-    fn oboromi_dynarmic_timer_pending(cpu: *const Engine) -> bool;
-    fn oboromi_dynarmic_set_virtual_time(cpu: *mut Engine, enabled: bool);
-    fn oboromi_dynarmic_set_tick_scale(cpu: *mut Engine, scale: u64);
-    fn oboromi_dynarmic_ticks(cpu: *const Engine) -> u64;
-    fn oboromi_dynarmic_idle_until(cpu: *mut Engine, deadline: u64) -> bool;
-    fn oboromi_dynarmic_run(cpu: *mut Engine, deadline: u64, core: u32, sliced: *mut bool) -> bool;
-    fn oboromi_dynarmic_step(cpu: *mut Engine) -> bool;
-    fn oboromi_dynarmic_halt(cpu: *mut Engine);
-    fn oboromi_dynarmic_get_x(cpu: *const Engine, index: usize) -> u64;
-    fn oboromi_dynarmic_set_x(cpu: *mut Engine, index: usize, value: u64);
-    fn oboromi_dynarmic_get_sp(cpu: *const Engine) -> u64;
-    fn oboromi_dynarmic_set_sp(cpu: *mut Engine, value: u64);
-    fn oboromi_dynarmic_get_pc(cpu: *const Engine) -> u64;
-    fn oboromi_dynarmic_set_pc(cpu: *mut Engine, value: u64);
-    fn oboromi_dynarmic_set_tls(cpu: *mut Engine, value: u64);
-    fn oboromi_dynarmic_take_svc(cpu: *mut Engine) -> u32;
-    fn oboromi_dynarmic_clear_exclusive(cpu: *mut Engine);
-    fn oboromi_dynarmic_save(cpu: *const Engine, context: *mut DynarmicContext);
-    fn oboromi_dynarmic_load(cpu: *mut Engine, context: *const DynarmicContext);
-    fn oboromi_dynarmic_invalidate(cpu: *mut Engine, address: u64, size: usize);
+    fn kokoromi_dynarmic_cpu_free(cpu: *mut Engine);
+    fn kokoromi_dynarmic_set_watched(cpu: *mut Engine, watched: bool);
+    fn kokoromi_dynarmic_set_guest_kernel(cpu: *mut Engine, enabled: bool);
+    fn kokoromi_dynarmic_set_interrupt_lines(cpu: *mut Engine, irq: bool, fiq: bool);
+    fn kokoromi_dynarmic_timer_pending(cpu: *const Engine) -> bool;
+    fn kokoromi_dynarmic_set_virtual_time(cpu: *mut Engine, enabled: bool);
+    fn kokoromi_dynarmic_set_tick_scale(cpu: *mut Engine, scale: u64);
+    fn kokoromi_dynarmic_ticks(cpu: *const Engine) -> u64;
+    fn kokoromi_dynarmic_idle_until(cpu: *mut Engine, deadline: u64) -> bool;
+    fn kokoromi_dynarmic_run(cpu: *mut Engine, deadline: u64, core: u32, sliced: *mut bool) -> bool;
+    fn kokoromi_dynarmic_step(cpu: *mut Engine) -> bool;
+    fn kokoromi_dynarmic_halt(cpu: *mut Engine);
+    fn kokoromi_dynarmic_get_x(cpu: *const Engine, index: usize) -> u64;
+    fn kokoromi_dynarmic_set_x(cpu: *mut Engine, index: usize, value: u64);
+    fn kokoromi_dynarmic_get_sp(cpu: *const Engine) -> u64;
+    fn kokoromi_dynarmic_set_sp(cpu: *mut Engine, value: u64);
+    fn kokoromi_dynarmic_get_pc(cpu: *const Engine) -> u64;
+    fn kokoromi_dynarmic_set_pc(cpu: *mut Engine, value: u64);
+    fn kokoromi_dynarmic_set_tls(cpu: *mut Engine, value: u64);
+    fn kokoromi_dynarmic_take_svc(cpu: *mut Engine) -> u32;
+    fn kokoromi_dynarmic_clear_exclusive(cpu: *mut Engine);
+    fn kokoromi_dynarmic_save(cpu: *const Engine, context: *mut DynarmicContext);
+    fn kokoromi_dynarmic_load(cpu: *mut Engine, context: *const DynarmicContext);
+    fn kokoromi_dynarmic_invalidate(cpu: *mut Engine, address: u64, size: usize);
 }
 
 struct MonitorPtr(NonNull<Monitor>);
 unsafe impl Send for MonitorPtr {}
 unsafe impl Sync for MonitorPtr {}
-impl Drop for MonitorPtr { fn drop(&mut self) { unsafe { oboromi_dynarmic_monitor_free(self.0.as_ptr()) } } }
+impl Drop for MonitorPtr { fn drop(&mut self) { unsafe { kokoromi_dynarmic_monitor_free(self.0.as_ptr()) } } }
 
 pub struct DynarmicGroup(Arc<MonitorPtr>);
 
 impl DynarmicGroup {
-    pub fn new() -> Option<Self> { NonNull::new(unsafe { oboromi_dynarmic_monitor_new() }).map(MonitorPtr).map(Arc::new).map(Self) }
+    pub fn new() -> Option<Self> { NonNull::new(unsafe { kokoromi_dynarmic_monitor_new() }).map(MonitorPtr).map(Arc::new).map(Self) }
 }
 
 struct EnginePtr(NonNull<Engine>);
@@ -130,25 +130,25 @@ impl DynarmicCPU {
     fn with_bus(group: &DynarmicGroup, core: u32, ram: Arc<GuestRam>, bus: Option<(Arc<Mutex<Bus>>, IrqLine)>) -> Option<Self> {
         let (bus, timer_irq) = bus.map_or((None, None), |(bus, irq)| (Some(bus), Some(irq)));
         let mut callback_data = Box::new(CallbackData { ram: ram.clone(), bus });
-        let engine = NonNull::new(unsafe { oboromi_dynarmic_cpu_new(group.0.0.as_ptr(), core as usize, ram.base(), ram.size() as u64,
+        let engine = NonNull::new(unsafe { kokoromi_dynarmic_cpu_new(group.0.0.as_ptr(), core as usize, ram.base(), ram.size() as u64,
             mark_written, read_bus, write_bus, sysreg, (&mut *callback_data as *mut CallbackData).cast()) })?;
-        unsafe { oboromi_dynarmic_set_sp(engine.as_ptr(), ram.size() as u64 - u64::from(core) * 0x10_0000) };
-        let tick_scale = std::env::var("OBOROMI_DYNARMIC_TICK_SCALE").ok().and_then(|value| value.parse().ok()).unwrap_or(64);
-        unsafe { oboromi_dynarmic_set_tick_scale(engine.as_ptr(), tick_scale) };
+        unsafe { kokoromi_dynarmic_set_sp(engine.as_ptr(), ram.size() as u64 - u64::from(core) * 0x10_0000) };
+        let tick_scale = std::env::var("KOKOROMI_DYNARMIC_TICK_SCALE").ok().and_then(|value| value.parse().ok()).unwrap_or(64);
+        unsafe { kokoromi_dynarmic_set_tick_scale(engine.as_ptr(), tick_scale) };
         Some(Self { engine: Mutex::new(EnginePtr(engine)), ram, _monitor: group.0.clone(), callback_data, guest_kernel: AtomicBool::new(false), timer_irq, irq: AtomicBool::new(false), fiq: AtomicBool::new(false) })
     }
 
     fn engine(&self) -> std::sync::MutexGuard<'_, EnginePtr> { self.engine.lock().unwrap() }
 
     fn sync_watched(&self, engine: *mut Engine) {
-        unsafe { oboromi_dynarmic_set_watched(engine, !self.ram.watched().is_empty()) };
+        unsafe { kokoromi_dynarmic_set_watched(engine, !self.ram.watched().is_empty()) };
     }
 }
 
 impl Drop for DynarmicCPU {
     fn drop(&mut self) {
         let engine = self.engine.get_mut().unwrap();
-        unsafe { oboromi_dynarmic_cpu_free(engine.0.as_ptr()) };
+        unsafe { kokoromi_dynarmic_cpu_free(engine.0.as_ptr()) };
         let _ = &self.callback_data;
     }
 }
@@ -156,17 +156,17 @@ impl Drop for DynarmicCPU {
 impl Cpu for DynarmicCPU {
     fn as_any(&self) -> &dyn std::any::Any { self }
     fn run(&self) -> u64 { self.run_slice(u64::MAX, 0).map_or(0, |_| 1) }
-    fn step(&self) -> u64 { let engine = self.engine(); u64::from(!unsafe { oboromi_dynarmic_step(engine.0.as_ptr()) }) }
-    fn halt(&self) { unsafe { oboromi_dynarmic_halt(self.engine().0.as_ptr()) } }
-    fn get_x(&self, index: u32) -> u64 { unsafe { oboromi_dynarmic_get_x(self.engine().0.as_ptr(), index as usize) } }
-    fn set_x(&self, index: u32, value: u64) { unsafe { oboromi_dynarmic_set_x(self.engine().0.as_ptr(), index as usize, value) } }
-    fn get_sp(&self) -> u64 { unsafe { oboromi_dynarmic_get_sp(self.engine().0.as_ptr()) } }
-    fn set_sp(&self, value: u64) { unsafe { oboromi_dynarmic_set_sp(self.engine().0.as_ptr(), value) } }
-    fn get_pc(&self) -> u64 { unsafe { oboromi_dynarmic_get_pc(self.engine().0.as_ptr()) } }
-    fn set_pc(&self, value: u64) { unsafe { oboromi_dynarmic_set_pc(self.engine().0.as_ptr(), value) } }
-    fn svc_pending(&self) -> Option<u32> { match unsafe { oboromi_dynarmic_take_svc(self.engine().0.as_ptr()) } { u32::MAX => None, value => Some(value) } }
-    fn set_tls(&self, value: u64) { unsafe { oboromi_dynarmic_set_tls(self.engine().0.as_ptr(), value) } }
-    fn tls(&self) -> u64 { let mut context = DynarmicContext::default(); unsafe { oboromi_dynarmic_save(self.engine().0.as_ptr(), &raw mut context) }; context.tls }
+    fn step(&self) -> u64 { let engine = self.engine(); u64::from(!unsafe { kokoromi_dynarmic_step(engine.0.as_ptr()) }) }
+    fn halt(&self) { unsafe { kokoromi_dynarmic_halt(self.engine().0.as_ptr()) } }
+    fn get_x(&self, index: u32) -> u64 { unsafe { kokoromi_dynarmic_get_x(self.engine().0.as_ptr(), index as usize) } }
+    fn set_x(&self, index: u32, value: u64) { unsafe { kokoromi_dynarmic_set_x(self.engine().0.as_ptr(), index as usize, value) } }
+    fn get_sp(&self) -> u64 { unsafe { kokoromi_dynarmic_get_sp(self.engine().0.as_ptr()) } }
+    fn set_sp(&self, value: u64) { unsafe { kokoromi_dynarmic_set_sp(self.engine().0.as_ptr(), value) } }
+    fn get_pc(&self) -> u64 { unsafe { kokoromi_dynarmic_get_pc(self.engine().0.as_ptr()) } }
+    fn set_pc(&self, value: u64) { unsafe { kokoromi_dynarmic_set_pc(self.engine().0.as_ptr(), value) } }
+    fn svc_pending(&self) -> Option<u32> { match unsafe { kokoromi_dynarmic_take_svc(self.engine().0.as_ptr()) } { u32::MAX => None, value => Some(value) } }
+    fn set_tls(&self, value: u64) { unsafe { kokoromi_dynarmic_set_tls(self.engine().0.as_ptr(), value) } }
+    fn tls(&self) -> u64 { let mut context = DynarmicContext::default(); unsafe { kokoromi_dynarmic_save(self.engine().0.as_ptr(), &raw mut context) }; context.tls }
 
     fn read_mem(&self, address: u64, bytes: &mut [u8]) -> Result<(), CpuError> {
         let base = if self.guest_kernel.load(Ordering::Relaxed) { MEMORY_BASE } else { 0 };
@@ -183,14 +183,14 @@ impl Cpu for DynarmicCPU {
         };
         let engine = self.engine();
         self.ram.write(offset, bytes);
-        unsafe { oboromi_dynarmic_invalidate(engine.0.as_ptr(), address, bytes.len()) };
+        unsafe { kokoromi_dynarmic_invalidate(engine.0.as_ptr(), address, bytes.len()) };
         Ok(())
     }
-    fn ticks(&self) -> u64 { unsafe { oboromi_dynarmic_ticks(self.engine().0.as_ptr()) } }
+    fn ticks(&self) -> u64 { unsafe { kokoromi_dynarmic_ticks(self.engine().0.as_ptr()) } }
     fn idle_until(&self, deadline: u64) {
         let engine = self.engine();
-        let now = unsafe { oboromi_dynarmic_ticks(engine.0.as_ptr()) };
-        let virtual_time = unsafe { oboromi_dynarmic_idle_until(engine.0.as_ptr(), deadline) };
+        let now = unsafe { kokoromi_dynarmic_ticks(engine.0.as_ptr()) };
+        let virtual_time = unsafe { kokoromi_dynarmic_idle_until(engine.0.as_ptr(), deadline) };
         if !virtual_time && now < deadline { std::thread::sleep(Duration::from_nanos(((deadline - now) as u128 * 1_000_000_000 / u128::from(TICK_HZ)) as u64)); }
     }
     fn run_slice(&self, deadline: u64, core: usize) -> Result<bool, CpuError> {
@@ -198,20 +198,20 @@ impl Cpu for DynarmicCPU {
         let _turn = self.ram.turn();
         self.sync_watched(engine.0.as_ptr());
         let mut sliced = false;
-        let result = unsafe { oboromi_dynarmic_run(engine.0.as_ptr(), deadline, core as u32, &raw mut sliced) }.then_some(sliced).ok_or(CpuError);
-        if let Some(line) = &self.timer_irq { line.set(unsafe { oboromi_dynarmic_timer_pending(engine.0.as_ptr()) }); }
+        let result = unsafe { kokoromi_dynarmic_run(engine.0.as_ptr(), deadline, core as u32, &raw mut sliced) }.then_some(sliced).ok_or(CpuError);
+        if let Some(line) = &self.timer_irq { line.set(unsafe { kokoromi_dynarmic_timer_pending(engine.0.as_ptr()) }); }
         result
     }
     fn context(&self) -> Result<CpuContext, CpuError> { Ok(CpuContext::Dynarmic(DynarmicContext::default())) }
     fn save(&self, context: &mut CpuContext) -> Result<(), CpuError> {
         let CpuContext::Dynarmic(context) = context else { return Err(CpuError) };
         let engine = self.engine();
-        unsafe { oboromi_dynarmic_clear_exclusive(engine.0.as_ptr()); oboromi_dynarmic_save(engine.0.as_ptr(), context) };
+        unsafe { kokoromi_dynarmic_clear_exclusive(engine.0.as_ptr()); kokoromi_dynarmic_save(engine.0.as_ptr(), context) };
         Ok(())
     }
     fn restore(&self, context: &CpuContext) -> Result<(), CpuError> {
         let CpuContext::Dynarmic(context) = context else { return Err(CpuError) };
-        unsafe { oboromi_dynarmic_load(self.engine().0.as_ptr(), context) };
+        unsafe { kokoromi_dynarmic_load(self.engine().0.as_ptr(), context) };
         Ok(())
     }
     fn thread_context(&self, entry: u64, arg: u64, stack: u64, tls: u64, handle: u32) -> Result<CpuContext, CpuError> {
@@ -219,16 +219,16 @@ impl Cpu for DynarmicCPU {
         context.pc = entry; context.sp = stack; context.x[0] = arg; context.x[1] = u64::from(handle); context.tls = tls;
         Ok(CpuContext::Dynarmic(context))
     }
-    fn set_virtual_time(&self, enabled: bool) { unsafe { oboromi_dynarmic_set_virtual_time(self.engine().0.as_ptr(), enabled) } }
-    fn set_block_ticks(&self, ticks: u64) { unsafe { oboromi_dynarmic_set_tick_scale(self.engine().0.as_ptr(), ticks) } }
+    fn set_virtual_time(&self, enabled: bool) { unsafe { kokoromi_dynarmic_set_virtual_time(self.engine().0.as_ptr(), enabled) } }
+    fn set_block_ticks(&self, ticks: u64) { unsafe { kokoromi_dynarmic_set_tick_scale(self.engine().0.as_ptr(), ticks) } }
     fn set_guest_kernel(&self, enabled: bool) {
-        unsafe { oboromi_dynarmic_set_guest_kernel(self.engine().0.as_ptr(), enabled) };
+        unsafe { kokoromi_dynarmic_set_guest_kernel(self.engine().0.as_ptr(), enabled) };
         self.guest_kernel.store(enabled, Ordering::Relaxed);
     }
     fn raise_irq(&self, line: u32, level: bool) {
         let engine = self.engine();
         if line == 0 { self.fiq.store(level, Ordering::Relaxed) } else if line == 1 { self.irq.store(level, Ordering::Relaxed) } else { return }
         let (irq, fiq) = (self.irq.load(Ordering::Relaxed), self.fiq.load(Ordering::Relaxed));
-        unsafe { oboromi_dynarmic_set_interrupt_lines(engine.0.as_ptr(), irq, fiq) }
+        unsafe { kokoromi_dynarmic_set_interrupt_lines(engine.0.as_ptr(), irq, fiq) }
     }
 }

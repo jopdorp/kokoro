@@ -1,7 +1,7 @@
 //! Translates every guest shader program in a game's files into the title's disk cache before the game runs:
-//! `cargo run -p oboromi-core --example precompile -- <title> <dir-or-file>...`.
-use oboromi_core::gpu::bnsh::{self, Program};
-use oboromi_core::gpu::{device, pipeline_cache::Disk};
+//! `cargo run -p kokoromi-core --example precompile -- <title> <dir-or-file>...`.
+use kokoromi_core::gpu::bnsh::{self, Program};
+use kokoromi_core::gpu::{device, pipeline_cache::Disk};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::{Path, PathBuf};
 
@@ -16,7 +16,7 @@ fn files(path: &Path, out: &mut Vec<PathBuf>) {
 fn key(program: &Program) -> u64 {
     let mut hasher = DefaultHasher::new();
     match program.stage {
-        oboromi_core::gpu::sm86::Stage::Compute { local_size } => (&program.words(), local_size).hash(&mut hasher),
+        kokoromi_core::gpu::sm86::Stage::Compute { local_size } => (&program.words(), local_size).hash(&mut hasher),
         _ => {
             let sph: [u8; 0x80] = std::array::from_fn(|i| (program.sph[i / 4] >> (8 * (i % 4))) as u8);
             (sph, &program.words(), 0u32, 0u32).hash(&mut hasher);
@@ -31,7 +31,7 @@ fn main() {
     let state = device().expect("no Vulkan device");
     let props = unsafe { state.instance.get_physical_device_properties(state.physical_device) };
     let home = || std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache"));
-    let root = std::env::var_os("XDG_CACHE_HOME").map(PathBuf::from).or_else(home).unwrap_or_else(std::env::temp_dir).join("oboromi");
+    let root = std::env::var_os("XDG_CACHE_HOME").map(PathBuf::from).or_else(home).unwrap_or_else(std::env::temp_dir).join("kokoromi");
     let disk = Disk::open(&root, title, &props).expect("cache directory");
     std::panic::set_hook(Box::new(|_| {}));
     let mut all = Vec::new();

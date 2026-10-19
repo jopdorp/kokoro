@@ -1,12 +1,12 @@
 #include <AudioToolbox/AudioToolbox.h>
 
 #include "AudioBackend.h"
-#include "oboromi_core.h"
+#include "kokoromi_core.h"
 
 namespace {
 
 OSStatus render(void *, AudioUnitRenderActionFlags *, const AudioTimeStamp *, UInt32, UInt32 frames, AudioBufferList *buffers) {
-    oboromi_audio_pull(static_cast<int16_t *>(buffers->mBuffers[0].mData), frames);
+    kokoromi_audio_pull(static_cast<int16_t *>(buffers->mBuffers[0].mData), frames);
     return noErr;
 }
 

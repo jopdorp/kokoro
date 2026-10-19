@@ -7,7 +7,7 @@
 #include <QWindow>
 #include <functional>
 
-#include "oboromi_core.h"
+#include "kokoromi_core.h"
 
 namespace {
 
@@ -33,7 +33,7 @@ protected:
         if (event->type() == QEvent::PlatformSurface &&
             static_cast<QPlatformSurfaceEvent *>(event)->surfaceEventType() ==
                 QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed)
-            oboromi_display_surface(0, 0, 0);
+            kokoromi_display_surface(0, 0, 0);
         return QWindow::event(event);
     }
 
@@ -42,9 +42,9 @@ private:
         if (!isExposed() || !cannotPresent) return;
         const QSize pixels = size() * devicePixelRatio();
         const auto surface = uint64_t(QVulkanInstance::surfaceForWindow(this));
-        if (oboromi_display_surface(surface, pixels.width(), pixels.height())) return;
+        if (kokoromi_display_surface(surface, pixels.width(), pixels.height())) return;
         qWarning("the vulkan surface cannot present, falling back to DisplayWidget");
-        oboromi_display_surface(0, 0, 0);
+        kokoromi_display_surface(0, 0, 0);
         std::exchange(cannotPresent, nullptr)();
     }
 };
@@ -54,7 +54,7 @@ private:
 QWidget *createDisplay(QWidget *parent) {
     // adopts the core's instance and outlives every window, so it is never destroyed
     static QVulkanInstance *instance = []() -> QVulkanInstance * {
-        const auto handle = static_cast<VkInstance>(oboromi_vk_instance());
+        const auto handle = static_cast<VkInstance>(kokoromi_vk_instance());
         if (!handle) return nullptr;
         auto *vulkan = new QVulkanInstance;
         vulkan->setVkInstance(handle);
@@ -75,23 +75,23 @@ QWidget *createDisplay(QWidget *parent) {
 }
 
 DisplayWidget::DisplayWidget(QWidget *parent) : QWidget(parent) {
-    oboromi_frame_set_callback(&postFrameReady, this);
+    kokoromi_frame_set_callback(&postFrameReady, this);
     frameReady();
 }
 
 DisplayWidget::~DisplayWidget() {
-    oboromi_frame_set_callback(nullptr, nullptr);
+    kokoromi_frame_set_callback(nullptr, nullptr);
 }
 
 void DisplayWidget::frameReady() {
-    const auto generation = oboromi_frame_generation();
+    const auto generation = kokoromi_frame_generation();
     if (generation == m_generation) return;
 
     uint32_t width = 0;
     uint32_t height = 0;
-    oboromi_frame_read(nullptr, 0, &width, &height);
+    kokoromi_frame_read(nullptr, 0, &width, &height);
     QImage image(width, height, QImage::Format_RGBA8888);
-    oboromi_frame_read(image.bits(), image.sizeInBytes(), &width, &height);
+    kokoromi_frame_read(image.bits(), image.sizeInBytes(), &width, &height);
     if (image.width() != int(width) || image.height() != int(height)) return;
 
     m_image = image;

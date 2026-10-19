@@ -2,7 +2,7 @@
 status: "accepted"
 date: 2026-10-16
 decision-makers: jopdorp
-component: [oboromi-gpu]
+component: [kokoromi-gpu]
 ---
 # Real chips are the reference, and known differences are listed per device
 

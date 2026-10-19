@@ -65,45 +65,45 @@ jobs:
       - name: Check if binaries exist
         run: |
           echo "Checking Intel binary..."
-          ls -la target/x86_64-apple-darwin/release/oboromi || echo "Intel binary not found"
+          ls -la target/x86_64-apple-darwin/release/kokoromi || echo "Intel binary not found"
           echo "Checking ARM64 binary..."
-          ls -la target/aarch64-apple-darwin/release/oboromi || echo "ARM64 binary not found"
+          ls -la target/aarch64-apple-darwin/release/kokoromi || echo "ARM64 binary not found"
 
       - name: Create universal binary
         if: success()
         run: |
           mkdir -p target/universal/release
           lipo -create \
-            target/x86_64-apple-darwin/release/oboromi \
-            target/aarch64-apple-darwin/release/oboromi \
-            -output target/universal/release/oboromi
-          chmod +x target/universal/release/oboromi
+            target/x86_64-apple-darwin/release/kokoromi \
+            target/aarch64-apple-darwin/release/kokoromi \
+            -output target/universal/release/kokoromi
+          chmod +x target/universal/release/kokoromi
           
-          lipo -info target/universal/release/oboromi
+          lipo -info target/universal/release/kokoromi
 
       - name: Prepare macOS bundle
         if: success()
         run: |
           VERSION="${{ github.event.inputs.version }}"
-          mkdir -p "oboromi-$VERSION-macos"
-          cp target/universal/release/oboromi "oboromi-$VERSION-macos/"
-          cp LICENSE "oboromi-$VERSION-macos/"
-          cp README.md "oboromi-$VERSION-macos/"
+          mkdir -p "kokoromi-$VERSION-macos"
+          cp target/universal/release/kokoromi "kokoromi-$VERSION-macos/"
+          cp LICENSE "kokoromi-$VERSION-macos/"
+          cp README.md "kokoromi-$VERSION-macos/"
           
-          [ -d assets ] && cp -R assets "oboromi-$VERSION-macos/"
+          [ -d assets ] && cp -R assets "kokoromi-$VERSION-macos/"
 
       - name: Create DMG package
         if: success()
         run: |
           VERSION="${{ github.event.inputs.version }}"
-          hdiutil create -volname "Oboromi" -srcfolder "oboromi-$VERSION-macos" -ov -format UDZO "oboromi-$VERSION-macos-universal.dmg"
+          hdiutil create -volname "Kokoromi" -srcfolder "kokoromi-$VERSION-macos" -ov -format UDZO "kokoromi-$VERSION-macos-universal.dmg"
 
       - name: Upload macOS artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: macos-artifact
-          path: "oboromi-${{ github.event.inputs.version }}-macos-universal.dmg"
+          path: "kokoromi-${{ github.event.inputs.version }}-macos-universal.dmg"
 
       - name: Upload build logs on failure
         if: failure()
@@ -135,23 +135,23 @@ jobs:
       - name: Prepare Linux bundle
         run: |
           VERSION="${{ github.event.inputs.version }}"
-          mkdir -p "oboromi-$VERSION-linux"
-          cp target/release/oboromi "oboromi-$VERSION-linux/"
-          cp LICENSE "oboromi-$VERSION-linux/"
-          cp README.md "oboromi-$VERSION-linux/"
+          mkdir -p "kokoromi-$VERSION-linux"
+          cp target/release/kokoromi "kokoromi-$VERSION-linux/"
+          cp LICENSE "kokoromi-$VERSION-linux/"
+          cp README.md "kokoromi-$VERSION-linux/"
           
-          [ -d assets ] && cp -R assets "oboromi-$VERSION-linux/"
+          [ -d assets ] && cp -R assets "kokoromi-$VERSION-linux/"
 
       - name: Create tarball
         run: |
           VERSION="${{ github.event.inputs.version }}"
-          tar -czf "oboromi-$VERSION-linux-x64.tar.gz" "oboromi-$VERSION-linux"
+          tar -czf "kokoromi-$VERSION-linux-x64.tar.gz" "kokoromi-$VERSION-linux"
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-artifact
-          path: "oboromi-${{ github.event.inputs.version }}-linux-x64.tar.gz"
+          path: "kokoromi-${{ github.event.inputs.version }}-linux-x64.tar.gz"
 
   build_windows:
     name: Build Windows
@@ -169,9 +169,9 @@ jobs:
       - name: Prepare Windows bundle
         run: |
           $version = "${{ github.event.inputs.version }}"
-          $dirName = "oboromi-$version-windows"
+          $dirName = "kokoromi-$version-windows"
           New-Item -Name $dirName -ItemType Directory
-          Copy-Item target\release\oboromi.exe "$dirName\oboromi.exe"
+          Copy-Item target\release\kokoromi.exe "$dirName\kokoromi.exe"
           Copy-Item LICENSE "$dirName\"
           Copy-Item README.md "$dirName\"
           
@@ -182,10 +182,10 @@ jobs:
       - name: Create zip package
         run: |
           $version = "${{ github.event.inputs.version }}"
-          7z a "oboromi-$version-windows-x64.zip" "oboromi-$version-windows\*"
+          7z a "kokoromi-$version-windows-x64.zip" "kokoromi-$version-windows\*"
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-artifact
-          path: "oboromi-${{ github.event.inputs.version }}-windows-x64.zip"
+          path: "kokoromi-${{ github.event.inputs.version }}-windows-x64.zip"

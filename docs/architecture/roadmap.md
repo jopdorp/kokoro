@@ -28,8 +28,8 @@ Anything that is not bit-exact against the hardware oracle is a speed hack. Spee
 | Mode | Selection |
 |---|---|
 | Default | Dynarmic, fast tensor path, bounded ray work and non-blocking pipeline compilation |
-| Exact | `OBOROMI_EXACT=1` or `SpeedHacks::none()` |
-| CPU comparison | `OBOROMI_CPU=unicorn` |
+| Exact | `KOKOROMI_EXACT=1` or `SpeedHacks::none()` |
+| CPU comparison | `KOKOROMI_CPU=unicorn` |
 
 ## Hardware-backed limits
 

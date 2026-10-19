@@ -1,17 +1,17 @@
-//! Latency of the hot paths in microseconds: `MESA_SHADER_CACHE_DISABLE=true cargo run --release -p oboromi-core --example perf`,
+//! Latency of the hot paths in microseconds: `MESA_SHADER_CACHE_DISABLE=true cargo run --release -p kokoromi-core --example perf`,
 //! where the variable keeps Mesa's own shader cache from warming the cold pipeline rows.
 use ash::vk::DescriptorType;
-use oboromi_core::display::{attach_surface, present, present_buffer};
-use oboromi_core::ffi::{oboromi_frame_read, oboromi_set_tensor_mode};
-use oboromi_core::gpu::compute::{ComputePipeline, HostBuffer};
-use oboromi_core::gpu::cubin::{Arg, Kernel};
-use oboromi_core::gpu::pipeline_cache::Disk;
-use oboromi_core::gpu::sm86::{CBUF_BINDING, GLOBAL_BINDING, STATE_WORDS, SUPPORT_BINDING, Stage, emit_module};
-use oboromi_core::audio::demo_music::{music, sequence};
-use oboromi_core::gpu::{VkState, demo, demo_bounce::render_bounce_frame, demo_particles::{self, render_particles_frame}, demo_post::render_post_frame, demo_sprites::render_sprites_frame, surface_device, frame::{julia_program, render_demo_frame, render_test_frame, render_triangle_demo}};
-use oboromi_core::tests::gpu::engine::{TARGET, TEXTURES, VERTICES, texture_header, textured_quad_frame, triangle_frame, triangle_guest, vertex_bytes};
-use oboromi_core::tests::gpu::{graphics, harness::{GLOBAL_BASE, Grid, translate_module}, silicon::exact_cooperative_hmma};
-use oboromi_core::tests::gpu_test::inst;
+use kokoromi_core::display::{attach_surface, present, present_buffer};
+use kokoromi_core::ffi::{kokoromi_frame_read, kokoromi_set_tensor_mode};
+use kokoromi_core::gpu::compute::{ComputePipeline, HostBuffer};
+use kokoromi_core::gpu::cubin::{Arg, Kernel};
+use kokoromi_core::gpu::pipeline_cache::Disk;
+use kokoromi_core::gpu::sm86::{CBUF_BINDING, GLOBAL_BINDING, STATE_WORDS, SUPPORT_BINDING, Stage, emit_module};
+use kokoromi_core::audio::demo_music::{music, sequence};
+use kokoromi_core::gpu::{VkState, demo, demo_bounce::render_bounce_frame, demo_particles::{self, render_particles_frame}, demo_post::render_post_frame, demo_sprites::render_sprites_frame, surface_device, frame::{julia_program, render_demo_frame, render_test_frame, render_triangle_demo}};
+use kokoromi_core::tests::gpu::engine::{TARGET, TEXTURES, VERTICES, texture_header, textured_quad_frame, triangle_frame, triangle_guest, vertex_bytes};
+use kokoromi_core::tests::gpu::{graphics, harness::{GLOBAL_BASE, Grid, translate_module}, silicon::exact_cooperative_hmma};
+use kokoromi_core::tests::gpu_test::inst;
 use std::hint::black_box;
 use std::time::Instant;
 
@@ -85,7 +85,7 @@ fn versus(state: &VkState, name: &str, spv: &[u8], groups: [u32; 3], block: [u32
 #[cfg_attr(not(feature = "cuda"), allow(unused_variables))]
 fn native(name: &str, kernel: &Kernel, grid: [u32; 3], block: [u32; 3], args: &[Arg]) {
     #[cfg(feature = "cuda")]
-    match oboromi_core::gpu::cuda::CudaDevice::new() {
+    match kokoromi_core::gpu::cuda::CudaDevice::new() {
         Ok(cuda) => {
             let (mut owned, params): (Vec<Vec<u8>>, _) = (buffers(args).into_iter().map(<[u8]>::to_vec).collect(), values(args));
             let mut memory: Vec<&mut [u8]> = owned.iter_mut().map(Vec::as_mut_slice).collect();
@@ -124,14 +124,14 @@ fn main() {
     bench("present+frame_read 1080p", 10, 200, None, || {
         present(w as u32, h as u32, &pixels);
         let (mut fw, mut fh) = (0, 0);
-        unsafe { oboromi_frame_read(dst.as_mut_ptr(), dst.len(), &mut fw, &mut fh) };
+        unsafe { kokoromi_frame_read(dst.as_mut_ptr(), dst.len(), &mut fw, &mut fh) };
         black_box(&dst);
     });
-    let period = vec![0x1234i16; 2 * oboromi_core::audio::PERIOD as usize];
+    let period = vec![0x1234i16; 2 * kokoromi_core::audio::PERIOD as usize];
     let mut pulled = period.clone();
     bench("audio latency push->pull", 100, 10000, None, || {
-        oboromi_core::audio::push(&period);
-        oboromi_core::audio::pull(&mut pulled);
+        kokoromi_core::audio::push(&period);
+        kokoromi_core::audio::pull(&mut pulled);
         black_box(&pulled);
     });
     bench("vk device init (cold)", 0, 1, None, || {
@@ -156,11 +156,11 @@ fn main() {
     let hmma_program = [&sources[..], &hmmas, &store].concat();
     let ops = f64::from(groups[0] * block[0] / 32) * chain as f64;
     let [exact, fast] = [false, true].map(|fast| {
-        oboromi_set_tensor_mode(fast);
+        kokoromi_set_tensor_mode(fast);
         let mut grid = Grid::new(state, &hmma_program, block, 0, &[], &[(GLOBAL_BASE, &[0; 16])]);
         bench(if fast { "hmma fast" } else { "hmma exact" }, 2, 20, Some(state), || drop(black_box(grid.run(groups))))[1]
     });
-    oboromi_set_tensor_mode(oboromi_core::gpu::SpeedHacks::default().fast_tensor);
+    kokoromi_set_tensor_mode(kokoromi_core::gpu::SpeedHacks::default().fast_tensor);
     println!("hmma 16816.F32 gpu ns per warp op: exact {:.0}, fast {:.0}", exact * 1e3 / ops, fast * 1e3 / ops);
     let program = [inst::mov_imm(0, 42), inst::iadd_reg(1, 2, 3)];
     let words = translate_module(&program, true, Some(state), false).words();
@@ -172,7 +172,7 @@ fn main() {
     let julia = emit_module(Some(state), Stage::Compute { local_size: [16, 16, 1] }, |d| d.translate_program(&julia_program())).words();
     let ubo = DescriptorType::UNIFORM_BUFFER;
     let julia_bindings = [(SUPPORT_BINDING, ubo), (CBUF_BINDING, ubo), (GLOBAL_BINDING, ssbo)];
-    let root = std::env::temp_dir().join(format!("oboromi-perf-{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!("kokoromi-perf-{}", std::process::id()));
     let disk = Disk::open(&root, "perf", &props).unwrap();
     for start in ["cold", "from disk"] {
         let fresh = VkState::new().unwrap();
@@ -241,7 +241,7 @@ fn main() {
         drop(black_box(copy.to_vec()));
     })[0];
     let mandelbrot_present = bench("present 800x600", 2, 100, None, || present(mw, mh, &image))[0];
-    if std::env::var_os("OBOROMI_PERF_NATIVE").is_some() {
+    if std::env::var_os("KOKOROMI_PERF_NATIVE").is_some() {
         versus(state, "mandelbrot", include_bytes!("../tests/fixtures/bench/mandelbrot.spv"), [50, 38, 1], [16, 16, 1], &args);
     }
     println!("breakdown, us");
@@ -266,7 +266,7 @@ fn main() {
         true => { bench("demo helmet 1080p", 2, 100, Some(state), || demo::render_helmet_frame(0.25).unwrap()); }
         false => println!("demo helmet 1080p skipped: run demos/assets/fetch.sh"),
     }
-    if std::env::var_os("OBOROMI_PERF_NATIVE").is_some() {
+    if std::env::var_os("KOKOROMI_PERF_NATIVE").is_some() {
         println!("native equivalence, translated vs its GLSL twin through the same ComputePipeline");
         let (groups, iterations) = (1024u32, 64u32);
         let sums = vec![0; groups as usize * 256 * 4];

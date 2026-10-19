@@ -36,7 +36,7 @@ mod tests {
     fn disk_serves_the_saved_spirv_and_a_pipeline_cache_this_device_accepts() {
         let Some(state) = shared_device() else { return };
         let device = unsafe { state.instance.get_physical_device_properties(state.physical_device) };
-        let (root, title) = (std::env::temp_dir().join(format!("oboromi-disk-{}", std::process::id())), "0100000000010000");
+        let (root, title) = (std::env::temp_dir().join(format!("kokoromi-disk-{}", std::process::id())), "0100000000010000");
         let words = translate_module(&[inst::mov_imm(0, 42)], true, Some(state), false).words();
         let disk = Disk::open(&root, title, &device).unwrap();
         let resources = [ResourceKind::Cbuf(2), ResourceKind::Varying { location: 3, flat: true }];

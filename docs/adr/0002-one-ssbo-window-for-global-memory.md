@@ -2,7 +2,7 @@
 status: "accepted"
 date: 2026-10-16
 decision-makers: jopdorp
-component: [oboromi-gpu]
+component: [kokoromi-gpu]
 ---
 # Game memory reaches a shader through one window buffer
 

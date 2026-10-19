@@ -2,7 +2,7 @@
 status: "accepted"
 date: 2026-10-17
 decision-makers: jopdorp
-component: [oboromi-gpu]
+component: [kokoromi-gpu]
 ---
 # Use the desktop instruction table for the T239 target
 

@@ -1,9 +1,9 @@
 //! Renders a demo offline at fixed time steps, frame i at i / fps seconds, as `frame_%04d.ppm` in a directory:
-//! `cargo run --release -p oboromi-core --example capture -- <demo> [--seconds 8] [--fps 60] [--showcase] [--subframes 8] --out <dir>`, then
+//! `cargo run --release -p kokoromi-core --example capture -- <demo> [--seconds 8] [--fps 60] [--showcase] [--subframes 8] --out <dir>`, then
 //! `ffmpeg -framerate 60 -i <dir>/frame_%04d.ppm -c:v libx264 -crf 20 -pix_fmt yuv420p -movflags +faststart demo.mp4`.
-use oboromi_core::audio::{CHANNELS, PERIOD, RATE, demo_music, pull, queued};
-use oboromi_core::ffi::oboromi_frame_read;
-use oboromi_core::gpu::{demo, demo_bounce, demo_dungeon, demo_particles, demo_post, demo_sprites, frame};
+use kokoromi_core::audio::{CHANNELS, PERIOD, RATE, demo_music, pull, queued};
+use kokoromi_core::ffi::kokoromi_frame_read;
+use kokoromi_core::gpu::{demo, demo_bounce, demo_dungeon, demo_particles, demo_post, demo_sprites, frame};
 use std::io::{Seek, Write};
 use std::sync::atomic::Ordering;
 
@@ -29,22 +29,22 @@ fn render(demo: &str, seconds: f32) -> Result<(), String> {
     match demo {
         "dungeon" => demo_dungeon::render_dungeon_frame(seconds),
         "julia" => frame::render_demo_frame(seconds).map_err(|e| format!("{e:?}")),
-        "guest-helmet" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Helmet),
-        "guest-post" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Post),
-        "guest-particles" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Particles),
-        "guest-solar" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Solar),
-        "guest-solar-showcase" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::SolarShowcase),
-        "guest-julia" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Julia),
-        "guest-raytraced" => oboromi_core::guest::render_demo(if demo::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) { oboromi_core::guest::Demo::RaytracedShowcase } else { oboromi_core::guest::Demo::Raytraced }),
-        "guest-dungeon" => oboromi_core::guest::render_demo(match (demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed), demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed)) { (false, false) => oboromi_core::guest::Demo::Dungeon, (false, true) => oboromi_core::guest::Demo::DungeonRays, (true, false) => oboromi_core::guest::Demo::DungeonShowcase, (true, true) => oboromi_core::guest::Demo::DungeonShowcaseRays }),
-        "guest-mandelbrot" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Mandelbrot),
-        "guest-triangle" => oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Triangle),
+        "guest-helmet" => kokoromi_core::guest::render_demo(kokoromi_core::guest::Demo::Helmet),
+        "guest-post" => kokoromi_core::guest::render_demo(kokoromi_core::guest::Demo::Post),
+        "guest-particles" => kokoromi_core::guest::render_demo(kokoromi_core::guest::Demo::Particles),
+        "guest-solar" => kokoromi_core::guest::render_demo(kokoromi_core::guest::Demo::Solar),
+        "guest-solar-showcase" => kokoromi_core::guest::render_demo(kokoromi_core::guest::Demo::SolarShowcase),
+        "guest-julia" => kokoromi_core::guest::render_demo(kokoromi_core::guest::Demo::Julia),
+        "guest-raytraced" => kokoromi_core::guest::render_demo(if demo::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) { kokoromi_core::guest::Demo::RaytracedShowcase } else { kokoromi_core::guest::Demo::Raytraced }),
+        "guest-dungeon" => kokoromi_core::guest::render_demo(match (demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed), demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed)) { (false, false) => kokoromi_core::guest::Demo::Dungeon, (false, true) => kokoromi_core::guest::Demo::DungeonRays, (true, false) => kokoromi_core::guest::Demo::DungeonShowcase, (true, true) => kokoromi_core::guest::Demo::DungeonShowcaseRays }),
+        "guest-mandelbrot" => kokoromi_core::guest::render_demo(kokoromi_core::guest::Demo::Mandelbrot),
+        "guest-triangle" => kokoromi_core::guest::render_demo(kokoromi_core::guest::Demo::Triangle),
         "guest-sprites" => {
-            oboromi_core::input::set_override(Some(oboromi_core::input::InputState { left: guest_sprites_stick(seconds), buttons: u64::from((2.75..3.25).contains(&seconds)), connected: true, ..Default::default() }));
-            oboromi_core::guest::render_demo(oboromi_core::guest::Demo::Sprites)
+            kokoromi_core::input::set_override(Some(kokoromi_core::input::InputState { left: guest_sprites_stick(seconds), buttons: u64::from((2.75..3.25).contains(&seconds)), connected: true, ..Default::default() }));
+            kokoromi_core::guest::render_demo(kokoromi_core::guest::Demo::Sprites)
         }
         "guest-tensor" => {
-            oboromi_core::guest::render_demo(oboromi_core::guest::Demo::TensorUpscale)
+            kokoromi_core::guest::render_demo(kokoromi_core::guest::Demo::TensorUpscale)
         }
         "triangle" => frame::render_triangle_demo(seconds),
         "sprites" => demo_sprites::render_sprites_frame(seconds),
@@ -147,14 +147,14 @@ fn main() {
     if let Some(solo) = flag("--solo") {
         demo_dungeon::set_dungeon_audio_solo(&solo);
     }
-    let mut guest = if args[0].ends_with(".nro") { Some(oboromi_core::guest::Machine::nro(std::path::Path::new(&args[0])).unwrap()) } else if args[0] == "guest-raytraced" && subframes > 1 { Some(oboromi_core::guest::Machine::raytraced_showcase(subframes as u32).unwrap()) } else { match args[0].as_str() {
-        "guest-music" => Some(oboromi_core::guest::Demo::Music),
-        "guest-raytraced" => Some(if audio_only { oboromi_core::guest::Demo::RaytracedAudio } else if demo::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) { oboromi_core::guest::Demo::RaytracedShowcase } else { oboromi_core::guest::Demo::Raytraced }),
-        "guest-bounce" => Some(oboromi_core::guest::Demo::Bounce),
-        "guest-dungeon" if fps == 15.0 && !demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) && !demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed) => Some(oboromi_core::guest::Demo::DungeonCapture),
-        "guest-dungeon" => Some(match (demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed), demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed)) { (false, false) => oboromi_core::guest::Demo::Dungeon, (false, true) => oboromi_core::guest::Demo::DungeonRays, (true, false) => oboromi_core::guest::Demo::DungeonShowcase, (true, true) => oboromi_core::guest::Demo::DungeonShowcaseRays }),
+    let mut guest = if args[0].ends_with(".nro") { Some(kokoromi_core::guest::Machine::nro(std::path::Path::new(&args[0])).unwrap()) } else if args[0] == "guest-raytraced" && subframes > 1 { Some(kokoromi_core::guest::Machine::raytraced_showcase(subframes as u32).unwrap()) } else { match args[0].as_str() {
+        "guest-music" => Some(kokoromi_core::guest::Demo::Music),
+        "guest-raytraced" => Some(if audio_only { kokoromi_core::guest::Demo::RaytracedAudio } else if demo::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) { kokoromi_core::guest::Demo::RaytracedShowcase } else { kokoromi_core::guest::Demo::Raytraced }),
+        "guest-bounce" => Some(kokoromi_core::guest::Demo::Bounce),
+        "guest-dungeon" if fps == 15.0 && !demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed) && !demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed) => Some(kokoromi_core::guest::Demo::DungeonCapture),
+        "guest-dungeon" => Some(match (demo_dungeon::render::SHOWCASE.load(std::sync::atomic::Ordering::Relaxed), demo_dungeon::render::RAYS.load(std::sync::atomic::Ordering::Relaxed)) { (false, false) => kokoromi_core::guest::Demo::Dungeon, (false, true) => kokoromi_core::guest::Demo::DungeonRays, (true, false) => kokoromi_core::guest::Demo::DungeonShowcase, (true, true) => kokoromi_core::guest::Demo::DungeonShowcaseRays }),
         _ => None,
-    }.map(|demo| oboromi_core::guest::Machine::demo(demo).unwrap()) };
+    }.map(|demo| kokoromi_core::guest::Machine::demo(demo).unwrap()) };
     let mut pixels = Vec::new();
     let mut linear = Vec::new();
     let mut timings = Vec::new();
@@ -172,8 +172,8 @@ fn main() {
             } else if audio_only && args[0] == "dungeon" { demo_dungeon::render_dungeon_audio_frame(seconds).unwrap(); } else { render(&args[0], seconds).unwrap(); }
             if !audio_only {
                 let (mut width, mut height) = (0, 0);
-                pixels.resize(unsafe { oboromi_frame_read(std::ptr::null_mut(), 0, &mut width, &mut height) }, 0);
-                unsafe { oboromi_frame_read(pixels.as_mut_ptr(), pixels.len(), &mut width, &mut height) };
+                pixels.resize(unsafe { kokoromi_frame_read(std::ptr::null_mut(), 0, &mut width, &mut height) }, 0);
+                unsafe { kokoromi_frame_read(pixels.as_mut_ptr(), pixels.len(), &mut width, &mut height) };
                 if subframes > 1 {
                     if subframe == 0 { linear.clear(); linear.resize(pixels.len() / 4 * 3, 0.0); }
                     for (out, &channel) in linear.iter_mut().zip(pixels.chunks_exact(4).flat_map(|pixel| &pixel[..3])) { *out += inverse_aces((f32::from(channel) / 255.0).powf(2.2)); }
@@ -190,7 +190,7 @@ fn main() {
             continue;
         }
         let (mut width, mut height) = (0, 0);
-        unsafe { oboromi_frame_read(std::ptr::null_mut(), 0, &mut width, &mut height) };
+        unsafe { kokoromi_frame_read(std::ptr::null_mut(), 0, &mut width, &mut height) };
         let rgb: Vec<u8> = if subframes == 1 { pixels.chunks(4).flat_map(|pixel| &pixel[..3]).copied().collect() } else { linear.iter().map(|&channel| (aces(channel / subframes as f32).powf(1.0 / 2.2) * 255.0).round() as u8).collect() };
         std::fs::write(
             out.join(format!("frame_{i:04}.ppm")),

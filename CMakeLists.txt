@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(oboromi LANGUAGES CXX)
+project(kokoromi LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -25,7 +25,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-qt_add_executable(oboromi-gui
+qt_add_executable(kokoromi-gui
     gui-qt/src/main.cpp
     gui-qt/src/AudioBackend.h
     gui-qt/src/AudioOutput.h
@@ -39,50 +39,50 @@ qt_add_executable(oboromi-gui
     gui-qt/resources.qrc
 )
 
-target_include_directories(oboromi-gui PRIVATE
+target_include_directories(kokoromi-gui PRIVATE
     ${CMAKE_SOURCE_DIR}/core/include
 )
 
-target_link_libraries(oboromi-gui PRIVATE
+target_link_libraries(kokoromi-gui PRIVATE
     Qt6::Widgets
     Qt6::Multimedia
-    oboromi_core
+    kokoromi_core
 )
 
 # system libs needed by rust staticlib
 if(WIN32)
-    target_link_libraries(oboromi-gui PRIVATE ws2_32 userenv ntdll bcrypt)
+    target_link_libraries(kokoromi-gui PRIVATE ws2_32 userenv ntdll bcrypt)
 elseif(APPLE)
-    target_link_libraries(oboromi_core INTERFACE "-framework IOKit" "-framework CoreFoundation")
+    target_link_libraries(kokoromi_core INTERFACE "-framework IOKit" "-framework CoreFoundation")
 else()
-    target_link_libraries(oboromi_core INTERFACE udev)
+    target_link_libraries(kokoromi_core INTERFACE udev)
 endif()
 
 if(WIN32)
-    target_sources(oboromi-gui PRIVATE gui-qt/src/AudioWasapi.cpp)
-    target_link_libraries(oboromi-gui PRIVATE ole32)
+    target_sources(kokoromi-gui PRIVATE gui-qt/src/AudioWasapi.cpp)
+    target_link_libraries(kokoromi-gui PRIVATE ole32)
 elseif(APPLE)
-    target_sources(oboromi-gui PRIVATE gui-qt/src/AudioCoreAudio.cpp)
-    target_link_libraries(oboromi-gui PRIVATE "-framework AudioToolbox")
+    target_sources(kokoromi-gui PRIVATE gui-qt/src/AudioCoreAudio.cpp)
+    target_link_libraries(kokoromi-gui PRIVATE "-framework AudioToolbox")
 else()
     find_package(PkgConfig)
     pkg_check_modules(PIPEWIRE IMPORTED_TARGET libpipewire-0.3)
     if(PIPEWIRE_FOUND)
-        target_sources(oboromi-gui PRIVATE gui-qt/src/AudioPipeWire.cpp)
-        target_compile_definitions(oboromi-gui PRIVATE OBOROMI_PIPEWIRE)
-        target_link_libraries(oboromi-gui PRIVATE PkgConfig::PIPEWIRE)
+        target_sources(kokoromi-gui PRIVATE gui-qt/src/AudioPipeWire.cpp)
+        target_compile_definitions(kokoromi-gui PRIVATE KOKOROMI_PIPEWIRE)
+        target_link_libraries(kokoromi-gui PRIVATE PkgConfig::PIPEWIRE)
     endif()
     find_package(ALSA)
     if(ALSA_FOUND)
-        target_sources(oboromi-gui PRIVATE gui-qt/src/AudioAlsa.cpp)
-        target_compile_definitions(oboromi-gui PRIVATE OBOROMI_ALSA)
-        target_link_libraries(oboromi-gui PRIVATE ALSA::ALSA)
+        target_sources(kokoromi-gui PRIVATE gui-qt/src/AudioAlsa.cpp)
+        target_compile_definitions(kokoromi-gui PRIVATE KOKOROMI_ALSA)
+        target_link_libraries(kokoromi-gui PRIVATE ALSA::ALSA)
     endif()
 endif()
 
-set_target_properties(oboromi-gui PROPERTIES
+set_target_properties(kokoromi-gui PROPERTIES
     WIN32_EXECUTABLE ON
-    OUTPUT_NAME "oboromi"
+    OUTPUT_NAME "kokoromi"
 )
 
 # Auto-deploy Qt DLLs on Windows
@@ -92,8 +92,8 @@ if(WIN32)
     find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${_qt_bin_dir}")
 
     if(WINDEPLOYQT_EXECUTABLE)
-        add_custom_command(TARGET oboromi-gui POST_BUILD
-            COMMAND "${WINDEPLOYQT_EXECUTABLE}" --no-translations "$<TARGET_FILE:oboromi-gui>"
+        add_custom_command(TARGET kokoromi-gui POST_BUILD
+            COMMAND "${WINDEPLOYQT_EXECUTABLE}" --no-translations "$<TARGET_FILE:kokoromi-gui>"
             COMMENT "Deploy Qt DLLs"
         )
     endif()

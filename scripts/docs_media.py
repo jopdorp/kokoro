@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.request import urlretrieve
 
 
-ASSETS = "https://raw.githubusercontent.com/jopdorp/oboromi/assets/"
+ASSETS = "https://raw.githubusercontent.com/jopdorp/kokoromi/assets/"
 TEASERS = ("teaser-dungeon.gif", "teaser-raytraced.gif", "teaser-sprites.gif")
 
 

@@ -1,8 +1,8 @@
 updated : 08/08/2026
 
-# contributing to oboromi
+# contributing to kokoromi
 
-Thanks for the interest! oboromi is an (not yet what you probably think) emulator written in Rust
+Thanks for the interest! kokoromi is an (not yet what you probably think) emulator written in Rust
 
 ## before you start
 
@@ -68,12 +68,12 @@ The executable is placed directly in `build/`:
 
 **Windows:**
 ```bash
-.\build\oboromi.exe
+.\build\kokoromi.exe
 ```
 
 **Linux/macOS:**
 ```bash
-./build/oboromi
+./build/kokoromi
 ```
 
 ## project state (read before opening a PR)

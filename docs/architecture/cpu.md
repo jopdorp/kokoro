@@ -5,8 +5,8 @@ The CPU side runs AArch64 code on eight emulated cores over one RAM block. Dynar
 | Setting | Result |
 |---|---|
 | Default | Dynarmic JIT |
-| `OBOROMI_CPU=unicorn` | Unicorn |
-| `OBOROMI_EXACT=1` | Unicorn and no speed hacks |
+| `KOKOROMI_CPU=unicorn` | Unicorn |
+| `KOKOROMI_EXACT=1` | Unicorn and no speed hacks |
 | Programmatic exact mode | `SpeedHacks::none()` with `CpuBackend::Unicorn` |
 
 Dynarmic covers system-call exits, slice deadlines, shared exclusives, self-modifying-code invalidation and watched GPU writes. Unicorn runs with instruction or timeout budgets instead of a callback on every basic block. Watched writes are flushed once per slice.

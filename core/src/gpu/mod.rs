@@ -67,7 +67,7 @@ impl Default for SpeedHacks {
     }
 }
 
-pub(crate) fn exact_mode() -> bool { std::env::var("OBOROMI_EXACT").as_deref() == Ok("1") }
+pub(crate) fn exact_mode() -> bool { std::env::var("KOKOROMI_EXACT").as_deref() == Ok("1") }
 
 pub static SPEED_HACKS: std::sync::LazyLock<std::sync::Mutex<SpeedHacks>> = std::sync::LazyLock::new(|| std::sync::Mutex::new(SpeedHacks::default()));
 

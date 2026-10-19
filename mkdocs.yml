@@ -1,6 +1,6 @@
-site_name: oboromi
-site_description: How oboromi emulates AArch64 and Ampere hardware
-site_url: https://jopdorp.github.io/oboromi/
+site_name: Kokoromi
+site_description: How Kokoromi emulates AArch64 and Ampere hardware
+site_url: https://jopdorp.github.io/kokoromi/
 docs_dir: docs
 site_dir: site
 
@@ -8,8 +8,8 @@ theme:
   name: material
   custom_dir: overrides
   language: en
-  logo: assets/brand/oboromi-logo.png
-  favicon: assets/brand/oboromi-logo.png
+  logo: assets/brand/kokoromi-logo.svg
+  favicon: assets/brand/kokoromi-logo-64.png
   font: false
   features:
     - navigation.sections
@@ -19,21 +19,21 @@ theme:
     - search.suggest
     - search.highlight
   palette:
-    - scheme: slate
-      primary: custom
-      accent: custom
-      toggle:
-        icon: material/weather-sunny
-        name: Switch to light mode
     - scheme: default
       primary: custom
       accent: custom
       toggle:
         icon: material/weather-night
-        name: Switch to dark mode
+        name: Dark mode
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
 
 extra_css:
-  - assets/stylesheets/oboromi.css
+  - assets/stylesheets/kokoromi.css
 
 markdown_extensions:
   - admonition
@@ -63,7 +63,7 @@ nav:
   - Build a program: build-a-program.md
   - Architecture:
       - architecture/README.md
-      - Emulator overview: architecture/oboromi-overview.md
+      - Emulator overview: architecture/kokoromi-overview.md
       - CPU and shared memory: architecture/cpu.md
       - Services: architecture/services.md
       - Audio: architecture/audio.md

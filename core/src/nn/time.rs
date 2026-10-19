@@ -66,7 +66,7 @@ impl Service for SystemClock {
 fn steady_point() -> [u8; 24] {
     let mut point = [0; 24];
     point[..8].copy_from_slice(&steady_time().to_le_bytes());
-    point[8..].copy_from_slice(b"oboromi-time\0\0\0\0");
+    point[8..].copy_from_slice(b"kokoromi-time\0\0\0\0");
     point
 }
 

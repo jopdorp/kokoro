@@ -4,7 +4,7 @@ use std::sync::Arc;
 pub const CORE_COUNT: usize = 8;
 
 #[cfg(not(target_pointer_width = "64"))]
-compile_error!("oboromi requires a 64-bit architecture to emulate 12GB of RAM.");
+compile_error!("kokoromi requires a 64-bit architecture to emulate 12GB of RAM.");
 // 12GB Memory
 pub const MEMORY_SIZE: u64 = 0x3_0000_0000;
 pub const MEMORY_BASE: u64 = 0x8000_0000;
@@ -23,7 +23,7 @@ impl CpuManager {
     }
 
     pub(crate) fn default_backend() -> CpuBackend {
-        if crate::gpu::exact_mode() || std::env::var("OBOROMI_CPU").as_deref() == Ok("unicorn") { CpuBackend::Unicorn } else { CpuBackend::Dynarmic }
+        if crate::gpu::exact_mode() || std::env::var("KOKOROMI_CPU").as_deref() == Ok("unicorn") { CpuBackend::Unicorn } else { CpuBackend::Dynarmic }
     }
 
     pub fn new_with_backend(backend: CpuBackend) -> Self {

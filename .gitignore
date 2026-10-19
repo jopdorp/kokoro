@@ -1,6 +1,6 @@
 /target
 /guest/target
-/oboromi.log
+/kokoromi.log
 /third_party/boost_1_89_0
 .vscode/
 rad/

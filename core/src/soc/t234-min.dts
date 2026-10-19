@@ -1,4 +1,4 @@
-// The devices SoC mode models, at their tegra234.dtsi addresses and interrupts. `oboromi soc` rewrites the initrd range.
+// The devices SoC mode models, at their tegra234.dtsi addresses and interrupts. `kokoromi soc` rewrites the initrd range.
 /dts-v1/;
 
 / {

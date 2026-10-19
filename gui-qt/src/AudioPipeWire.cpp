@@ -5,7 +5,7 @@
 #include <atomic>
 
 #include "AudioBackend.h"
-#include "oboromi_core.h"
+#include "kokoromi_core.h"
 
 namespace {
 
@@ -13,10 +13,10 @@ class PipeWireBackend : public AudioBackend {
 public:
     bool open(const AudioFormat &format) {
         pw_init(nullptr, nullptr);
-        if (!(m_loop = pw_thread_loop_new("oboromi-audio", nullptr))) return false;
+        if (!(m_loop = pw_thread_loop_new("kokoromi-audio", nullptr))) return false;
         auto *props = pw_properties_new(PW_KEY_MEDIA_TYPE, "Audio", PW_KEY_MEDIA_CATEGORY, "Playback", PW_KEY_MEDIA_ROLE, "Game", nullptr);
         pw_properties_setf(props, PW_KEY_NODE_LATENCY, "%u/%u", format.period, format.rate);
-        m_stream = pw_stream_new_simple(pw_thread_loop_get_loop(m_loop), "oboromi", props, &kEvents, this);
+        m_stream = pw_stream_new_simple(pw_thread_loop_get_loop(m_loop), "kokoromi", props, &kEvents, this);
         if (!m_stream) return false;
         uint8_t pod[1024];
         auto builder = SPA_POD_BUILDER_INIT(pod, sizeof(pod));
@@ -53,7 +53,7 @@ private:
         if (!buffer) return;
         auto &data = buffer->buffer->datas[0];
         uint32_t frames = std::min<uint64_t>(buffer->requested, data.maxsize / m_stride);
-        oboromi_audio_pull(static_cast<int16_t *>(data.data), frames);
+        kokoromi_audio_pull(static_cast<int16_t *>(data.data), frames);
         data.chunk->offset = 0;
         data.chunk->stride = m_stride;
         data.chunk->size = frames * m_stride;
