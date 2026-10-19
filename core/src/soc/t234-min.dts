@@ -1,0 +1,66 @@
+// The devices SoC mode models, at their tegra234.dtsi addresses and interrupts. `oboromi soc` rewrites the initrd range.
+/dts-v1/;
+
+/ {
+	compatible = "nvidia,tegra234";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&gic>;
+
+	aliases {
+		serial0 = &uarta;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlycon=uart8250,mmio32,0x03100000";
+		stdout-path = "serial0:115200n8";
+		linux,initrd-start = /bits/ 64 <0>;
+		linux,initrd-end = /bits/ 64 <0>;
+	};
+
+	uart_clk: clock-1843200 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <1843200>;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x40000000>;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a78";
+			reg = <0x0>;
+		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <1 13 0xf08>, <1 14 0xf08>, <1 11 0xf08>, <1 10 0xf08>;
+		always-on;
+	};
+
+	gic: interrupt-controller@f400000 {
+		compatible = "arm,gic-v3";
+		reg = <0x0 0x0f400000 0x0 0x10000>, <0x0 0x0f440000 0x0 0x200000>;
+		interrupts = <1 9 0xf04>;
+		#redistributor-regions = <1>;
+		#interrupt-cells = <3>;
+		interrupt-controller;
+	};
+
+	uarta: serial@3100000 {
+		compatible = "nvidia,tegra234-uart", "nvidia,tegra20-uart";
+		reg = <0x0 0x03100000 0x0 0x10000>;
+		interrupts = <0 112 4>;
+		clocks = <&uart_clk>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};
+};

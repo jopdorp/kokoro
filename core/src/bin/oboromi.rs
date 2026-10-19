@@ -1,5 +1,17 @@
 fn main() -> Result<(), String> {
-    let path = match std::env::args().skip(1).collect::<Vec<_>>().as_slice() {
+    let args = std::env::args().skip(1).collect::<Vec<_>>();
+    if matches!(args.as_slice(), [help] if help == "--help")
+        || matches!(args.as_slice(), [run, help] if run == "run" && help == "--help")
+    {
+        println!("oboromi run <file.nro>\noboromi soc --kernel Image --dtb t234-min.dtb --initrd initramfs.cpio\nOBOROMI_EXACT=1 oboromi run <file.nro>\nOBOROMI_CPU=unicorn oboromi run <file.nro>\noboromi-gui");
+        return Ok(());
+    }
+    if let [soc, kernel_flag, kernel, dtb_flag, dtb, initrd_flag, initrd] = args.as_slice()
+        && soc == "soc" && kernel_flag == "--kernel" && dtb_flag == "--dtb" && initrd_flag == "--initrd"
+    {
+        return oboromi_core::soc::boot(kernel.as_ref(), dtb.as_ref(), initrd.as_ref());
+    }
+    let path = match args.as_slice() {
         [command, path] if command == "run" => std::path::PathBuf::from(path),
         _ => return Err("usage: oboromi run <file.nro>".into()),
     };

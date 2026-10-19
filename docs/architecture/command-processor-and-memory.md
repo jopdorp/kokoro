@@ -1,10 +1,10 @@
 # Command processor and memory
 
-The command processor is the GPU's front desk: it reads the command lists a game writes and hands each command to the right engine. Memory follows one rule: the emulated console RAM holds the only real copy of anything. For example, if a game moves a vertex buffer, the next draw reads the new place, because every copy is checked against RAM.
+The command processor is the GPU's front desk: it reads a program's command lists and hands each command to the right engine. Memory follows one rule: the emulated RAM holds the only real copy of anything. For example, if a program moves a vertex buffer, the next draw reads the new place, because every copy is checked against RAM.
 
 ## What does a command look like?
 
-A game puts commands in a pushbuffer, a list of 32-bit words in emulated RAM. It then adds an entry to the GPFIFO, a ring of pointers to those lists. Each command starts with a header word saying which register to write, on which engine, and how many data words follow.
+A program puts commands in a pushbuffer, a list of 32-bit words in emulated RAM. It then adds an entry to the GPFIFO, a ring of pointers to those lists. Each command starts with a header word saying which register to write, on which engine, and how many data words follow.
 
 | Item | Bits | Meaning |
 |---|---|---|

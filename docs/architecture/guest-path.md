@@ -1,6 +1,6 @@
 # Emulator path
 
-The included demos are `no_std` AArch64 images. The loader places an image in emulated RAM, starts it on the emulated CPU and lets it use the same kernel and service boundaries a game uses.
+The included demos are the project's own `no_std` AArch64 images. The loader places an image in emulated RAM, starts it on the emulated CPU and lets it drive the hardware through a small stand-in service layer. That layer follows known Switch 1 interfaces; Nintendo's OS is not emulated.
 
 ```mermaid
 flowchart TB
@@ -23,7 +23,7 @@ The images use the `aarch64-unknown-none` target and are built by `scripts/build
 |---|---|
 | Loader | NRO and flat images |
 | Kernel | System calls, threads, scheduler, memory, events and IPC |
-| GPU services | Allocation, address mapping, channel submission and sync points |
+| GPU service stand-ins | Allocation, address mapping, channel submission and sync points |
 | Display | VI, binder, dequeue, queue and present |
 | Audio | Renderer updates, raw output and live sink |
 | Input and files | HID state and SD-card-backed demo assets |

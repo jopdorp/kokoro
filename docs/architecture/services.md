@@ -1,6 +1,6 @@
 # Services
 
-Games reach hardware-shaped features through system services. The kernel opens a named port, returns a session handle, parses the HIPC and CMIF request, calls the service object and writes the reply into the same IPC buffer.
+The project's own test programs reach the emulated hardware through a small service layer. It is a stand-in, not an emulation of Nintendo's OS, and follows Switch 1 interfaces because those are known. The kernel opens a named port, returns a session handle, parses the HIPC and CMIF request, calls the service object and writes the reply into the same IPC buffer.
 
 ```mermaid
 sequenceDiagram
@@ -27,7 +27,7 @@ sequenceDiagram
 | Time and applet | The calls used by the included images |
 | Filesystem | Files, directories and storage used by the loader and Dungeon assets |
 
-The service registry still provides the broader foundation laid by the original project. Commands outside the implemented paths return errors. Switch 2-only command layouts remain unsupported when public documentation does not define them.
+Commands outside the paths used by the test programs return errors. No Switch 2 service ABI was used to build this layer.
 
 Verified by: the kernel IPC, nvdrv, VI, binder, audio, input, time, applet and filesystem tests, plus the end-to-end demo tests.
 

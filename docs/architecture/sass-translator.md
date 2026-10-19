@@ -1,6 +1,6 @@
 # SASS translator
 
-The Switch 2's GPU runs NVIDIA machine code called SASS, which an Intel or AMD card cannot run. The translator rewrites each SASS program into SPIR-V, the shader format every Vulkan driver accepts. For example, `FADD R0, R1, R2` becomes "load the source registers from an array, add them as floats, store the sum".
+Ampere GPUs run NVIDIA machine code called SASS, which an Intel or AMD card cannot run. The translator rewrites each SASS program into SPIR-V, the shader format every Vulkan driver accepts. For example, `FADD R0, R1, R2` becomes "load the source registers from an array, add them as floats, store the sum".
 
 ## How are instructions decoded?
 
@@ -15,7 +15,7 @@ A generator reads the instruction table NVIDIA's disassembler, nvdisasm, carries
 | Alternate-syntax classes | Skipped, so a shorthand never hides the real instruction |
 | Unknown word | Panics |
 
-Why the SM86 table works for the Switch 2: NVIDIA's disassembler ships byte-identical tables for the desktop chip and the Switch 2 chip. See [ADR-0007](../adr/0007-t239-decodes-with-the-sm86-table.md).
+Why the translator uses the SM86 table for its Switch 2 target: NVIDIA's disassembler ships byte-identical tables for SM86 and SM88. No Switch 2 shader has been used to validate that choice. See [ADR-0007](../adr/0007-t239-decodes-with-the-sm86-table.md).
 
 ## Where does the emulated GPU state live?
 
@@ -134,7 +134,7 @@ Compute, vertex, fragment, geometry, tessellation and ray-query programs all pas
 
 ## How are exact NVIDIA shaders built?
 
-The NVIDIA driver is used on the GPU pod when exact SASS is required. The repository also carries a NAK offline compiler built from Mesa. Its binding shim lays out textures and uniform buffers the way the emulator expects and writes the shader header plus machine code.
+The NVIDIA driver is used on a desktop sm_86 card when exact SASS is required. The repository also carries a NAK offline compiler built from Mesa. Its binding shim lays out textures and uniform buffers the way the emulator expects and writes the shader header plus machine code.
 
 | NAK result | Difference from driver output |
 |---|---:|

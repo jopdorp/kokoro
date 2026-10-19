@@ -1,6 +1,6 @@
 # GPU pipeline
 
-A game draws by writing a list of commands into memory and telling the GPU where the list is. The emulator reads that list, collects the settings for each draw, rewrites the game's shaders for Vulkan, and draws on the PC's graphics card. For example, a triangle takes a handful of commands: where the shaders are, where the vertices are, the viewport, then "draw".
+A program draws by writing a list of commands into memory and telling the GPU where the list is. The emulator reads that list, collects the settings for each draw, rewrites its Ampere machine code for Vulkan, and draws on the PC's graphics card. For example, a triangle takes a handful of commands: where the shaders are, where the vertices are, the viewport, then "draw".
 
 ## How does a draw reach Vulkan?
 
@@ -27,7 +27,7 @@ sequenceDiagram
     Note over E,RAM: The display reads the finished image from emulated RAM
 ```
 
-*One draw, from the game's command list to pixels back in console memory.*
+*One draw, from the program's command list to pixels back in emulated memory.*
 
 The words on this path:
 

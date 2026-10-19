@@ -10,7 +10,7 @@ A decision record, or ADR, explains one design choice: the problem, the choice, 
 | [0004](0004-backing-memory-authority-for-coherence.md) | Emulated RAM is the one true copy; host copies check a write counter |
 | [0005](0005-hmma-exact-accumulation-as-dontunroll-loops.md) | Matrix sums copy the chip exactly, written as small loops |
 | [0006](0006-synchronous-pusher-with-draw-snapshots.md) | GPU commands run one after another, each draw with frozen settings |
-| [0007](0007-t239-decodes-with-the-sm86-table.md) | The Switch 2 chip decodes with the desktop instruction table |
+| [0007](0007-t239-decodes-with-the-sm86-table.md) | Use the desktop instruction table for the T239 target |
 | [0008](0008-silicon-first-verification.md) | Real chips are the reference, known differences are listed per device |
 
 Each record follows the MADR template and names its component in the front matter.
