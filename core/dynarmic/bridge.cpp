@@ -10,11 +10,16 @@
 #include <limits>
 #include <memory>
 #include <utility>
+#include <vector>
 
 namespace {
 constexpr std::uint64_t tick_hz = 19'200'000;
 constexpr std::uint64_t memory_base = 0x8000'0000;
+constexpr std::size_t page_table_bits = 34;
 using WriteCallback = void (*)(void*, std::uint64_t, std::size_t);
+using ReadBus = bool (*)(void*, std::uint64_t, std::size_t, std::uint64_t*);
+using WriteBus = bool (*)(void*, std::uint64_t, std::size_t, std::uint64_t);
+using Sysreg = bool (*)(void*, std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t, bool, std::uint64_t*);
 
 struct Context {
     std::uint64_t x[31], v[64], sp, pc, tls, tpidr, daif;
@@ -30,15 +35,19 @@ struct Callbacks final : Dynarmic::A64::UserCallbacks {
     std::uint8_t* memory{};
     std::uint64_t size{};
     WriteCallback write_callback{};
+    ReadBus read_bus{};
+    WriteBus write_bus{};
+    Sysreg sysreg{};
     void* write_data{};
     Dynarmic::A64::Jit* jit{};
     std::uint64_t tls{}, tpidr{}, daif{}, ticks{}, deadline{std::numeric_limits<std::uint64_t>::max()}, tick_scale{192};
     std::uint64_t sctlr{}, tcr{}, ttbr0{}, ttbr1{}, mair{}, vbar{}, spsr{}, elr{}, esr{}, far{};
     std::uint64_t sp_el0{}, sp_el1{}, cntv_ctl{}, cntv_cval{}, exception_pc{}, abort_esr{}, abort_far{};
     std::array<TlbEntry, 256> tlb{};
+    std::vector<void*> page_table;
     std::uint32_t svc{std::numeric_limits<std::uint32_t>::max()}, core{};
     std::uint8_t current_el{1};
-    bool virtual_time{}, fault{}, resume{}, guest_kernel{}, irq{}, fiq{}, waiting{}, exception_pending{}, abort_pending{};
+    bool virtual_time{}, fault{}, resume{}, guest_kernel{}, watched{}, irq{}, fiq{}, waiting{}, exception_pending{}, abort_pending{};
 
     std::uint64_t now() const {
         if (virtual_time) return ticks;
@@ -52,9 +61,18 @@ struct Callbacks final : Dynarmic::A64::UserCallbacks {
         return true;
     }
     void stop_fault() { fault = true; if (jit) jit->HaltExecution(Dynarmic::HaltReason::MemoryAbort); }
-    void invalidate() {
+    void clear_tlb() {
         for (auto& entry : tlb) entry.tag = std::numeric_limits<std::uint64_t>::max();
+        std::fill(page_table.begin(), page_table.end(), nullptr);
+    }
+    void invalidate() {
+        clear_tlb();
         if (jit) jit->ClearCache();
+    }
+    void cache_page(std::uint64_t va, std::uint64_t pa, std::uint8_t permissions) {
+        std::uint64_t offset;
+        if (!page_table.empty() && !watched && permissions == 7 && va < (std::uint64_t{1} << page_table_bits) && physical(pa & ~0xfff, 0x1000, offset))
+            page_table[va >> 12] = memory + offset;
     }
     std::uint8_t walk(std::uint64_t va, std::uint8_t access, std::uint64_t& pa, std::uint8_t& permissions) {
         if (!(sctlr & 1)) { pa = va; permissions = 7; return 0; }
@@ -102,7 +120,7 @@ struct Callbacks final : Dynarmic::A64::UserCallbacks {
     void take_exception(std::uint64_t syndrome, std::uint64_t address, std::uint64_t pc, std::uint64_t offset) {
         const bool lower = current_el == 0;
         spsr = jit->GetPstate() | daif | (lower ? 0 : 5); elr = pc; esr = syndrome; far = address;
-        if (lower) { sp_el0 = jit->GetSP(); jit->SetSP(sp_el1); }
+        if (lower) { sp_el0 = jit->GetSP(); jit->SetSP(sp_el1); clear_tlb(); }
         current_el = 1; daif |= 0x3c0; waiting = false;
         exception_pc = vbar + (lower ? 0x400 : 0x200) + offset;
         exception_pending = true;
@@ -122,8 +140,13 @@ struct Callbacks final : Dynarmic::A64::UserCallbacks {
             if (const auto status = walk(address + done, access, pa, permissions)) { abort(address + done, access, status); break; }
             const auto chunk = std::min(sizeof(T) - done, static_cast<std::size_t>(0x1000 - (pa & 0xfff)));
             std::uint64_t offset;
-            if (!physical(pa, chunk, offset)) { abort(address + done, access, 0x10); break; }
-            std::memcpy(out + done, memory + offset, chunk); done += chunk;
+            if (physical(pa, chunk, offset)) { std::memcpy(out + done, memory + offset, chunk); cache_page(address + done, pa, permissions); }
+            else {
+                std::uint64_t value{};
+                if (!read_bus || !read_bus(write_data, pa, chunk, &value)) { abort(address + done, access, 0x10); break; }
+                std::memcpy(out + done, &value, chunk);
+            }
+            done += chunk;
         }
         return value;
     }
@@ -134,9 +157,14 @@ struct Callbacks final : Dynarmic::A64::UserCallbacks {
             if (const auto status = walk(address + done, 2, pa, permissions)) { abort(address + done, 2, status); return; }
             const auto chunk = std::min(sizeof(T) - done, static_cast<std::size_t>(0x1000 - (pa & 0xfff)));
             std::uint64_t offset;
-            if (!physical(pa, chunk, offset)) { abort(address + done, 2, 0x10); return; }
-            std::memcpy(memory + offset, in + done, chunk);
-            if (write_callback) write_callback(write_data, offset, chunk);
+            if (physical(pa, chunk, offset)) {
+                std::memcpy(memory + offset, in + done, chunk);
+                if (write_callback) write_callback(write_data, offset, chunk);
+                cache_page(address + done, pa, permissions);
+            } else {
+                std::uint64_t value{}; std::memcpy(&value, in + done, chunk);
+                if (!write_bus || !write_bus(write_data, pa, chunk, value)) { abort(address + done, 2, 0x10); return; }
+            }
             done += chunk;
         }
     }
@@ -179,7 +207,7 @@ struct Callbacks final : Dynarmic::A64::UserCallbacks {
             else {
                 const bool lower = (spsr & 0xf) == 0;
                 current_el = lower ? 0 : 1; jit->SetPstate(spsr); daif = spsr & 0x3c0; jit->SetPC(elr);
-                if (lower) { sp_el1 = jit->GetSP(); jit->SetSP(sp_el0); }
+                if (lower) { sp_el1 = jit->GetSP(); jit->SetSP(sp_el0); clear_tlb(); }
             }
         } else if ((instruction & 0xffff'f000) == 0xd508'8000) {
             if (!current_el) take_exception(0, 0, pc, 0); else { invalidate(); jit->SetPC(pc + 4); }
@@ -201,7 +229,13 @@ struct Callbacks final : Dynarmic::A64::UserCallbacks {
                 case 0xdf18: cntv_cval = now() + static_cast<std::int32_t>(value); break;
                 case 0xdf19: cntv_ctl = value & 3; break;
                 case 0xdf1a: cntv_cval = value; break;
-                default: take_exception(0, 0, pc, 0); break;
+                default: {
+                    const auto op0 = instruction >> 19 & 3, op1 = instruction >> 16 & 7;
+                    const auto crn = instruction >> 12 & 15, crm = instruction >> 8 & 15, op2 = instruction >> 5 & 7;
+                    auto forwarded = value;
+                    if (!sysreg || !sysreg(write_data, op0, op1, crn, crm, op2, true, &forwarded)) take_exception(0, 0, pc, 0);
+                    break;
+                }
                 }
                 if (jit->GetPC() == pc) jit->SetPC(pc + 4);
             }
@@ -222,7 +256,12 @@ struct Callbacks final : Dynarmic::A64::UserCallbacks {
                 case 0xdf01: case 0xdf02: result = now(); break;
                 case 0xdf18: result = static_cast<std::uint32_t>(cntv_cval - now()); break;
                 case 0xdf19: result = cntv_ctl | std::uint64_t((cntv_ctl & 1) && now() >= cntv_cval) << 2; break;
-                case 0xdf1a: result = cntv_cval; break; default: take_exception(0, 0, pc, 0); break;
+                case 0xdf1a: result = cntv_cval; break; default: {
+                    const auto op0 = instruction >> 19 & 3, op1 = instruction >> 16 & 7;
+                    const auto crn = instruction >> 12 & 15, crm = instruction >> 8 & 15, op2 = instruction >> 5 & 7;
+                    if (!sysreg || !sysreg(write_data, op0, op1, crn, crm, op2, false, &result)) take_exception(0, 0, pc, 0);
+                    break;
+                }
                 }
                 set(result); if (jit->GetPC() == pc) jit->SetPC(pc + 4);
             }
@@ -253,8 +292,9 @@ struct Callbacks final : Dynarmic::A64::UserCallbacks {
 };
 
 struct Cpu {
-    Cpu(Monitor* monitor_, std::size_t id_, std::uint8_t* memory_, std::uint64_t size_, WriteCallback callback_, void* data_) : monitor(monitor_), id(id_) {
-        callbacks.memory = memory_; callbacks.size = size_; callbacks.write_callback = callback_; callbacks.write_data = data_; rebuild(true);
+    Cpu(Monitor* monitor_, std::size_t id_, std::uint8_t* memory_, std::uint64_t size_, WriteCallback callback_, ReadBus read_bus_, WriteBus write_bus_, Sysreg sysreg_, void* data_) : monitor(monitor_), id(id_) {
+        callbacks.memory = memory_; callbacks.size = size_; callbacks.write_callback = callback_; callbacks.read_bus = read_bus_;
+        callbacks.write_bus = write_bus_; callbacks.sysreg = sysreg_; callbacks.write_data = data_; rebuild(true);
     }
     Dynarmic::A64::UserConfig config(bool fastmem) {
         Dynarmic::A64::UserConfig config{&callbacks};
@@ -262,6 +302,11 @@ struct Cpu {
         config.tpidrro_el0 = &callbacks.tls; config.tpidr_el0 = &callbacks.tpidr;
         config.fastmem_exclusive_access = false; config.silently_mirror_fastmem = false; config.fastmem_address_space_bits = 34;
         config.check_halt_on_memory_access = callbacks.guest_kernel; config.hook_hint_instructions = callbacks.guest_kernel;
+        if (callbacks.guest_kernel && !callbacks.watched) {
+            config.page_table = callbacks.page_table.data(); config.page_table_address_space_bits = page_table_bits;
+            config.silently_mirror_page_table = false; config.detect_misaligned_access_via_page_table = 8 | 16 | 32 | 64 | 128;
+            config.only_detect_misalignment_via_page_table_on_page_boundary = true;
+        }
         if (fastmem && !callbacks.guest_kernel) config.fastmem_pointer = reinterpret_cast<std::uintptr_t>(callbacks.memory);
         return config;
     }
@@ -288,25 +333,35 @@ struct Cpu {
 extern "C" {
 Monitor* oboromi_dynarmic_monitor_new() { return new Monitor; }
 void oboromi_dynarmic_monitor_free(Monitor* monitor) { delete monitor; }
-Cpu* oboromi_dynarmic_cpu_new(Monitor* monitor, std::size_t id, std::uint8_t* memory, std::uint64_t size, WriteCallback callback, void* data) {
-    try { return new Cpu(monitor, id, memory, size, callback, data); } catch (...) { return nullptr; }
+Cpu* oboromi_dynarmic_cpu_new(Monitor* monitor, std::size_t id, std::uint8_t* memory, std::uint64_t size, WriteCallback callback, ReadBus read_bus, WriteBus write_bus, Sysreg sysreg, void* data) {
+    try { return new Cpu(monitor, id, memory, size, callback, read_bus, write_bus, sysreg, data); } catch (...) { return nullptr; }
 }
 void oboromi_dynarmic_cpu_free(Cpu* cpu) { delete cpu; }
-void oboromi_dynarmic_set_watched(Cpu* cpu, bool watched) { if (!cpu->callbacks.guest_kernel && cpu->using_fastmem == watched) cpu->rebuild(!watched); }
+void oboromi_dynarmic_set_watched(Cpu* cpu, bool watched) {
+    if (!cpu->callbacks.guest_kernel) { if (cpu->using_fastmem == watched) cpu->rebuild(!watched); return; }
+    if (cpu->callbacks.watched != watched) { cpu->callbacks.watched = watched; cpu->callbacks.invalidate(); cpu->rebuild(false); }
+}
 void oboromi_dynarmic_set_guest_kernel(Cpu* cpu, bool enabled) {
     if (cpu->callbacks.guest_kernel == enabled) return;
     auto sp = cpu->jit->GetSP(); cpu->callbacks.guest_kernel = enabled; cpu->callbacks.current_el = 1;
+    if (enabled) cpu->callbacks.page_table.assign(std::size_t{1} << (page_table_bits - 12), nullptr);
     cpu->callbacks.sp_el1 = enabled ? sp + memory_base : sp - memory_base; cpu->callbacks.invalidate(); cpu->rebuild(!enabled); cpu->jit->SetSP(cpu->callbacks.sp_el1);
+    if (!enabled) { cpu->callbacks.page_table.clear(); cpu->callbacks.page_table.shrink_to_fit(); }
 }
 void oboromi_dynarmic_set_interrupt_lines(Cpu* cpu, bool irq, bool fiq) { cpu->callbacks.irq = irq; cpu->callbacks.fiq = fiq; }
 void oboromi_dynarmic_set_virtual_time(Cpu* cpu, bool enabled) { cpu->callbacks.virtual_time = enabled; }
 void oboromi_dynarmic_set_tick_scale(Cpu* cpu, std::uint64_t scale) { cpu->callbacks.tick_scale = scale; }
 std::uint64_t oboromi_dynarmic_ticks(const Cpu* cpu) { return cpu->callbacks.now(); }
+bool oboromi_dynarmic_timer_pending(const Cpu* cpu) { return (cpu->callbacks.cntv_ctl & 3) == 1 && cpu->callbacks.now() >= cpu->callbacks.cntv_cval; }
 bool oboromi_dynarmic_idle_until(Cpu* cpu, std::uint64_t deadline) { if (cpu->callbacks.virtual_time) cpu->callbacks.ticks = std::max(cpu->callbacks.ticks, deadline); return cpu->callbacks.virtual_time; }
 bool oboromi_dynarmic_run(Cpu* cpu, std::uint64_t deadline, std::uint32_t core, bool* sliced) {
     cpu->callbacks.deadline = deadline; cpu->callbacks.svc = std::numeric_limits<std::uint32_t>::max(); cpu->callbacks.fault = false; cpu->callbacks.core = core;
     cpu->jit->ClearHalt(); cpu->callbacks.deliver_interrupts();
-    if (cpu->callbacks.waiting && !cpu->callbacks.interrupt_pending() && !cpu->callbacks.fiq) { *sliced = true; return true; }
+    if (cpu->callbacks.waiting && !cpu->callbacks.interrupt_pending() && !cpu->callbacks.fiq) {
+        if (cpu->callbacks.virtual_time && (cpu->callbacks.cntv_ctl & 3) == 1 && cpu->callbacks.cntv_cval <= deadline)
+            cpu->callbacks.ticks = std::max(cpu->callbacks.ticks, cpu->callbacks.cntv_cval);
+        *sliced = true; return true;
+    }
     Dynarmic::HaltReason reason{};
     for (;;) {
         if (cpu->callbacks.exception_pending) { cpu->jit->SetPC(cpu->callbacks.exception_pc); cpu->callbacks.exception_pending = false; }

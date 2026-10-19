@@ -5,7 +5,7 @@ use std::cell::Cell;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
-use crate::soc::Bus;
+use crate::soc::{Bus, IrqLine};
 use unicorn_engine::{Arch, Arm64Insn, Context, HookType, MemType, Mode, Prot, Query, RegisterARM64, RegisterARM64CP, TlbType, Unicorn, uc_error};
 
 const EXCP_SWI: u32 = 2;
@@ -42,6 +42,8 @@ struct RunState {
     cntv_cval: u64,
     exception_taken: bool,
     last_data: u64,
+    bus: Option<Arc<Mutex<Bus>>>,
+    resume_pc: Option<u64>,
 }
 
 type Emu = Unicorn<'static, RunState>;
@@ -81,6 +83,7 @@ pub struct UnicornCPU {
     ram: Arc<GuestRam>,
     pub core_id: u32,
     view: usize,
+    timer_irq: Option<IrqLine>,
 }
 
 fn cp(op1: u32, crn: u32, crm: u32, op2: u32, value: u64) -> RegisterARM64CP {
@@ -158,8 +161,8 @@ fn fault_address(uc: &mut Unicorn<'_, RunState>) -> u64 {
     uc.get_data().last_data
 }
 
-fn new_emu() -> Result<Emu, uc_error> {
-    let mut emu = Unicorn::new_with_data(Arch::ARM64, Mode::LITTLE_ENDIAN, RunState { svc: None, clock: Clock { epoch: Instant::now(), virtual_time: Cell::new(false), block_ticks: Cell::new(192), ticks: Cell::new(0), core: Cell::new(0) }, dirty_pages: Vec::new(), guest_kernel: false, irq: false, fiq: false, waiting: false, cntv_ctl: 0, cntv_cval: 0, exception_taken: false, last_data: 0 })?;
+fn new_emu(bus: Option<Arc<Mutex<Bus>>>) -> Result<Emu, uc_error> {
+    let mut emu = Unicorn::new_with_data(Arch::ARM64, Mode::LITTLE_ENDIAN, RunState { svc: None, clock: Clock { epoch: Instant::now(), virtual_time: Cell::new(false), block_ticks: Cell::new(192), ticks: Cell::new(0), core: Cell::new(0) }, dirty_pages: Vec::new(), guest_kernel: false, irq: false, fiq: false, waiting: false, cntv_ctl: 0, cntv_cval: 0, exception_taken: false, last_data: 0, bus, resume_pc: None })?;
     emu.add_intr_hook(|uc, intno| {
         if intno == EXCP_SWI {
             let mut insn = [0; 4];
@@ -189,6 +192,13 @@ fn new_emu() -> Result<Emu, uc_error> {
         if uc.get_data().guest_kernel && cp.op1 != 3 && uc.reg_read(RegisterARM64::PSTATE).is_ok_and(|pstate| pstate & 0xf == 0) {
             let _ = exception(uc, 0, 0);
             return true;
+        }
+        if let Some(bus) = uc.get_data().bus.clone()
+            && let Some(value) = bus.lock().unwrap().gic.sysreg((cp.op0, cp.op1, cp.crn, cp.crm, cp.op2), None)
+        {
+            let stopped = uc.reg_write(reg, value).and_then(|()| uc.emu_stop()).is_ok();
+            if stopped { uc.get_data_mut().resume_pc = uc.pc_read().ok().map(|pc| pc + 4); }
+            return stopped;
         }
         let data = uc.get_data();
         let value = match (cp.op0, cp.op1, cp.crn, cp.crm, cp.op2) {
@@ -223,6 +233,13 @@ fn new_emu() -> Result<Emu, uc_error> {
             return true;
         }
         let now = uc.get_data().clock.now();
+        if let Some(bus) = uc.get_data().bus.clone()
+            && bus.lock().unwrap().gic.sysreg((cp.op0, cp.op1, cp.crn, cp.crm, cp.op2), Some(cp.val)).is_some()
+        {
+            let stopped = uc.emu_stop().is_ok();
+            if stopped { uc.get_data_mut().resume_pc = uc.pc_read().ok().map(|pc| pc + 4); }
+            return stopped;
+        }
         match (cp.op0, cp.op1, cp.crn, cp.crm, cp.op2) {
             (3, 3, 4, 2, 0) => return uc.reg_write(RegisterARM64::NZCV, cp.val).is_ok(),
             (3, 3, 4, 2, 1) => {
@@ -271,29 +288,30 @@ impl UnicornCPU {
 
     /// Create a new Unicorn instance mapping `ram` at guest address 0
     pub fn new_with_shared_mem(core_id: u32, ram: Arc<GuestRam>) -> Option<Self> {
-        Self::with_memory(core_id, ram, 0, |_| Ok(()))
+        Self::with_memory(core_id, ram, 0, None, None, |_| Ok(()))
     }
 
     /// One core with `ram` at `ram_base` and every bus region trapping into `bus`, entered at EL1h with DAIF masked
     /// as the arm64 boot protocol requires. Unicorn resets into EL3, so SCR_EL3.{NS,RW} and HCR_EL2.RW make EL1
     /// non-secure AArch64 and CNTHCTL_EL2 stops EL2 trapping the EL1 timer.
     pub fn soc(ram: Arc<GuestRam>, ram_base: u64, bus: Arc<Mutex<Bus>>) -> Option<Self> {
-        Self::with_memory(0, ram, ram_base, |emu| {
+        let timer_irq = IrqLine::default();
+        bus.lock().unwrap().gic.connect(27, timer_irq.clone());
+        Self::with_memory(0, ram, ram_base, Some(bus.clone()), Some(timer_irq), |emu| {
             for region in bus.lock().unwrap().regions() {
                 let (base, reads, writes) = (region.start, bus.clone(), bus.clone());
                 emu.mmio_map(base, region.end - base,
                     Some(move |_: &mut Unicorn<'_, RunState>, offset, size| reads.lock().unwrap().read(base + offset, size).unwrap_or(0)),
                     Some(move |_: &mut Unicorn<'_, RunState>, offset, size, value| { writes.lock().unwrap().write(base + offset, size, value); }))?;
             }
-            for (op1, crn, crm, val) in [(6, 1, 1, 0x401), (4, 1, 1, 1 << 31), (4, 14, 1, 3)] {
-                emu.reg_write_arm64_coproc(&RegisterARM64CP { crn, crm, op0: 3, op1, op2: 0, val })?;
-            }
-            emu.reg_write(RegisterARM64::PSTATE, 0x3c5)
+            emu.ctl_set_tlb_type(TlbType::CPU)?;
+            emu.get_data_mut().guest_kernel = true;
+            Ok(())
         })
     }
 
-    fn with_memory(core_id: u32, ram: Arc<GuestRam>, ram_base: u64, map: impl FnOnce(&mut Emu) -> Result<(), uc_error>) -> Option<Self> {
-        let mut emu = new_emu()
+    fn with_memory(core_id: u32, ram: Arc<GuestRam>, ram_base: u64, bus: Option<Arc<Mutex<Bus>>>, timer_irq: Option<IrqLine>, map: impl FnOnce(&mut Emu) -> Result<(), uc_error>) -> Option<Self> {
+        let mut emu = new_emu(bus)
             .inspect_err(|e| {
                 eprintln!("Failed to create Unicorn instance for core {}: {:?}", core_id, e);
             })
@@ -316,7 +334,7 @@ impl UnicornCPU {
 
         let initial = emu.context_init().ok()?;
         let views = vec![emu.context_init().ok()?];
-        Some(Self { emu: Arc::new(Mutex::new(Engine { emu, initial, views, active: 0, hooked: 0 })), ram, core_id, view: 0 })
+        Some(Self { emu: Arc::new(Mutex::new(Engine { emu, initial, views, active: 0, hooked: 0 })), ram, core_id, view: 0, timer_irq })
     }
 
     /// Locks the core and takes the RAM turn, first hooking writes to the ranges the GPU mapped since the last lock.
@@ -353,7 +371,7 @@ impl UnicornCPU {
         let mut context = engine.context_init().expect("core context");
         context.reg_write(RegisterARM64::SP, self.ram.size() as u64 - u64::from(core_id) * 0x100000).expect("core stack");
         engine.views.push(context);
-        Self { emu: Arc::clone(&self.emu), ram: Arc::clone(&self.ram), core_id, view: core_id as usize }
+        Self { emu: Arc::clone(&self.emu), ram: Arc::clone(&self.ram), core_id, view: core_id as usize, timer_irq: self.timer_irq.clone() }
     }
 
     #[cfg(test)]
@@ -390,14 +408,21 @@ impl UnicornCPU {
         emu.get_data().clock.core.set(core as u32);
         let virtual_time = emu.get_data().clock.virtual_time.get();
         let remaining = deadline.saturating_sub(emu.get_data().clock.now());
-        if remaining == 0 { return Ok(true); }
-        let timer = emu.get_data().cntv_ctl & 3 == 1 && emu.get_data().clock.now() >= emu.get_data().cntv_cval;
-        let (irq, fiq, waiting) = { let data = emu.get_data(); (data.irq || timer, data.fiq, data.waiting) };
+        if remaining == 0 {
+            if let Some(line) = &self.timer_irq { line.set(emu.get_data().cntv_ctl & 3 == 1 && emu.get_data().clock.now() >= emu.get_data().cntv_cval); }
+            return Ok(true);
+        }
+        let (irq, fiq, waiting) = { let data = emu.get_data(); (data.irq, data.fiq, data.waiting) };
         let pstate = emu.reg_read(RegisterARM64::PSTATE)?;
         if fiq && pstate & 0x40 == 0 || irq && pstate & 0x80 == 0 {
             emu.get_data_mut().waiting = false;
             exception(&mut emu, 0, if fiq { 0x100 } else { 0x80 })?;
         } else if waiting {
+            let data = emu.get_data();
+            if virtual_time && data.cntv_ctl & 3 == 1 && data.cntv_cval <= deadline {
+                data.clock.ticks.set(data.clock.ticks.get().max(data.cntv_cval));
+            }
+            if let Some(line) = &self.timer_irq { line.set(data.cntv_ctl & 3 == 1 && data.clock.now() >= data.cntv_cval); }
             return Ok(true);
         }
         let block_ticks = emu.get_data().clock.block_ticks.get();
@@ -406,6 +431,8 @@ impl UnicornCPU {
         let pc = emu.pc_read()?;
         let result = emu.emu_start(pc, u64::MAX, timeout, count);
         self.flush_dirty(&mut emu);
+        let resume_pc = emu.get_data_mut().resume_pc.take();
+        if let Some(pc) = resume_pc { emu.reg_write(RegisterARM64::PC, pc)?; }
         let exception_taken = emu.get_data().exception_taken;
         emu.get_data_mut().exception_taken = false;
         if !exception_taken { result?; }
@@ -418,10 +445,11 @@ impl UnicornCPU {
         }
         let sliced = if virtual_time { emu.get_data().svc.is_none() } else { emu.query(Query::TIMEOUT)? != 0 };
         if virtual_time && block_ticks != 0 {
-            let elapsed = if sliced { remaining } else { block_ticks };
+            let elapsed = if sliced && resume_pc.is_none() { remaining } else { block_ticks };
             let clock = &emu.get_data().clock;
             clock.ticks.set(clock.ticks.get().saturating_add(elapsed));
         }
+        if let Some(line) = &self.timer_irq { line.set(emu.get_data().cntv_ctl & 3 == 1 && emu.get_data().clock.now() >= emu.get_data().cntv_cval); }
         Ok(sliced)
     }
 
@@ -720,9 +748,8 @@ impl Cpu for UnicornCPU {
         emu.reg_write(RegisterARM64::SP, stack).expect("stack");
         emu.reg_write(RegisterARM64::SP_EL1, stack).expect("EL1 stack");
     }
-    fn set_interrupt_lines(&self, irq: bool, fiq: bool) {
+    fn raise_irq(&self, line: u32, level: bool) {
         let mut emu = self.lock().0;
-        emu.get_data_mut().irq = irq;
-        emu.get_data_mut().fiq = fiq;
+        if line == 0 { emu.get_data_mut().fiq = level } else if line == 1 { emu.get_data_mut().irq = level }
     }
 }

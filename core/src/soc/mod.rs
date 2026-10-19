@@ -5,7 +5,8 @@
 pub mod gic;
 pub mod uart;
 
-use crate::cpu::{Cpu, GuestRam, UnicornCPU};
+use crate::cpu::{Cpu, DynarmicCPU, DynarmicGroup, GuestRam, UnicornCPU};
+use crate::cpu::cpu_manager::{CpuBackend, CpuManager};
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, VecDeque};
 use std::io::{BufReader, Read, Write};
@@ -34,7 +35,6 @@ impl IrqLine {
         self.0.load(Ordering::Relaxed)
     }
 }
-
 /// Device callbacks in emulated-tick order; callbacks due at the same tick run in the order they were scheduled.
 #[derive(Default)]
 pub struct EventQueue {
@@ -66,7 +66,6 @@ impl EventQueue {
         Some((device, kind))
     }
 }
-
 pub trait Device: Send {
     fn read(&mut self, offset: u64, size: usize, events: &mut EventQueue) -> u64;
     fn write(&mut self, offset: u64, size: usize, value: u64, events: &mut EventQueue);
@@ -145,6 +144,7 @@ impl Bus {
 
     /// Runs every event due by `now` and returns when the next one is due.
     pub fn advance(&mut self, now: u64, mut raise_irq: impl FnMut(u32, bool)) -> Option<u64> {
+        self.gic.sample();
         raise_irq(0, self.gic.fiq.level());
         raise_irq(1, self.gic.irq.level());
         while let Some((index, kind)) = self.events.pop(now) {
@@ -217,16 +217,22 @@ pub fn boot(kernel: &std::path::Path, dtb: &std::path::Path, initrd: &std::path:
     let mut bus = Bus::new(ram.clone(), RAM_BASE);
     bus.attach(UART_A, 0x1_0000, Box::new(uart::Uart::new(Box::new(console), input)), 32 + UART_A_SPI);
     let bus = Arc::new(Mutex::new(bus));
-    let cpu = UnicornCPU::soc(ram, RAM_BASE, bus.clone()).ok_or("CPU engine")?;
+    let cpu: Box<dyn Cpu> = match CpuManager::default_backend() {
+        CpuBackend::Unicorn => Box::new(UnicornCPU::soc(ram, RAM_BASE, bus.clone()).ok_or("CPU engine")?),
+        CpuBackend::Dynarmic => {
+            let group = DynarmicGroup::new().ok_or("Dynarmic monitor")?;
+            Box::new(DynarmicCPU::soc(&group, 0, ram, bus.clone()).ok_or("CPU engine")?)
+        }
+    };
     cpu.set_virtual_time(true);
     for (register, value) in [(0, fdt), (1, 0), (2, 0), (3, 0)] {
         cpu.set_x(register, value);
     }
     cpu.set_pc(entry);
     loop {
-        let now = Cpu::ticks(&cpu);
-        let next = bus.lock().unwrap().advance(now, |_, _| {}).unwrap_or(u64::MAX).min(now + SLICE_TICKS);
-        match Cpu::run_slice(&cpu, next, 0) {
+        let now = cpu.ticks();
+        let next = bus.lock().unwrap().advance(now, |line, level| cpu.raise_irq(line, level)).unwrap_or(u64::MAX).min(now + SLICE_TICKS);
+        match cpu.run_slice(next, 0) {
             Ok(true) => {}
             stopped => {
                 return Err(format!("core stopped at pc {:#x} ({})", cpu.get_pc(), if stopped.is_ok() { "exception" } else { "fault" }));
@@ -235,45 +241,3 @@ pub fn boot(kernel: &std::path::Path, dtb: &std::path::Path, initrd: &std::path:
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn uart_output_and_interrupt_follow_event_order() {
-        struct Cpu {
-            irq: bool,
-            order: Arc<Mutex<Vec<u16>>>,
-        }
-        impl Cpu {
-            fn raise_irq(&mut self, line: u32, level: bool) {
-                if line == 1 && level != self.irq {
-                    self.irq = level;
-                    if level {
-                        self.order.lock().unwrap().push(0x100);
-                    }
-                }
-            }
-        }
-
-        let order = Arc::new(Mutex::new(Vec::new()));
-        let console = order.clone();
-        let input = Arc::new(Mutex::new(VecDeque::from([b'I'])));
-        let mut bus = Bus::new(GuestRam::new(0x1000), RAM_BASE);
-        bus.attach(UART_A, 0x1_0000, Box::new(uart::Uart::new(Box::new(move |byte| console.lock().unwrap().push(byte.into())), input)), 32 + UART_A_SPI);
-        let (word, bit) = ((32 + UART_A_SPI) / 32, 1 << (UART_A_SPI % 32));
-        bus.write(GIC_BASE + 0x80 + u64::from(word * 4), 4, bit).unwrap();
-        bus.write(GIC_BASE + 0x100 + u64::from(word * 4), 4, bit).unwrap();
-        bus.write(GIC_BASE, 4, 2).unwrap();
-        bus.gic.sysreg((3, 0, 4, 6, 0), Some(0xff));
-        bus.gic.sysreg((3, 0, 12, 12, 7), Some(1));
-        bus.write(UART_A + 4, 4, 1).unwrap();
-        bus.write(UART_A, 4, b'O'.into()).unwrap();
-
-        let mut cpu = Cpu { irq: false, order: order.clone() };
-        bus.advance(2_000, |line, level| cpu.raise_irq(line, level));
-
-        assert_eq!(*order.lock().unwrap(), [0x100, b'O'.into()]);
-        assert_eq!(bus.gic.sysreg((3, 0, 12, 12, 0), None), Some((32 + UART_A_SPI).into()));
-    }
-}

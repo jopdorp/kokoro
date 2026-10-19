@@ -1,7 +1,9 @@
 use crate::cpu::cpu_manager::MEMORY_BASE;
 use crate::cpu::{Cpu, DynarmicCPU, DynarmicGroup, GuestRam, UnicornCPU};
+use crate::soc::{gic, uart, Bus, GIC_BASE, RAM_BASE, UART_A, UART_A_SPI};
+use std::collections::VecDeque;
 use std::process::Command;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 fn payload() -> Vec<u8> {
     let directory = std::path::PathBuf::from(std::env::var("TMPDIR").unwrap_or_else(|_| "/home/jopdorp/.cache/tmp".into())).join(format!("oboromi-soc-{}", std::process::id()));
@@ -14,6 +16,13 @@ fn payload() -> Vec<u8> {
         r#"
 .section .text
 .org 0
+    ldr x0, =0x03100000
+    mov x1, #79
+    str w1, [x0]
+    mov x0, #0xff
+    msr ICC_PMR_EL1, x0
+    mov x0, #1
+    msr ICC_IGRPEN1_EL1, x0
     ldr x0, =0x80004000
     msr vbar_el1, x0
     ldr x0, =0x80001000
@@ -72,12 +81,15 @@ fn payload() -> Vec<u8> {
     eret
 .ltorg
 .org 0x4480
+    mrs x14, ICC_IAR1_EL1
     ldr x10, =0x8000a000
+    str x14, [x10, #48]
     ldr x11, [x10, #40]
     add x11, x11, #1
     str x11, [x10, #40]
     mov x0, #2
     msr cntv_ctl_el0, x0
+    msr ICC_EOIR1_EL1, x14
     eret
 .ltorg
 .org 0x8000
@@ -94,7 +106,6 @@ fn payload() -> Vec<u8> {
     std::fs::remove_dir_all(directory).unwrap();
     image
 }
-
 fn write64(ram: &GuestRam, offset: u64, value: u64) {
     ram.write(offset, &value.to_le_bytes());
 }
@@ -104,6 +115,11 @@ fn stage1_exceptions_timer_and_irq_work_on_both_backends() {
     let image = payload();
     for backend in ["dynarmic", "unicorn"] {
         let ram = GuestRam::new(0x240_000);
+        let output = Arc::new(Mutex::new(Vec::new()));
+        let console = output.clone();
+        let mut bus = Bus::new(ram.clone(), RAM_BASE);
+        bus.attach(UART_A, 0x1_0000, Box::new(uart::Uart::new(Box::new(move |byte| console.lock().unwrap().push(byte)), Arc::new(Mutex::new(VecDeque::new())))), 32 + UART_A_SPI);
+        let bus = Arc::new(Mutex::new(bus));
         ram.write(0, &image);
         write64(&ram, 0x1000, MEMORY_BASE + 0x2000 | 3);
         write64(&ram, 0x1010, MEMORY_BASE | 1 << 10 | 1 << 6 | 1);
@@ -112,22 +128,29 @@ fn stage1_exceptions_timer_and_irq_work_on_both_backends() {
         write64(&ram, 0x21_0000, 0x8877_6655_4433_2211);
         let cpu: Box<dyn Cpu> = if backend == "dynarmic" {
             let group = DynarmicGroup::new().unwrap();
-            Box::new(DynarmicCPU::new(&group, 0, Arc::clone(&ram)).unwrap())
+            Box::new(DynarmicCPU::soc(&group, 0, Arc::clone(&ram), bus.clone()).unwrap())
         } else {
-            Box::new(UnicornCPU::new_with_shared_mem(0, Arc::clone(&ram)).unwrap())
+            Box::new(UnicornCPU::soc(Arc::clone(&ram), RAM_BASE, bus.clone()).unwrap())
         };
-        cpu.set_guest_kernel(true);
+        {
+            let mut bus = bus.lock().unwrap();
+            let private = GIC_BASE + gic::GICR + 0x1_0000;
+            bus.write(private + 0x80, 4, 1 << 27).unwrap();
+            bus.write(private + 0x100, 4, 1 << 27).unwrap();
+            bus.write(GIC_BASE, 4, 2).unwrap();
+        }
         cpu.set_virtual_time(true);
         cpu.set_block_ticks(1);
         cpu.set_pc(MEMORY_BASE);
         for _ in 0..100 {
-            cpu.run_slice(cpu.ticks() + 1_000, 0).unwrap_or_else(|_| panic!("{backend} failed at {:#x}", cpu.get_pc()));
-            if cpu.read_u64(MEMORY_BASE + 0xa028) == 1 {
+            let now = cpu.ticks();
+            let next = bus.lock().unwrap().advance(now, |line, level| cpu.raise_irq(line, level)).unwrap_or(now + 1_000).min(now + 1_000);
+            cpu.run_slice(next.max(now + 1), 0).unwrap_or_else(|_| panic!("{backend} failed at {:#x}", cpu.get_pc()));
+            if cpu.read_u64(MEMORY_BASE + 0xa028) == 1 && !output.lock().unwrap().is_empty() {
                 break;
             }
-            cpu.idle_until(cpu.ticks() + 100);
         }
-        assert_eq!(cpu.read_u64(MEMORY_BASE + 0xa000), 0x1122_3344_5566_7788, "{backend} nonidentity translation");
+        assert_eq!(cpu.read_u64(MEMORY_BASE + 0xa000), 0x1122_3344_5566_7788, "{backend} nonidentity translation pc={:#x} out={:?} irq={:#x}", cpu.get_pc(), output.lock().unwrap(), cpu.read_u64(MEMORY_BASE + 0xa030));
         assert_eq!(cpu.read_u64(MEMORY_BASE + 0xa008), 0x8877_6655_4433_2211, "{backend} TLBI");
         let abort = cpu.read_u64(MEMORY_BASE + 0xa010);
         assert_eq!((abort >> 26, abort & 0x3f), (0x25, 0xe), "{backend} permission syndrome");
@@ -135,9 +158,7 @@ fn stage1_exceptions_timer_and_irq_work_on_both_backends() {
         let svc = cpu.read_u64(MEMORY_BASE + 0xa020);
         assert_eq!((svc >> 26, svc & 0xffff), (0x15, 0x12), "{backend} SVC pc={:#x} magic={:#x}", cpu.get_pc(), cpu.read_u64(MEMORY_BASE + 0xa028));
         assert_eq!(cpu.read_u64(MEMORY_BASE + 0xa028), 1, "{backend} timer IRQ after WFI");
-        cpu.set_interrupt_lines(true, false);
-        cpu.run_slice(cpu.ticks() + 1_000, 0).unwrap();
-        cpu.set_interrupt_lines(false, false);
-        assert_eq!(cpu.read_u64(MEMORY_BASE + 0xa028), 2, "{backend} IRQ hook after WFI");
+        assert_eq!(cpu.read_u64(MEMORY_BASE + 0xa030), 27, "{backend} GIC timer PPI");
+        assert_eq!(*output.lock().unwrap(), [b'O'], "{backend} UART MMIO");
     }
 }
