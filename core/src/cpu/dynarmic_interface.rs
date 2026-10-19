@@ -1,7 +1,8 @@
 //! Dynarmic A64 cores share RAM and a global exclusive monitor. Fastmem covers the power-of-two
 //! RAM arena; GPU-watched mappings switch execution to callbacks so writes remain observable.
 use super::{Cpu, CpuContext, CpuError, GuestRam, TICK_HZ};
-use std::{ffi::c_void, ptr::NonNull, sync::{Arc, Mutex}, time::Duration};
+use super::cpu_manager::MEMORY_BASE;
+use std::{ffi::c_void, ptr::NonNull, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}}, time::Duration};
 
 #[repr(C)]
 #[derive(Clone)]
@@ -32,6 +33,8 @@ unsafe extern "C" {
         callback: unsafe extern "C" fn(*mut c_void, u64, usize), data: *mut c_void) -> *mut Engine;
     fn oboromi_dynarmic_cpu_free(cpu: *mut Engine);
     fn oboromi_dynarmic_set_watched(cpu: *mut Engine, watched: bool);
+    fn oboromi_dynarmic_set_guest_kernel(cpu: *mut Engine, enabled: bool);
+    fn oboromi_dynarmic_set_interrupt_lines(cpu: *mut Engine, irq: bool, fiq: bool);
     fn oboromi_dynarmic_set_virtual_time(cpu: *mut Engine, enabled: bool);
     fn oboromi_dynarmic_set_tick_scale(cpu: *mut Engine, scale: u64);
     fn oboromi_dynarmic_ticks(cpu: *const Engine) -> u64;
@@ -72,6 +75,7 @@ pub struct DynarmicCPU {
     ram: Arc<GuestRam>,
     _monitor: Arc<MonitorPtr>,
     callback_data: Box<Arc<GuestRam>>,
+    guest_kernel: AtomicBool,
 }
 
 unsafe extern "C" fn mark_written(data: *mut c_void, address: u64, size: usize) {
@@ -86,7 +90,7 @@ impl DynarmicCPU {
         unsafe { oboromi_dynarmic_set_sp(engine.as_ptr(), ram.size() as u64 - u64::from(core) * 0x10_0000) };
         let tick_scale = std::env::var("OBOROMI_DYNARMIC_TICK_SCALE").ok().and_then(|value| value.parse().ok()).unwrap_or(64);
         unsafe { oboromi_dynarmic_set_tick_scale(engine.as_ptr(), tick_scale) };
-        Some(Self { engine: Mutex::new(EnginePtr(engine)), ram, _monitor: group.0.clone(), callback_data })
+        Some(Self { engine: Mutex::new(EnginePtr(engine)), ram, _monitor: group.0.clone(), callback_data, guest_kernel: AtomicBool::new(false) })
     }
 
     fn engine(&self) -> std::sync::MutexGuard<'_, EnginePtr> { self.engine.lock().unwrap() }
@@ -120,14 +124,20 @@ impl Cpu for DynarmicCPU {
     fn tls(&self) -> u64 { let mut context = DynarmicContext::default(); unsafe { oboromi_dynarmic_save(self.engine().0.as_ptr(), &raw mut context) }; context.tls }
 
     fn read_mem(&self, address: u64, bytes: &mut [u8]) -> Result<(), CpuError> {
-        if address.checked_add(bytes.len() as u64).is_none_or(|end| end > self.ram.size() as u64) { return Err(CpuError); }
-        self.ram.read(address, bytes);
+        let base = if self.guest_kernel.load(Ordering::Relaxed) { MEMORY_BASE } else { 0 };
+        let Some(offset) = address.checked_sub(base).filter(|offset| offset.checked_add(bytes.len() as u64).is_some_and(|end| end <= self.ram.size() as u64)) else {
+            return Err(CpuError);
+        };
+        self.ram.read(offset, bytes);
         Ok(())
     }
     fn write_mem(&self, address: u64, bytes: &[u8]) -> Result<(), CpuError> {
-        if address.checked_add(bytes.len() as u64).is_none_or(|end| end > self.ram.size() as u64) { return Err(CpuError); }
+        let base = if self.guest_kernel.load(Ordering::Relaxed) { MEMORY_BASE } else { 0 };
+        let Some(offset) = address.checked_sub(base).filter(|offset| offset.checked_add(bytes.len() as u64).is_some_and(|end| end <= self.ram.size() as u64)) else {
+            return Err(CpuError);
+        };
         let engine = self.engine();
-        self.ram.write(address, bytes);
+        self.ram.write(offset, bytes);
         unsafe { oboromi_dynarmic_invalidate(engine.0.as_ptr(), address, bytes.len()) };
         Ok(())
     }
@@ -164,4 +174,9 @@ impl Cpu for DynarmicCPU {
     }
     fn set_virtual_time(&self, enabled: bool) { unsafe { oboromi_dynarmic_set_virtual_time(self.engine().0.as_ptr(), enabled) } }
     fn set_block_ticks(&self, ticks: u64) { unsafe { oboromi_dynarmic_set_tick_scale(self.engine().0.as_ptr(), ticks) } }
+    fn set_guest_kernel(&self, enabled: bool) {
+        unsafe { oboromi_dynarmic_set_guest_kernel(self.engine().0.as_ptr(), enabled) };
+        self.guest_kernel.store(enabled, Ordering::Relaxed);
+    }
+    fn set_interrupt_lines(&self, irq: bool, fiq: bool) { unsafe { oboromi_dynarmic_set_interrupt_lines(self.engine().0.as_ptr(), irq, fiq) } }
 }

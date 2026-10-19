@@ -1,13 +1,15 @@
+use super::cpu_manager::MEMORY_BASE;
 use super::{Cpu, CpuContext, CpuError, GuestRam};
 use crate::gpu::memory::{PAGE, pages};
 use std::cell::Cell;
 use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
-use unicorn_engine::{Arch, Arm64Insn, Context, HookType, Mode, Prot, Query, RegisterARM64, Unicorn, uc_error};
+use unicorn_engine::{Arch, Arm64Insn, Context, HookType, MemType, Mode, Prot, Query, RegisterARM64, RegisterARM64CP, TlbType, Unicorn, uc_error};
 
 const EXCP_SWI: u32 = 2;
+const EXCP_PREFETCH_ABORT: u32 = 3;
+const EXCP_DATA_ABORT: u32 = 4;
 const INSTRUCTIONS_PER_BLOCK: u64 = 64;
 
 pub use super::TICK_HZ;
@@ -29,8 +31,16 @@ impl Clock {
 
 struct RunState {
     svc: Option<u32>,
-    clock: Rc<Clock>,
+    clock: Clock,
     dirty_pages: Vec<u64>,
+    guest_kernel: bool,
+    irq: bool,
+    fiq: bool,
+    waiting: bool,
+    cntv_ctl: u64,
+    cntv_cval: u64,
+    exception_taken: bool,
+    last_data: u64,
 }
 
 type Emu = Unicorn<'static, RunState>;
@@ -72,45 +82,184 @@ pub struct UnicornCPU {
     view: usize,
 }
 
-/// The interrupt hook runs under the core's lock, so it only records the SVC and stops;
-/// every other exception (BRK, faults) just stops the core.
+fn cp(op1: u32, crn: u32, crm: u32, op2: u32, value: u64) -> RegisterARM64CP {
+    RegisterARM64CP::new().op0(3).op1(op1).crn(crn).crm(crm).op2(op2).val(value)
+}
+
+fn physical(uc: &mut Unicorn<'_, RunState>, va: u64) -> Result<(u64, u64), u64> {
+    let mut sctlr = cp(0, 1, 0, 0, 0);
+    uc.reg_read_arm64_coproc(&mut sctlr).map_err(|_| 4u64)?;
+    if sctlr.val & 1 == 0 { return Ok((va, 3)); }
+    let mut tcr = cp(0, 2, 0, 2, 0);
+    uc.reg_read_arm64_coproc(&mut tcr).map_err(|_| 4u64)?;
+    let upper = va >> 63 != 0;
+    let bits = 64 - if upper { tcr.val >> 16 & 63 } else { tcr.val & 63 };
+    if !(25..=48).contains(&bits) || (upper && tcr.val >> 30 & 3 != 2) || (!upper && tcr.val >> 14 & 3 != 0) { return Err(4); }
+    let mut ttbr = cp(0, 2, 0, u32::from(upper), 0);
+    uc.reg_read_arm64_coproc(&mut ttbr).map_err(|_| 4u64)?;
+    let mut level = 3 - (bits - 13) / 9;
+    let mut table = ttbr.val & 0x0000_ffff_ffff_f000;
+    loop {
+        let shift = 12 + 9 * (3 - level);
+        let mut bytes = [0; 8];
+        uc.mem_read(table + (va >> shift & 0x1ff) * 8, &mut bytes).map_err(|_| 20 + level)?;
+        let descriptor = u64::from_le_bytes(bytes);
+        if descriptor & 3 == 3 && level < 3 {
+            table = descriptor & 0x0000_ffff_ffff_f000;
+            level += 1;
+        } else if descriptor & 1 != 0 {
+            if descriptor >> 10 & 1 == 0 { return Err(8 + level); }
+            let mask = (1 << shift) - 1;
+            return Ok((descriptor & 0x0000_ffff_ffff_f000 & !mask | va & mask, level));
+        } else {
+            return Err(4 + level);
+        }
+    }
+}
+
+fn exception(uc: &mut Unicorn<'_, RunState>, syndrome: u64, offset: u64) -> Result<(), uc_error> {
+    let pstate = uc.reg_read(RegisterARM64::PSTATE)?;
+    let pc = uc.pc_read()?;
+    let lower = pstate & 0xf == 0;
+    if lower {
+        let sp = uc.reg_read(RegisterARM64::SP)?;
+        uc.reg_write(RegisterARM64::SP_EL0, sp)?;
+        let el1_sp = uc.reg_read(RegisterARM64::SP_EL1)?;
+        uc.reg_write(RegisterARM64::SP, el1_sp)?;
+    }
+    uc.reg_write_arm64_coproc(&cp(0, 4, 0, 0, pstate))?;
+    uc.reg_write(RegisterARM64::ELR_EL1, pc)?;
+    uc.reg_write(RegisterARM64::ESR_EL1, syndrome)?;
+    uc.reg_write(RegisterARM64::PSTATE, pstate & 0xf000_0000 | 0x3c5)?;
+    let vbar = uc.reg_read(RegisterARM64::VBAR_EL1)?;
+    // Unicorn rebuilds the execution hflags when this CP register is written.
+    uc.reg_write_arm64_coproc(&cp(0, 12, 0, 0, vbar))?;
+    let vector = vbar + if lower { 0x400 } else { 0x200 } + offset;
+    uc.reg_write(RegisterARM64::PC, vector)
+}
+
+fn fault_address(uc: &mut Unicorn<'_, RunState>) -> u64 {
+    let pc = uc.pc_read().unwrap_or(0);
+    let mut bytes = [0; 4];
+    if physical(uc, pc).is_ok_and(|(pa, _)| uc.mem_read(pa, &mut bytes).is_ok()) {
+        let instruction = u32::from_le_bytes(bytes);
+        if instruction & 0x3b00_0000 == 0x3900_0000 {
+            let base = if instruction >> 5 & 31 == 31 {
+                uc.reg_read(RegisterARM64::SP).unwrap_or(0)
+            } else {
+                let mut value = 0;
+                unsafe { unicorn_engine::uc_reg_read(uc.get_handle(), RegisterARM64::X0 as i32 + (instruction >> 5 & 31) as i32, (&raw mut value).cast()) };
+                value
+            };
+            return base.wrapping_add(u64::from(instruction >> 10 & 0xfff) << (instruction >> 30));
+        }
+    }
+    uc.get_data().last_data
+}
+
 fn new_emu() -> Result<Emu, uc_error> {
-    let mut emu = Unicorn::new_with_data(Arch::ARM64, Mode::LITTLE_ENDIAN, RunState { svc: None, clock: Rc::new(Clock { epoch: Instant::now(), virtual_time: Cell::new(false), block_ticks: Cell::new(192), ticks: Cell::new(0), core: Cell::new(0) }), dirty_pages: Vec::new() })?;
+    let mut emu = Unicorn::new_with_data(Arch::ARM64, Mode::LITTLE_ENDIAN, RunState { svc: None, clock: Clock { epoch: Instant::now(), virtual_time: Cell::new(false), block_ticks: Cell::new(192), ticks: Cell::new(0), core: Cell::new(0) }, dirty_pages: Vec::new(), guest_kernel: false, irq: false, fiq: false, waiting: false, cntv_ctl: 0, cntv_cval: 0, exception_taken: false, last_data: 0 })?;
     emu.add_intr_hook(|uc, intno| {
         if intno == EXCP_SWI {
-            // QEMU raises the SVC with PC already past it (translate-a64.c, gen_exception_insn with pc_next).
             let mut insn = [0; 4];
             let pc = uc.pc_read().unwrap_or(0);
-            if uc.mem_read(pc.wrapping_sub(4), &mut insn).is_ok() {
-                uc.get_data_mut().svc = Some((u32::from_le_bytes(insn) >> 5) & 0xffff);
+            let immediate = uc.mem_read(pc.wrapping_sub(4), &mut insn).map_or(0, |()| (u32::from_le_bytes(insn) >> 5) & 0xffff);
+            if uc.get_data().guest_kernel {
+                let _ = exception(uc, 0x15 << 26 | u64::from(immediate), 0);
+                return;
             }
+            if immediate != 0 || u32::from_le_bytes(insn) == 0xd400_0001 {
+                uc.get_data_mut().svc = Some(immediate);
+            }
+        }
+        if uc.get_data().guest_kernel && matches!(intno, EXCP_PREFETCH_ABORT | EXCP_DATA_ABORT) {
+            let far = uc.reg_read(RegisterARM64::FAR_EL1).unwrap_or(0);
+            let far = if far == 0 { fault_address(uc) } else { far };
+            let ec = if intno == EXCP_PREFETCH_ABORT { 0x21 } else { 0x25 };
+            let status = physical(uc, far).map_or_else(|status| status, |(_, level)| 12 + level);
+            let syndrome = ec << 26 | if intno == EXCP_DATA_ABORT { 1 << 6 | status } else { status };
+            let _ = uc.reg_write(RegisterARM64::FAR_EL1, far);
+            let _ = exception(uc, syndrome, 0);
+            return;
         }
         let _ = uc.emu_stop();
     })?;
-    let mut hook = 0;
-    let data = Rc::as_ptr(&emu.get_data().clock).cast_mut().cast();
-    // 2.1.5's Rust proxy returns bool, but uc_cb_insn_sys_t returns uint32_t.
-    // The clock's Rc owns this stable allocation until uc_close removes the hook.
-    unsafe { unicorn_engine::uc_hook_add(emu.get_handle(), &raw mut hook, HookType::INSN.0.cast_signed(),
-        mrs as *const () as _, data, 1u64, 0u64, Arm64Insn::UC_ARM64_INS_MRS as i32) }.and(Ok(()))?;
+    emu.add_insn_sys_hook_arm64(Arm64Insn::UC_ARM64_INS_MRS, 1, 0, |uc, reg, cp| {
+        if uc.get_data().guest_kernel && cp.op1 != 3 && uc.reg_read(RegisterARM64::PSTATE).is_ok_and(|pstate| pstate & 0xf == 0) {
+            let _ = exception(uc, 0, 0);
+            return true;
+        }
+        let data = uc.get_data();
+        let value = match (cp.op0, cp.op1, cp.crn, cp.crm, cp.op2) {
+            (3, 3, 14, 0, 0) => TICK_HZ,
+            (3, 3, 14, 0, 1 | 2) => data.clock.now(),
+            (3, 3, 14, 3, 0) => data.cntv_cval.wrapping_sub(data.clock.now()) as u32 as u64,
+            (3, 3, 14, 3, 1) => data.cntv_ctl | u64::from(data.cntv_ctl & 1 != 0 && data.clock.now() >= data.cntv_cval) << 2,
+            (3, 3, 14, 3, 2) => data.cntv_cval,
+            (3, 0, 0, 0, 5) => 0x8000_0000 | u64::from(data.clock.core.get()),
+            (3, 3, 4, 2, 0) => uc.reg_read(RegisterARM64::NZCV).unwrap_or(0),
+            (3, 3, 4, 2, 1) => uc.reg_read(RegisterARM64::PSTATE).unwrap_or(0) & 0x3c0,
+            (3, 3, 4, 4, 0) => uc.reg_read(RegisterARM64::FPCR).unwrap_or(0),
+            (3, 3, 4, 4, 1) => uc.reg_read(RegisterARM64::FPSR).unwrap_or(0),
+            (3, 3, 13, 0, 2) => uc.reg_read(RegisterARM64::TPIDR_EL0).unwrap_or(0),
+            (3, 3, 13, 0, 3) => uc.reg_read(RegisterARM64::TPIDRRO_EL0).unwrap_or(0),
+            (3, 0, 4, 2, 0) => uc.reg_read(RegisterARM64::PSTATE).unwrap_or(0) & 1,
+            (3, 0, 4, 2, 2) => uc.reg_read(RegisterARM64::PSTATE).unwrap_or(0) & 0xc,
+            (3, 0, 5, 2, 0) => uc.reg_read(RegisterARM64::ESR_EL1).unwrap_or(0),
+            (3, 0, 6, 0, 0) => uc.reg_read(RegisterARM64::FAR_EL1).unwrap_or(0),
+            (3, 0, 1, 0, 0) | (3, 0, 2, 0, 0..=2) | (3, 0, 4, 0, 0..=1) | (3, 0, 4, 1, 0) | (3, 0, 10, 2, 0) | (3, 0, 12, 0, 0) => {
+                let mut cp = *cp;
+                if uc.reg_read_arm64_coproc(&mut cp).is_err() { return false; }
+                cp.val
+            }
+            _ => return false,
+        };
+        uc.reg_write(reg, value).is_ok()
+    })?;
+    emu.add_insn_sys_hook_arm64(Arm64Insn::UC_ARM64_INS_MSR, 1, 0, |uc, reg, cp| {
+        if uc.get_data().guest_kernel && cp.op1 != 3 && uc.reg_read(RegisterARM64::PSTATE).is_ok_and(|pstate| pstate & 0xf == 0) {
+            let _ = exception(uc, 0, 0);
+            return true;
+        }
+        let now = uc.get_data().clock.now();
+        match (cp.op0, cp.op1, cp.crn, cp.crm, cp.op2) {
+            (3, 3, 4, 2, 0) => return uc.reg_write(RegisterARM64::NZCV, cp.val).is_ok(),
+            (3, 3, 4, 2, 1) => {
+                let pstate = uc.reg_read(RegisterARM64::PSTATE).unwrap_or(0);
+                return uc.reg_write(RegisterARM64::PSTATE, pstate & !0x3c0 | cp.val & 0x3c0).is_ok();
+            }
+            (3, 3, 4, 4, 0) => return uc.reg_write(RegisterARM64::FPCR, cp.val).is_ok(),
+            (3, 3, 4, 4, 1) => return uc.reg_write(RegisterARM64::FPSR, cp.val).is_ok(),
+            (3, 3, 13, 0, 2) => return uc.reg_write(RegisterARM64::TPIDR_EL0, cp.val).is_ok(),
+            (3, 3, 14, 3, 0) => uc.get_data_mut().cntv_cval = now.wrapping_add(cp.val as u32 as i32 as i64 as u64),
+            (3, 3, 14, 3, 1) => uc.get_data_mut().cntv_ctl = cp.val & 3,
+            (3, 3, 14, 3, 2) => uc.get_data_mut().cntv_cval = cp.val,
+            (3, 0, 1, 0, 0) | (3, 0, 2, 0, 0..=2) | (3, 0, 4, 0, 0..=1) | (3, 0, 4, 1, 0) | (3, 0, 10, 2, 0) | (3, 0, 12, 0, 0) => return uc.reg_write_arm64_coproc(cp).is_ok(),
+            _ => return false,
+        }
+        let _ = reg;
+        true
+    })?;
+    emu.add_mem_hook(HookType::MEM_INVALID, 1, 0, |uc, kind, address, _, _| {
+        if !uc.get_data().guest_kernel { return false; }
+        let instruction = matches!(kind, MemType::FETCH_UNMAPPED | MemType::FETCH_PROT);
+        let write = matches!(kind, MemType::WRITE_UNMAPPED | MemType::WRITE_PROT);
+        let permission = matches!(kind, MemType::READ_PROT | MemType::WRITE_PROT | MemType::FETCH_PROT);
+        let ec = if instruction { 0x21 } else { 0x25 };
+        let status = physical(uc, address).map_or_else(|status| status, |(_, level)| if permission { 12 + level } else { 4 + level });
+        let _ = uc.reg_write(RegisterARM64::FAR_EL1, address);
+        let _ = exception(uc, ec << 26 | u64::from(write) << 6 | status, 0);
+        uc.get_data_mut().exception_taken = true;
+        let _ = uc.emu_stop();
+        false
+    })?;
+    emu.add_mem_hook(HookType::MEM_READ | HookType::MEM_WRITE, 1, 0, |uc, _, address, _, _| {
+        if uc.get_data().guest_kernel { uc.get_data_mut().last_data = address; }
+        true
+    })?;
     emu.mem_map(CLREX, 0x1000, Prot::READ | Prot::EXEC)?;
     emu.mem_write(CLREX, &0xd503_3f5fu32.to_le_bytes())?;
     Ok(emu)
-}
-
-unsafe extern "C" fn mrs(uc: *mut unicorn_engine::uc_engine, reg: RegisterARM64,
-    cp: *const unicorn_engine::RegisterARM64CP, data: *mut std::ffi::c_void) -> u32 {
-    // Unicorn calls synchronously with valid register metadata and our live clock.
-    let (cp, data) = unsafe { (&*cp, &*data.cast::<Clock>()) };
-    let value = match (cp.op0, cp.op1, cp.crn, cp.crm, cp.op2) {
-        (3, 3, 14, 0, 0) => TICK_HZ,
-        (3, 3, 14, 0, 1 | 2) => data.now(),
-        (3, 0, 0, 0, 5) => 0x8000_0000 | u64::from(data.core.get()),
-        _ => return 0,
-    };
-    // The selected register is a 64-bit X register, including XZR.
-    unsafe { unicorn_engine::uc_reg_write(uc, reg as i32, std::ptr::from_ref(&value).cast()) };
-    1
 }
 
 impl UnicornCPU {
@@ -215,19 +364,36 @@ impl UnicornCPU {
 
     pub(crate) fn run_slice(&self, deadline: u64, core: usize) -> Result<bool, uc_error> {
         let (mut emu, _turn) = self.lock();
-        let data = emu.get_data_mut();
-        data.svc = None;
-        data.clock.core.set(core as u32);
-        let virtual_time = data.clock.virtual_time.get();
-        let remaining = deadline.saturating_sub(data.clock.now());
+        emu.get_data_mut().svc = None;
+        emu.get_data().clock.core.set(core as u32);
+        let virtual_time = emu.get_data().clock.virtual_time.get();
+        let remaining = deadline.saturating_sub(emu.get_data().clock.now());
         if remaining == 0 { return Ok(true); }
-        let block_ticks = data.clock.block_ticks.get();
+        let timer = emu.get_data().cntv_ctl & 3 == 1 && emu.get_data().clock.now() >= emu.get_data().cntv_cval;
+        let (irq, fiq, waiting) = { let data = emu.get_data(); (data.irq || timer, data.fiq, data.waiting) };
+        let pstate = emu.reg_read(RegisterARM64::PSTATE)?;
+        if fiq && pstate & 0x40 == 0 || irq && pstate & 0x80 == 0 {
+            emu.get_data_mut().waiting = false;
+            exception(&mut emu, 0, if fiq { 0x100 } else { 0x80 })?;
+        } else if waiting {
+            return Ok(true);
+        }
+        let block_ticks = emu.get_data().clock.block_ticks.get();
         let count = if virtual_time && block_ticks != 0 { remaining.div_ceil(block_ticks).saturating_mul(INSTRUCTIONS_PER_BLOCK).min(usize::MAX as u64) as usize } else { 0 };
         let timeout = if virtual_time { 0 } else { (u128::from(remaining) * 1_000_000).div_ceil(u128::from(TICK_HZ)).min(u128::from(u64::MAX)) as u64 };
         let pc = emu.pc_read()?;
         let result = emu.emu_start(pc, u64::MAX, timeout, count);
         self.flush_dirty(&mut emu);
-        result?;
+        let exception_taken = emu.get_data().exception_taken;
+        emu.get_data_mut().exception_taken = false;
+        if !exception_taken { result?; }
+        if emu.get_data().guest_kernel {
+            let pc = emu.pc_read()?;
+            let mut instruction = [0; 4];
+            if physical(&mut emu, pc.wrapping_sub(4)).is_ok_and(|(pa, _)| emu.mem_read(pa, &mut instruction).is_ok()) && u32::from_le_bytes(instruction) == 0xd503_207f {
+                emu.get_data_mut().waiting = true;
+            }
+        }
         let sliced = if virtual_time { emu.get_data().svc.is_none() } else { emu.query(Query::TIMEOUT)? != 0 };
         if virtual_time && block_ticks != 0 {
             let elapsed = if sliced { remaining } else { block_ticks };
@@ -436,15 +602,22 @@ impl UnicornCPU {
     }
 
     pub fn read_mem(&self, vaddr: u64, buf: &mut [u8]) -> Result<(), uc_error> {
-        if vaddr.checked_add(buf.len() as u64).is_none_or(|end| end > self.ram.size() as u64) { return Err(uc_error::READ_UNMAPPED); }
-        self.lock().0.mem_read(vaddr, buf)
+        let emu = self.lock().0;
+        let base = if emu.get_data().guest_kernel { MEMORY_BASE } else { 0 };
+        if vaddr.checked_sub(base).and_then(|offset| offset.checked_add(buf.len() as u64)).is_none_or(|end| end > self.ram.size() as u64) {
+            return Err(uc_error::READ_UNMAPPED);
+        }
+        emu.mem_read(vaddr, buf)
     }
 
     pub fn write_mem(&self, vaddr: u64, bytes: &[u8]) -> Result<(), uc_error> {
-        if vaddr.checked_add(bytes.len() as u64).is_none_or(|end| end > self.ram.size() as u64) { return Err(uc_error::WRITE_UNMAPPED); }
         let (mut emu, _turn) = self.lock();
+        let base = if emu.get_data().guest_kernel { MEMORY_BASE } else { 0 };
+        let Some(offset) = vaddr.checked_sub(base).filter(|offset| offset.checked_add(bytes.len() as u64).is_some_and(|end| end <= self.ram.size() as u64)) else {
+            return Err(uc_error::WRITE_UNMAPPED);
+        };
         emu.mem_write(vaddr, bytes)?;
-        self.ram.mark_cpu_written(vaddr, bytes.len() as u64);
+        self.ram.mark_cpu_written(offset, bytes.len() as u64);
         Ok(())
     }
 
@@ -512,4 +685,22 @@ impl Cpu for UnicornCPU {
     }
     fn set_virtual_time(&self, enabled: bool) { UnicornCPU::set_virtual_time(self, enabled) }
     fn set_block_ticks(&self, ticks: u64) { UnicornCPU::set_block_ticks(self, ticks) }
+    fn set_guest_kernel(&self, enabled: bool) {
+        let (mut emu, _turn) = self.lock();
+        if emu.get_data().guest_kernel == enabled { return; }
+        let old = if enabled { 0 } else { MEMORY_BASE };
+        let new = if enabled { MEMORY_BASE } else { 0 };
+        emu.mem_unmap(old, self.ram.size() as u64).expect("unmap RAM");
+        unsafe { emu.mem_map_ptr(new, self.ram.size() as u64, Prot::ALL, self.ram.base().cast()).expect("map RAM") };
+        emu.ctl_set_tlb_type(TlbType::CPU).expect("native MMU");
+        emu.get_data_mut().guest_kernel = enabled;
+        let stack = new + self.ram.size() as u64 - u64::from(self.core_id) * 0x10_0000;
+        emu.reg_write(RegisterARM64::SP, stack).expect("stack");
+        emu.reg_write(RegisterARM64::SP_EL1, stack).expect("EL1 stack");
+    }
+    fn set_interrupt_lines(&self, irq: bool, fiq: bool) {
+        let mut emu = self.lock().0;
+        emu.get_data_mut().irq = irq;
+        emu.get_data_mut().fiq = fiq;
+    }
 }
