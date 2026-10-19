@@ -419,8 +419,9 @@ impl UnicornCPU {
             exception(&mut emu, 0, if fiq { 0x100 } else { 0x80 })?;
         } else if waiting {
             let data = emu.get_data();
-            if virtual_time && data.cntv_ctl & 3 == 1 && data.cntv_cval <= deadline {
-                data.clock.ticks.set(data.clock.ticks.get().max(data.cntv_cval));
+            if virtual_time {
+                let idle = if data.cntv_ctl & 3 == 1 && data.cntv_cval <= deadline { data.cntv_cval } else { deadline };
+                data.clock.ticks.set(data.clock.ticks.get().max(idle));
             }
             if let Some(line) = &self.timer_irq { line.set(data.cntv_ctl & 3 == 1 && data.clock.now() >= data.cntv_cval); }
             return Ok(true);

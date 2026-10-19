@@ -358,8 +358,10 @@ bool oboromi_dynarmic_run(Cpu* cpu, std::uint64_t deadline, std::uint32_t core, 
     cpu->callbacks.deadline = deadline; cpu->callbacks.svc = std::numeric_limits<std::uint32_t>::max(); cpu->callbacks.fault = false; cpu->callbacks.core = core;
     cpu->jit->ClearHalt(); cpu->callbacks.deliver_interrupts();
     if (cpu->callbacks.waiting && !cpu->callbacks.interrupt_pending() && !cpu->callbacks.fiq) {
-        if (cpu->callbacks.virtual_time && (cpu->callbacks.cntv_ctl & 3) == 1 && cpu->callbacks.cntv_cval <= deadline)
-            cpu->callbacks.ticks = std::max(cpu->callbacks.ticks, cpu->callbacks.cntv_cval);
+        if (cpu->callbacks.virtual_time) {
+            const auto idle = (cpu->callbacks.cntv_ctl & 3) == 1 && cpu->callbacks.cntv_cval <= deadline ? cpu->callbacks.cntv_cval : deadline;
+            cpu->callbacks.ticks = std::max(cpu->callbacks.ticks, idle);
+        }
         *sliced = true; return true;
     }
     Dynarmic::HaltReason reason{};
@@ -375,7 +377,7 @@ bool oboromi_dynarmic_run(Cpu* cpu, std::uint64_t deadline, std::uint32_t core, 
         if (cpu->callbacks.resume) { cpu->callbacks.resume = false; cpu->callbacks.deadline = std::max(cpu->callbacks.deadline, cpu->callbacks.now() + 4 * cpu->callbacks.tick_scale); continue; }
         break;
     }
-    *sliced = !cpu->callbacks.fault && cpu->callbacks.svc == std::numeric_limits<std::uint32_t>::max() && !reason;
+    *sliced = !cpu->callbacks.fault && cpu->callbacks.svc == std::numeric_limits<std::uint32_t>::max() && (!reason || cpu->callbacks.waiting);
     cpu->callbacks.deadline = std::numeric_limits<std::uint64_t>::max(); return !cpu->callbacks.fault;
 }
 bool oboromi_dynarmic_step(Cpu* cpu) { cpu->callbacks.fault = false; cpu->jit->ClearHalt(); cpu->jit->Step(); return !cpu->callbacks.fault; }

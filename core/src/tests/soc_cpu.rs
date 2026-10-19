@@ -121,9 +121,9 @@ fn stage1_exceptions_timer_and_irq_work_on_both_backends() {
         bus.attach(UART_A, 0x1_0000, Box::new(uart::Uart::new(Box::new(move |byte| console.lock().unwrap().push(byte)), Arc::new(Mutex::new(VecDeque::new())))), 32 + UART_A_SPI);
         let bus = Arc::new(Mutex::new(bus));
         ram.write(0, &image);
-        write64(&ram, 0x1000, MEMORY_BASE + 0x2000 | 3);
-        write64(&ram, 0x1010, MEMORY_BASE | 1 << 10 | 1 << 6 | 1);
-        write64(&ram, 0x2000, MEMORY_BASE | 1 << 10 | 2 << 6 | 1);
+        write64(&ram, 0x1000, (MEMORY_BASE + 0x2000) | 3);
+        write64(&ram, 0x1010, MEMORY_BASE | (1 << 10) | (1 << 6) | 1);
+        write64(&ram, 0x2000, MEMORY_BASE | (1 << 10) | (2 << 6) | 1);
         write64(&ram, 0x1_0000, 0x1122_3344_5566_7788);
         write64(&ram, 0x21_0000, 0x8877_6655_4433_2211);
         let cpu: Box<dyn Cpu> = if backend == "dynarmic" {

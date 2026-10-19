@@ -240,4 +240,3 @@ pub fn boot(kernel: &std::path::Path, dtb: &std::path::Path, initrd: &std::path:
         }
     }
 }
-
