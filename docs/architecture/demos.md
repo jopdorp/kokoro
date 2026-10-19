@@ -110,9 +110,12 @@ Each Nintendo Relocatable Object (NRO) is loaded by the emulated CPU, uses Amper
 
 ### Dungeon
 
-<video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/kokoromi/assets/demo-dungeon-raster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/kokoromi/assets/demo-dungeon-raster.mp4" type="video/mp4"><source src="https://raw.githubusercontent.com/jopdorp/kokoromi/assets/demo-dungeon-raytraced.mp4" type="video/mp4"></video>
+<div style="display:flex;flex-wrap:wrap;gap:1rem">
+<div style="flex:1 1 280px"><video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/kokoromi/assets/demo-dungeon-raster.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/kokoromi/assets/demo-dungeon-raster.mp4" type="video/mp4"></video><p><strong>Raster</strong></p></div>
+<div style="flex:1 1 280px"><video controls loop playsinline poster="https://raw.githubusercontent.com/jopdorp/kokoromi/assets/demo-dungeon-raytraced.png" style="width:100%"><source src="https://raw.githubusercontent.com/jopdorp/kokoromi/assets/demo-dungeon-raytraced.mp4" type="video/mp4"></video><p><strong>Ray traced</strong></p></div>
+</div>
 
-*The raster tour moves from the torch-lit hallway into the limestone cave, then follows the river past the fire. The ray-traced tour through the emulator follows.*
+*The raster tour moves from the torch-lit hallway into the limestone cave, then follows the river past the fire. The ray-traced clip is the first 20 seconds of the tour at the full ray budget.*
 
 ## Measured
 
